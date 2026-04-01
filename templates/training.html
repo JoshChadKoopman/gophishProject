@@ -1,0 +1,473 @@
+{{define "body"}}
+<div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+    <h1 class="page-header">
+        <i class="fa fa-graduation-cap"></i> {{.Title}}
+    </h1>
+    <div id="flashes" class="row"></div>
+
+    {{if .ModifySystem}}
+    <div class="row">
+        <button type="button" class="btn btn-primary" id="upload_button" data-toggle="modal" data-backdrop="static"
+            data-target="#uploadModal">
+            <i class="fa fa-upload"></i> Upload Presentation
+        </button>
+    </div>
+    &nbsp;
+    {{end}}
+
+    <div id="loading">
+        <i class="fa fa-spinner fa-spin fa-4x"></i>
+    </div>
+
+    <div id="emptyMessage" style="display:none;">
+        <div class="row">
+            <div class="col-md-12" style="text-align:center;">
+                <i class="fa fa-graduation-cap fa-4x" style="color:#ccc;margin-bottom:15px;"></i>
+                <h3>No Training Presentations Yet</h3>
+                {{if .ModifySystem}}
+                <p>Click "Upload Presentation" to add cybersecurity training materials.</p>
+                {{else}}
+                <p>Training presentations will appear here once uploaded by an administrator.</p>
+                {{end}}
+            </div>
+        </div>
+    </div>
+
+    <div id="trainingList" style="display:none;">
+        <div id="trainingGrid" class="row">
+            <!-- Cards will be injected here by JS -->
+        </div>
+    </div>
+
+    <style>
+        .training-card {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 25px;
+            transition: box-shadow 0.2s ease, transform 0.15s ease;
+            cursor: pointer;
+        }
+        .training-card:hover {
+            box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+            transform: translateY(-2px);
+        }
+        .training-card-thumb {
+            width: 100%;
+            height: 160px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 56px;
+            color: #fff;
+        }
+        .training-card-thumb.type-pdf { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+        .training-card-thumb.type-ppt { background: linear-gradient(135deg, #e67e22, #d35400); }
+        .training-card-thumb.type-video { background: linear-gradient(135deg, #9b59b6, #8e44ad); }
+        .training-card-thumb.type-default { background: linear-gradient(135deg, #3498db, #2980b9); }
+        .training-card-caption {
+            padding: 14px 16px;
+        }
+        .training-card-caption h4 {
+            margin: 0 0 4px 0;
+            font-size: 15px;
+            font-weight: 600;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .training-card-caption p.card-desc {
+            margin: 0 0 8px 0;
+            font-size: 13px;
+            color: #777;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .training-card-caption .card-meta {
+            font-size: 11px;
+            color: #aaa;
+            margin-bottom: 10px;
+        }
+        .training-card-caption .card-actions {
+            display: flex;
+            gap: 6px;
+        }
+        .training-card-caption .card-actions .btn {
+            padding: 4px 10px;
+            font-size: 12px;
+        }
+        .training-card-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        #detailThumbContainer {
+            width: 100%;
+            max-height: 280px;
+            overflow: hidden;
+            border-radius: 8px;
+            background: #f5f5f5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #detailThumbContainer img {
+            width: 100%;
+            max-height: 280px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+        #detailThumbContainer .detail-icon-placeholder {
+            width: 100%;
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 72px;
+            color: #fff;
+            border-radius: 8px;
+        }
+        /* Content page editor */
+        .page-entry {
+            background: #f9f9f9;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 10px;
+            position: relative;
+        }
+        .page-entry .page-title-input {
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        .page-entry .remove-page-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+        }
+        /* Course viewer content styling */
+        #coursePageContent h2 {
+            font-size: 22px;
+            font-weight: 700;
+            color: #2c3e50;
+            margin: 0 0 16px 0;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #3498db;
+        }
+        #coursePageContent .page-body {
+            font-size: 15px;
+            line-height: 1.8;
+            color: #444;
+            white-space: pre-wrap;
+        }
+        #courseNavSection .btn {
+            min-width: 110px;
+        }
+    </style>
+</div>
+
+<!-- Upload Modal -->
+<div class="modal fade" id="uploadModal" tabindex="-1" role="dialog" aria-labelledby="uploadModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title" id="uploadModalLabel">Upload Training Presentation</h4>
+            </div>
+            <div class="modal-body">
+                <div class="row" id="modal.flashes"></div>
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <label class="control-label" for="presentationName">Presentation Name:</label>
+                    <div class="form-group">
+                        <input type="text" class="form-control" id="presentationName"
+                            placeholder="e.g. Phishing Awareness 101" required autofocus />
+                    </div>
+
+                    <label class="control-label" for="presentationDescription">Description (optional):</label>
+                    <div class="form-group">
+                        <textarea class="form-control" id="presentationDescription" rows="3"
+                            placeholder="Brief description of the training content"></textarea>
+                    </div>
+
+                    <label class="control-label" for="presentationFile">File:</label>
+                    <div class="form-group">
+                        <input type="file" class="form-control" id="presentationFile"
+                            accept=".pdf,.ppt,.pptx,.odp,.mp4,.webm,.avi" required />
+                        <p class="help-block">Accepted formats: PDF, PowerPoint (.ppt, .pptx), ODP, Video (MP4, WebM, AVI). Max 50MB.</p>
+                    </div>
+
+                    <label class="control-label" for="presentationThumbnail">Thumbnail Image (optional):</label>
+                    <div class="form-group">
+                        <input type="file" class="form-control" id="presentationThumbnail"
+                            accept=".jpg,.jpeg,.png,.gif,.webp" />
+                        <p class="help-block">Accepted formats: JPEG, PNG, GIF, WebP. This image will be shown on the card.</p>
+                        <div id="thumbPreview" style="display:none; margin-top:10px;">
+                            <img id="thumbPreviewImg" src="" style="max-width:200px; max-height:120px; border-radius:6px; border:1px solid #ddd;" alt="Thumbnail preview" />
+                        </div>
+                    </div>
+
+                    <label class="control-label" for="presentationYouTube">YouTube Video URL (optional):</label>
+                    <div class="form-group">
+                        <input type="text" class="form-control" id="presentationYouTube"
+                            placeholder="e.g. https://www.youtube.com/watch?v=dQw4w9WgXcQ" />
+                        <p class="help-block">Paste a YouTube video link. It will be embedded in the course viewer.</p>
+                    </div>
+
+                    <label class="control-label">Course Content Pages (optional):</label>
+                    <div class="form-group" id="uploadPagesContainer">
+                        <div id="uploadPagesList"></div>
+                        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                            <button type="button" class="btn btn-default btn-sm" id="addUploadPage">
+                                <i class="fa fa-plus"></i> Add Content Page
+                            </button>
+                            <button type="button" class="btn btn-info btn-sm" id="autoExtractUpload">
+                                <i class="fa fa-magic"></i> Auto-Extract Slides
+                            </button>
+                        </div>
+                        <p class="help-block">Add written content pages with optional per-page media (YouTube, image, or video). Or auto-extract slides from the uploaded file.</p>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="uploadSubmit">
+                    <i class="fa fa-upload"></i> Upload
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal fade" id="editModal" tabindex="-1" role="dialog" aria-labelledby="editModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title" id="editModalLabel">Edit Training Presentation</h4>
+            </div>
+            <div class="modal-body">
+                <div class="row" id="editModal.flashes"></div>
+                <input type="hidden" id="editId" />
+                <label class="control-label" for="editName">Presentation Name:</label>
+                <div class="form-group">
+                    <input type="text" class="form-control" id="editName" placeholder="Presentation name" required />
+                </div>
+
+                <label class="control-label" for="editDescription">Description:</label>
+                <div class="form-group">
+                    <textarea class="form-control" id="editDescription" rows="3"
+                        placeholder="Brief description"></textarea>
+                </div>
+
+                <label class="control-label" for="editYouTube">YouTube Video URL:</label>
+                <div class="form-group">
+                    <input type="text" class="form-control" id="editYouTube"
+                        placeholder="e.g. https://www.youtube.com/watch?v=..." />
+                </div>
+
+                <label class="control-label">Course Content Pages:</label>
+                <div class="form-group" id="editPagesContainer">
+                    <div id="editPagesList"></div>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <button type="button" class="btn btn-default btn-sm" id="addEditPage">
+                            <i class="fa fa-plus"></i> Add Content Page
+                        </button>
+                        <button type="button" class="btn btn-info btn-sm" id="autoExtractEdit">
+                            <i class="fa fa-magic"></i> Auto-Extract Slides
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Quiz Builder -->
+                <hr style="margin:20px 0 16px;">
+                <label class="control-label" style="cursor:pointer;">
+                    <input type="checkbox" id="editQuizEnabled" style="margin-right:6px;" />
+                    Enable Quiz Assessment
+                </label>
+                <div id="editQuizSection" style="display:none; margin-top:12px;">
+                    <div class="form-group">
+                        <label class="control-label" for="editQuizPassPct">Pass Percentage:</label>
+                        <input type="number" class="form-control" id="editQuizPassPct" value="70" min="1" max="100" style="width:120px;" />
+                    </div>
+                    <div id="editQuizQuestions"></div>
+                    <button type="button" class="btn btn-default btn-sm" id="addQuizQuestion">
+                        <i class="fa fa-plus"></i> Add Question
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="editSubmit">
+                    <i class="fa fa-save"></i> Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal fade" id="detailModal" tabindex="-1" role="dialog" aria-labelledby="detailModalLabel">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title" id="detailModalLabel">Training Presentation</h4>
+            </div>
+            <div class="modal-body">
+                <div style="text-align:center; margin-bottom:20px;">
+                    <div id="detailThumbContainer">
+                        <!-- Thumbnail image or icon placeholder injected by JS -->
+                    </div>
+                </div>
+                <h3 id="detailTitle" style="margin:0 0 8px 0; font-weight:600; color:#333;">Loading...</h3>
+                <p id="detailDescription" style="color:#666; font-size:14px; line-height:1.6; margin-bottom:20px;"></p>
+                <div id="detailMeta" style="font-size:12px; color:#aaa; margin-bottom:24px;"></div>
+                <hr style="margin:0 0 20px 0;" />
+                <div style="display:flex; align-items:center; gap:14px;">
+                    <button id="detailEnrollBtn" class="btn btn-success btn-lg">
+                        <i class="fa fa-play-circle"></i> Enrol Now
+                    </button>
+                    <span id="detailStatusBadge" class="label" style="font-size:13px; padding:6px 14px; background:#999; color:#fff; border-radius:4px;">
+                        <i class="fa fa-clock-o"></i> Uncompleted
+                    </span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Course Viewer Modal (fullscreen-like) -->
+<div class="modal fade" id="courseViewerModal" tabindex="-1" role="dialog" aria-labelledby="courseViewerLabel">
+    <div class="modal-dialog modal-lg" role="document" style="width:90%; max-width:960px;">
+        <div class="modal-content">
+            <div class="modal-header" style="background:#2c3e50; color:#fff; border-bottom:none;">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close" style="color:#fff; opacity:0.8;">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title" id="courseViewerLabel">Course Viewer</h4>
+            </div>
+            <div class="modal-body" style="padding:0;">
+                <!-- Progress Bar -->
+                <div id="courseProgressSection" style="padding:12px 40px 0; background:#f9f9f9; border-bottom:1px solid #eee;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <span id="courseProgressText" style="font-size:12px; color:#888; font-weight:600;">0% complete</span>
+                    </div>
+                    <div style="background:#e0e0e0; border-radius:10px; height:8px; overflow:hidden; margin-bottom:12px;">
+                        <div id="courseProgressBar" style="width:0%; height:100%; border-radius:10px; background:#3498db; transition:width 0.4s ease;"></div>
+                    </div>
+                </div>
+                <!-- Video Section -->
+                <div id="courseVideoSection" style="background:#000; text-align:center; display:none;">
+                    <div style="position:relative; padding-bottom:56.25%; height:0; overflow:hidden;">
+                        <iframe id="courseVideoIframe" src="" style="position:absolute; top:0; left:0; width:100%; height:100%; border:none;"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowfullscreen title="Training video"></iframe>
+                    </div>
+                </div>
+                <!-- Content Pages Section -->
+                <div id="courseContentSection" style="padding:30px 40px; min-height:200px;">
+                    <div id="coursePageContent" style="font-size:15px; line-height:1.8; color:#333;"></div>
+                </div>
+                <!-- Page Navigation -->
+                <div id="courseNavSection" style="padding:16px 40px 24px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid #eee;">
+                    <button id="coursePrevBtn" class="btn btn-default">
+                        <i class="fa fa-arrow-left"></i> Previous
+                    </button>
+                    <span id="coursePageIndicator" style="font-size:13px; color:#999;"></span>
+                    <button id="courseNextBtn" class="btn btn-primary">
+                        Next <i class="fa fa-arrow-right"></i>
+                    </button>
+                </div>
+                <!-- Quiz Section (shown after last content page when quiz exists) -->
+                <div id="courseQuizSection" style="display:none; padding:30px 40px;">
+                    <h3 style="margin:0 0 6px 0; color:#2c3e50; font-weight:700;">
+                        <i class="fa fa-question-circle"></i> Course Quiz
+                    </h3>
+                    <p style="color:#888; font-size:13px; margin-bottom:20px;">
+                        Answer all questions below to complete this course.
+                    </p>
+                    <div id="quizQuestionsList"></div>
+                    <div id="quizSubmitSection" style="text-align:center; margin-top:24px;">
+                        <button id="submitQuizBtn" class="btn btn-success btn-lg">
+                            <i class="fa fa-check"></i> Submit Answers
+                        </button>
+                    </div>
+                    <div id="quizResultSection" style="display:none; margin-top:24px; text-align:center;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Assign Course Modal -->
+<div class="modal fade" id="assignModal" tabindex="-1" role="dialog" aria-labelledby="assignModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title" id="assignModalLabel">Assign Course</h4>
+            </div>
+            <div class="modal-body">
+                <div class="row" id="assignModal.flashes"></div>
+                <input type="hidden" id="assignPresentationId" />
+                <p><strong>Course:</strong> <span id="assignCourseName"></span></p>
+
+                <ul class="nav nav-tabs" role="tablist" style="margin-bottom:15px;">
+                    <li class="active" role="presentation"><a href="#assignUserTab" data-toggle="tab">Individual User</a></li>
+                    <li role="presentation"><a href="#assignGroupTab" data-toggle="tab">Group</a></li>
+                </ul>
+
+                <div class="tab-content">
+                    <div role="tabpanel" class="tab-pane active" id="assignUserTab">
+                        <div class="form-group">
+                            <label class="control-label" for="assignUserId">Select User:</label>
+                            <select class="form-control" id="assignUserId">
+                                <option value="">-- Select a user --</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div role="tabpanel" class="tab-pane" id="assignGroupTab">
+                        <div class="form-group">
+                            <label class="control-label" for="assignGroupId">Select Group:</label>
+                            <select class="form-control" id="assignGroupId">
+                                <option value="">-- Select a group --</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top:10px;">
+                    <label class="control-label" for="assignDueDate">Due Date (optional):</label>
+                    <input type="text" class="form-control" id="assignDueDate" placeholder="Select due date..." />
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="assignSubmitBtn">
+                    <i class="fa fa-paper-plane"></i> Assign
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{end}}
+
+{{define "scripts"}}
+<script src="/js/dist/app/training.min.js"></script>
+{{end}}

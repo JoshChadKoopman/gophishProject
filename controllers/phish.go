@@ -60,6 +60,7 @@ func NewPhishingServer(config config.PhishServer, options ...PhishingServerOptio
 	defaultServer := &http.Server{
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  60 * time.Second,
 		Addr:         config.ListenURL,
 	}
 	ps := &PhishingServer{
@@ -219,7 +220,7 @@ func (ps *PhishingServer) PhishHandler(w http.ResponseWriter, r *http.Request) {
 			http.NotFound(w, r)
 			return
 		}
-		p, err := models.GetPage(preview.PageId, preview.UserId)
+		p, err := models.GetPage(preview.PageId, models.OrgScope{IsSuperAdmin: true})
 		if err != nil {
 			log.Error(err)
 			http.NotFound(w, r)
@@ -239,7 +240,7 @@ func (ps *PhishingServer) PhishHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p, err := models.GetPage(c.PageId, c.UserId)
+	p, err := models.GetPage(c.PageId, models.OrgScope{IsSuperAdmin: true})
 	if err != nil {
 		log.Error(err)
 		http.NotFound(w, r)
@@ -250,6 +251,20 @@ func (ps *PhishingServer) PhishHandler(w http.ResponseWriter, r *http.Request) {
 		err = rs.HandleClickedLink(d)
 		if err != nil {
 			log.Error(err)
+		}
+		// If feedback is enabled and this is the first click (GET),
+		// serve the educational interstitial instead of the landing page.
+		if c.FeedbackEnabled && c.FeedbackPageId > 0 {
+			fp, fpErr := models.GetFeedbackPage(c.FeedbackPageId, models.OrgScope{IsSuperAdmin: true})
+			if fpErr == nil {
+				ptx, ptxErr := models.NewPhishingTemplateContext(&c, rs.BaseRecipient, rs.RId)
+				if ptxErr == nil {
+					rs.HandleFeedbackViewed(d)
+					renderFeedbackResponse(w, r, ptx, fp)
+					return
+				}
+			}
+			// Fall through to normal landing page if feedback page can't be loaded
 		}
 	case r.Method == "POST":
 		err = rs.HandleFormSubmit(d)
@@ -290,6 +305,19 @@ func renderPhishResponse(w http.ResponseWriter, r *http.Request, ptx models.Phis
 		http.NotFound(w, r)
 		return
 	}
+	w.Write([]byte(html))
+}
+
+// renderFeedbackResponse renders the educational feedback interstitial page
+// to the user after they click a simulated phishing link.
+func renderFeedbackResponse(w http.ResponseWriter, r *http.Request, ptx models.PhishingTemplateContext, fp models.FeedbackPage) {
+	html, err := models.ExecuteTemplate(fp.HTML, ptx)
+	if err != nil {
+		log.Error(err)
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Write([]byte(html))
 }
 
@@ -349,7 +377,7 @@ func setupContext(r *http.Request) (*http.Request, error) {
 	if err != nil {
 		return r, err
 	}
-	c, err := models.GetCampaign(rs.CampaignId, rs.UserId)
+	c, err := models.GetCampaign(rs.CampaignId, models.OrgScope{IsSuperAdmin: true})
 	if err != nil {
 		log.Error(err)
 		return r, err

@@ -6,10 +6,26 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/gophish/gophish/auth"
 	ctx "github.com/gophish/gophish/context"
 	"github.com/gophish/gophish/models"
 	"github.com/gorilla/csrf"
+	"github.com/gorilla/sessions"
 )
+
+const errUserNotAuthenticated = "User not authenticated"
+
+// getUserFromContext safely extracts the authenticated user from the request
+// context. Returns the user and true on success, or a zero-value User and
+// false if the context value is nil or not a models.User.
+func getUserFromContext(r *http.Request) (models.User, bool) {
+	val := ctx.Get(r, "user")
+	if val == nil {
+		return models.User{}, false
+	}
+	user, ok := val.(models.User)
+	return user, ok
+}
 
 // CSRFExemptPrefixes are a list of routes that are exempt from CSRF protection
 var CSRFExemptPrefixes = []string{
@@ -75,11 +91,15 @@ func GetContext(handler http.Handler) http.HandlerFunc {
 // parameter, or a Bearer token.
 func RequireAPIKey(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		if origin := r.Header.Get("Origin"); origin != "" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Vary", "Origin")
+		}
 		if r.Method == "OPTIONS" {
 			w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
 			w.Header().Set("Access-Control-Max-Age", "1000")
-			w.Header().Set("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept")
+			w.Header().Set("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization")
+			w.Header().Set("Access-Control-Allow-Credentials", "false")
 			return
 		}
 		r.ParseForm()
@@ -132,21 +152,56 @@ func RequireLogin(handler http.Handler) http.HandlerFunc {
 	}
 }
 
+// writeExemptPrefixes lists API path prefixes where any authenticated user
+// may issue non-GET requests. The individual handlers enforce finer-grained
+// permission checks. This allows learners to save course progress, submit
+// quiz attempts, and read their own assignments/certificates.
+var writeExemptPrefixes = []string{
+	"/api/training/",
+}
+
+// isWriteExempt returns true if the request path is under a write-exempt prefix.
+func isWriteExempt(path string) bool {
+	for _, prefix := range writeExemptPrefixes {
+		if strings.HasPrefix(path, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
 // EnforceViewOnly is a global middleware that limits the ability to edit
-// objects to accounts with the PermissionModifyObjects permission.
+// objects to accounts with at least one write permission.
+// A user may write if they have PermissionModifyObjects (campaigns, groups, etc.)
+// OR PermissionManageTraining (training routes only). The per-route handlers
+// perform the finer-grained check; this middleware just gates the outer layer.
+// Paths under writeExemptPrefixes are exempt so that learners can interact
+// with training endpoints (progress, quizzes, etc.).
 func EnforceViewOnly(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// If the request is for any non-GET HTTP method, e.g. POST, PUT,
-		// or DELETE, we need to ensure the user has the appropriate
-		// permission.
+		// Only non-safe methods need write permission.
 		if r.Method != http.MethodGet && r.Method != http.MethodHead && r.Method != http.MethodOptions {
-			user := ctx.Get(r, "user").(models.User)
-			access, err := user.HasPermission(models.PermissionModifyObjects)
+			// Training paths are exempt — handlers do their own permission checks
+			if isWriteExempt(r.URL.Path) {
+				next.ServeHTTP(w, r)
+				return
+			}
+			user, ok := getUserFromContext(r)
+			if !ok {
+				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+				return
+			}
+			canModify, err := user.HasPermission(models.PermissionModifyObjects)
 			if err != nil {
 				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				return
 			}
-			if !access {
+			canTraining, err := user.HasPermission(models.PermissionManageTraining)
+			if err != nil {
+				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+				return
+			}
+			if !canModify && !canTraining {
 				http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 				return
 			}
@@ -155,21 +210,144 @@ func EnforceViewOnly(next http.Handler) http.Handler {
 	})
 }
 
+// RequireMFAEnrolled checks whether the user's role mandates MFA and, if so,
+// whether they have a fully enrolled MFA device. If not enrolled, the request
+// is redirected to /mfa/enroll. For non-MFA roles this middleware is a no-op.
+func RequireMFAEnrolled(handler http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := getUserFromContext(r)
+		if !ok {
+			http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
+			return
+		}
+		if auth.MFARequired(user.Role.Slug) {
+			device, err := models.GetMFADevice(user.Id)
+			if err != nil || !device.Enabled {
+				http.Redirect(w, r, "/mfa/enroll", http.StatusTemporaryRedirect)
+				return
+			}
+		}
+		handler.ServeHTTP(w, r)
+	}
+}
+
+// RequireMFAVerified checks whether the active session has a completed MFA
+// challenge (session key "mfa_verified" == true) for roles that require MFA.
+// If the challenge has not been completed, the request is redirected to
+// /mfa/verify. For non-MFA roles this middleware is a no-op.
+func RequireMFAVerified(handler http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := getUserFromContext(r)
+		if !ok {
+			http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
+			return
+		}
+		if auth.MFARequired(user.Role.Slug) {
+			session := ctx.Get(r, "session").(*sessions.Session)
+			verified, _ := session.Values["mfa_verified"].(bool)
+			if !verified {
+				http.Redirect(w, r, "/mfa/verify", http.StatusTemporaryRedirect)
+				return
+			}
+		}
+		handler.ServeHTTP(w, r)
+	}
+}
+
 // RequirePermission checks to see if the user has the requested permission
 // before executing the handler. If the request is unauthorized, a JSONError
 // is returned.
 func RequirePermission(perm string) func(http.Handler) http.HandlerFunc {
 	return func(next http.Handler) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
-			user := ctx.Get(r, "user").(models.User)
+			user, ok := getUserFromContext(r)
+			if !ok {
+				JSONError(w, http.StatusUnauthorized, errUserNotAuthenticated)
+				return
+			}
 			access, err := user.HasPermission(perm)
 			if err != nil {
-				JSONError(w, http.StatusInternalServerError, err.Error())
+				if strings.HasPrefix(r.URL.Path, "/api") {
+					JSONError(w, http.StatusInternalServerError, err.Error())
+				} else {
+					http.Redirect(w, r, "/training", http.StatusTemporaryRedirect)
+				}
 				return
 			}
 			if !access {
-				JSONError(w, http.StatusForbidden, http.StatusText(http.StatusForbidden))
+				if strings.HasPrefix(r.URL.Path, "/api") {
+					JSONError(w, http.StatusForbidden, http.StatusText(http.StatusForbidden))
+				} else {
+					http.Redirect(w, r, "/training", http.StatusTemporaryRedirect)
+				}
 				return
+			}
+			next.ServeHTTP(w, r)
+		}
+	}
+}
+
+// RequireReportAccess checks that the user has either PermissionViewReports
+// or PermissionModifyObjects. Used for reporting and dashboard endpoints.
+func RequireReportAccess(next http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := getUserFromContext(r)
+		if !ok {
+			JSONError(w, http.StatusUnauthorized, errUserNotAuthenticated)
+			return
+		}
+		canView, _ := user.HasPermission(models.PermissionViewReports)
+		canModify, _ := user.HasPermission(models.PermissionModifyObjects)
+		if !canView && !canModify {
+			if strings.HasPrefix(r.URL.Path, "/api") {
+				JSONError(w, http.StatusForbidden, http.StatusText(http.StatusForbidden))
+			} else {
+				http.Redirect(w, r, "/training", http.StatusTemporaryRedirect)
+			}
+			return
+		}
+		next.ServeHTTP(w, r)
+	}
+}
+
+// EnforceTierLimits checks org-level quotas before allowing resource creation.
+// It wraps POST endpoints to prevent exceeding the org's subscription tier limits.
+// Limits are read from the subscription_tiers table via the org's tier_id.
+func EnforceTierLimits(resourceType string) func(http.Handler) http.HandlerFunc {
+	return func(next http.Handler) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodPost {
+				next.ServeHTTP(w, r)
+				return
+			}
+			user, ok := getUserFromContext(r)
+			if !ok {
+				JSONError(w, http.StatusUnauthorized, errUserNotAuthenticated)
+				return
+			}
+			org, err := models.GetOrganization(user.OrgId)
+			if err != nil {
+				JSONError(w, http.StatusInternalServerError, "Error loading organization")
+				return
+			}
+			tier, err := models.GetSubscriptionTier(org.TierId)
+			if err != nil {
+				JSONError(w, http.StatusInternalServerError, "Error loading subscription tier")
+				return
+			}
+			switch resourceType {
+			case "campaign":
+				count, _ := models.GetOrgCampaignCount(org.Id)
+				if count >= tier.MaxCampaigns {
+					JSONError(w, http.StatusForbidden, "Campaign limit reached for your organization tier")
+					return
+				}
+			case "user":
+				count, _ := models.GetOrgUserCount(org.Id)
+				if count >= tier.MaxUsers {
+					JSONError(w, http.StatusForbidden, "User limit reached for your organization tier")
+					return
+				}
 			}
 			next.ServeHTTP(w, r)
 		}
@@ -180,9 +358,15 @@ func RequirePermission(perm string) func(http.Handler) http.HandlerFunc {
 // practices.
 func ApplySecurityHeaders(next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		csp := "frame-ancestors 'none';"
-		w.Header().Set("Content-Security-Policy", csp)
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none';")
 		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+		w.Header().Set("X-XSS-Protection", "0")
+		if r.TLS != nil {
+			w.Header().Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
+		}
 		next.ServeHTTP(w, r)
 	}
 }

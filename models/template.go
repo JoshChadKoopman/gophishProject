@@ -13,13 +13,18 @@ import (
 type Template struct {
 	Id             int64        `json:"id" gorm:"column:id; primary_key:yes"`
 	UserId         int64        `json:"-" gorm:"column:user_id"`
+	OrgId          int64        `json:"-" gorm:"column:org_id"`
 	Name           string       `json:"name"`
 	EnvelopeSender string       `json:"envelope_sender"`
 	Subject        string       `json:"subject"`
 	Text           string       `json:"text"`
 	HTML           string       `json:"html" gorm:"column:html"`
-	ModifiedDate   time.Time    `json:"modified_date"`
-	Attachments    []Attachment `json:"attachments"`
+	ModifiedDate    time.Time    `json:"modified_date"`
+	Attachments     []Attachment `json:"attachments"`
+	AIGenerated     bool         `json:"ai_generated" gorm:"column:ai_generated"`
+	DifficultyLevel int          `json:"difficulty_level" gorm:"column:difficulty_level"`
+	Language        string       `json:"language" gorm:"column:language"`
+	TargetRole      string       `json:"target_role" gorm:"column:target_role"`
 }
 
 // ErrTemplateNameNotSpecified is thrown when a template name is not specified
@@ -56,10 +61,10 @@ func (t *Template) Validate() error {
 	return nil
 }
 
-// GetTemplates returns the templates owned by the given user.
-func GetTemplates(uid int64) ([]Template, error) {
+// GetTemplates returns the templates belonging to the given org scope.
+func GetTemplates(scope OrgScope) ([]Template, error) {
 	ts := []Template{}
-	err := db.Where("user_id=?", uid).Find(&ts).Error
+	err := scopeQuery(db.Table("templates"), scope).Find(&ts).Error
 	if err != nil {
 		log.Error(err)
 		return ts, err
@@ -78,10 +83,10 @@ func GetTemplates(uid int64) ([]Template, error) {
 	return ts, err
 }
 
-// GetTemplate returns the template, if it exists, specified by the given id and user_id.
-func GetTemplate(id int64, uid int64) (Template, error) {
+// GetTemplate returns the template, if it exists, specified by the given id and org scope.
+func GetTemplate(id int64, scope OrgScope) (Template, error) {
 	t := Template{}
-	err := db.Where("user_id=? and id=?", uid, id).Find(&t).Error
+	err := scopeQuery(db.Where("id=?", id), scope).Find(&t).Error
 	if err != nil {
 		log.Error(err)
 		return t, err
@@ -99,10 +104,10 @@ func GetTemplate(id int64, uid int64) (Template, error) {
 	return t, err
 }
 
-// GetTemplateByName returns the template, if it exists, specified by the given name and user_id.
-func GetTemplateByName(n string, uid int64) (Template, error) {
+// GetTemplateByName returns the template, if it exists, specified by the given name and org scope.
+func GetTemplateByName(n string, scope OrgScope) (Template, error) {
 	t := Template{}
-	err := db.Where("user_id=? and name=?", uid, n).Find(&t).Error
+	err := scopeQuery(db.Where("name=?", n), scope).Find(&t).Error
 	if err != nil {
 		log.Error(err)
 		return t, err
@@ -178,8 +183,8 @@ func PutTemplate(t *Template) error {
 }
 
 // DeleteTemplate deletes an existing template in the database.
-// An error is returned if a template with the given user id and template id is not found.
-func DeleteTemplate(id int64, uid int64) error {
+// An error is returned if a template with the given org scope and template id is not found.
+func DeleteTemplate(id int64, scope OrgScope) error {
 	// Delete attachments
 	err := db.Where("template_id=?", id).Delete(&Attachment{}).Error
 	if err != nil {
@@ -188,7 +193,7 @@ func DeleteTemplate(id int64, uid int64) error {
 	}
 
 	// Finally, delete the template itself
-	err = db.Where("user_id=?", uid).Delete(Template{Id: id}).Error
+	err = scopeQuery(db.Where("id=?", id), scope).Delete(Template{}).Error
 	if err != nil {
 		log.Error(err)
 		return err

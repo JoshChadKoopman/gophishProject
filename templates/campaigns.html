@@ -6,11 +6,13 @@
         </h1>
     </div>
     <div id="flashes" class="row"></div>
+    {{if .ModifyObjects}}
     <div class="row">
         <button type="button" class="btn btn-primary" data-toggle="modal" data-backdrop="static" data-target="#modal"
             onclick="edit('new')">
             <i class="fa fa-plus"></i> New Campaign</button>
     </div>
+    {{end}}
     &nbsp;
 
     <ul class="nav nav-tabs" role="tablist">
@@ -96,7 +98,7 @@
                     <option></option>
                     </select>
                     <label class="control-label" for="url">URL:
-                        <i class="fa fa-question-circle" data-toggle="tooltip" data-placement="right" title="Location of Gophish listener (must be reachable by targets!)"></i>
+                        <i class="fa fa-question-circle" data-toggle="tooltip" data-placement="right" title="Location of phishing listener (must be reachable by targets!)"></i>
                     </label>
                     <input type="text" class="form-control" placeholder="http://192.168.1.1" id="url" />
                     <div class="row">
@@ -106,7 +108,7 @@
                         </div>
                         <div class="col-md-6">
                             <label class="control-label" for="delay">Send Emails By (Optional)
-                                <i class="fa fa-question-circle" data-toggle="tooltip" data-placement="right" title="If specified, Gophish will send emails evenly between the campaign launch and this date."></i>
+                                <i class="fa fa-question-circle" data-toggle="tooltip" data-placement="right" title="If specified, emails will be sent evenly between the campaign launch and this date."></i>
                             </label>
                             <input type="text" class="form-control" id="send_by_date" autocomplete="random-data"/> <!--Chrome ignores autocomplete="off".-->
                         </div>
@@ -124,6 +126,28 @@
                     </div>
                     <label class="control-label" for="users">Groups:</label>
                     <select class="form-control" id="users" multiple="multiple"></select>
+                    <label class="control-label" for="training_course" style="margin-top:10px;">
+                        Training Course on Click
+                        <small class="text-muted">(Optional)</small>:
+                        <i class="fa fa-question-circle" data-toggle="tooltip" data-placement="right"
+                           title="If set, targets who click the phishing link will be auto-assigned this training course."></i>
+                    </label>
+                    <select class="form-control" id="training_course">
+                        <option value="0">None</option>
+                    </select>
+                    <div class="checkbox checkbox-primary" style="margin-top:10px;">
+                        <input id="feedback_enabled_checkbox" type="checkbox">
+                        <label for="feedback_enabled_checkbox">Show Feedback Page on Click
+                            <i class="fa fa-question-circle" data-toggle="tooltip" data-placement="right"
+                               title="When enabled, recipients who click the phishing link will see an educational interstitial explaining what they should watch for."></i>
+                        </label>
+                    </div>
+                    <div id="feedback_page_select" style="display:none;">
+                        <label class="control-label" for="feedback_page">Feedback Page:</label>
+                        <select class="form-control" id="feedback_page">
+                            <option value="0">None</option>
+                        </select>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">

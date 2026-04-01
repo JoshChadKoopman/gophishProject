@@ -34,9 +34,11 @@ import (
 
 	"gopkg.in/alecthomas/kingpin.v2"
 
+	"github.com/gophish/gophish/auth"
 	"github.com/gophish/gophish/config"
 	"github.com/gophish/gophish/controllers"
 	"github.com/gophish/gophish/dialer"
+	"github.com/gophish/gophish/i18n"
 	"github.com/gophish/gophish/imap"
 	log "github.com/gophish/gophish/logger"
 	"github.com/gophish/gophish/middleware"
@@ -108,11 +110,43 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// Load i18n translations
+	if err := i18n.LoadTranslations("./static/locales"); err != nil {
+		log.Fatal(err)
+	}
+
 	// Create our servers
 	adminOptions := []controllers.AdminServerOption{}
 	if *disableMailer {
 		adminOptions = append(adminOptions, controllers.WithWorker(nil))
 	}
+
+	// Initialize OIDC client for Keycloak SSO (gracefully disabled if not configured)
+	oidcClient, err := auth.NewOIDCClient(
+		conf.OIDC.ProviderURL,
+		conf.OIDC.ClientID,
+		conf.OIDC.ClientSecret,
+		conf.OIDC.RedirectURL,
+		conf.OIDC.Enabled,
+	)
+	if err != nil {
+		log.Errorf("Failed to initialize OIDC client: %v", err)
+	}
+	if oidcClient != nil {
+		adminOptions = append(adminOptions, controllers.WithOIDCClient(oidcClient))
+		log.Info("OIDC (Keycloak) SSO enabled")
+	}
+
+	// Pass MFA TOTP encryption key to the admin server
+	if conf.MFA.TOTPEncryptionKey != "" {
+		adminOptions = append(adminOptions, controllers.WithMFAEncKey(conf.MFA.TOTPEncryptionKey))
+	}
+
+	// Pass AI configuration to the admin server
+	if conf.AI.APIKey != "" {
+		adminOptions = append(adminOptions, controllers.WithAIConfig(conf.AI))
+	}
+
 	adminConfig := conf.AdminConf
 	adminServer := controllers.NewAdminServer(adminConfig, adminOptions...)
 	middleware.Store.Options.Secure = adminConfig.UseTLS

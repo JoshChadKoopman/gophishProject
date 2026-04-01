@@ -65,9 +65,13 @@ func TestGetUsers(t *testing.T) {
 func TestCreateUser(t *testing.T) {
 	testCtx := setupTest(t)
 	payload := &userRequest{
-		Username: "foo",
-		Password: "validpassword",
-		Role:     models.RoleUser,
+		Username:  "foo@example.com",
+		Password:  "ValidPass1ok",
+		FirstName: "Foo",
+		LastName:  "Bar",
+		Email:     "foo@example.com",
+		Position:  "Analyst",
+		Role:      models.RoleUser,
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -90,8 +94,8 @@ func TestCreateUser(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error decoding user payload: %v", err)
 	}
-	if got.Username != payload.Username {
-		t.Fatalf("unexpected username received. expected %s got %s", payload.Username, got.Username)
+	if got.Username != payload.Email {
+		t.Fatalf("unexpected username received. expected %s got %s", payload.Email, got.Username)
 	}
 	if got.Role.Slug != payload.Role {
 		t.Fatalf("unexpected role received. expected %s got %s", payload.Role, got.Role.Slug)
@@ -103,12 +107,16 @@ func TestCreateUser(t *testing.T) {
 func TestModifyUser(t *testing.T) {
 	testCtx := setupTest(t)
 	unpriviledgedUser := createUnpriviledgedUser(t, models.RoleUser)
-	newPassword := "new-password"
-	newUsername := "new-username"
+	newPassword := "NewPass1word"
+	newEmail := "new-user@example.com"
 	payload := userRequest{
-		Username: newUsername,
-		Password: newPassword,
-		Role:     unpriviledgedUser.Role.Slug,
+		Username:  newEmail,
+		Password:  newPassword,
+		FirstName: "New",
+		LastName:  "User",
+		Email:     newEmail,
+		Position:  "Tester",
+		Role:      unpriviledgedUser.Role.Slug,
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -130,8 +138,8 @@ func TestModifyUser(t *testing.T) {
 	if w.Code != expected {
 		t.Fatalf("unexpected error code received. expected %d got %d", expected, w.Code)
 	}
-	if response.Username != newUsername {
-		t.Fatalf("unexpected username received. expected %s got %s", newUsername, response.Username)
+	if response.Username != newEmail {
+		t.Fatalf("unexpected username received. expected %s got %s", newEmail, response.Username)
 	}
 	got, err := models.GetUser(unpriviledgedUser.Id)
 	if err != nil {
@@ -195,8 +203,12 @@ func TestUnauthorizedSetRole(t *testing.T) {
 	unauthorizedUser := createUnpriviledgedUser(t, models.RoleUser)
 	url := fmt.Sprintf("/api/users/%d", unauthorizedUser.Id)
 	payload := &userRequest{
-		Username: unauthorizedUser.Username,
-		Role:     models.RoleAdmin,
+		Username:  unauthorizedUser.Username,
+		FirstName: "Foo",
+		LastName:  "Bar",
+		Email:     "foo@example.com",
+		Position:  "Analyst",
+		Role:      models.RoleAdmin,
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -227,8 +239,12 @@ func TestModifyWithExistingUsername(t *testing.T) {
 	testCtx := setupTest(t)
 	unauthorizedUser := createUnpriviledgedUser(t, models.RoleUser)
 	payload := &userRequest{
-		Username: testCtx.admin.Username,
-		Role:     unauthorizedUser.Role.Slug,
+		Username:  testCtx.admin.Username,
+		FirstName: "Foo",
+		LastName:  "Bar",
+		Email:     testCtx.admin.Username,
+		Position:  "Analyst",
+		Role:      unauthorizedUser.Role.Slug,
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -245,7 +261,7 @@ func TestModifyWithExistingUsername(t *testing.T) {
 		t.Fatalf("unexpected error code received. expected %d got %d", expected, w.Code)
 	}
 	expectedResponse := &models.Response{
-		Message: ErrUsernameTaken.Error(),
+		Message: ErrEmailTaken.Error(),
 		Success: false,
 	}
 	got := &models.Response{}

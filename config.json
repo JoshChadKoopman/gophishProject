@@ -4,7 +4,8 @@
 		"use_tls": true,
 		"cert_path": "gophish_admin.crt",
 		"key_path": "gophish_admin.key",
-		"trusted_origins": []
+		"trusted_origins": [],
+		"csrf_key": "d114bb7a4d904a772d1fe27d1e7ff9db1b33ca4f78f0581744d54c9e6e9e1ab2"
 	},
 	"phish_server": {
 		"listen_url": "0.0.0.0:80",
@@ -19,5 +20,9 @@
 	"logging": {
 		"filename": "",
 		"level": ""
+	},
+	"mfa": {
+		"totp_encryption_key": "6pNgLnT92/5AMcwOd9+8dMAg9sJJb+Q1b7pF0BxuuCk=",
+		"backup_code_count": 8
 	}
 }

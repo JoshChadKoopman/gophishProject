@@ -20,7 +20,7 @@ function launch() {
         animation: false,
         showCancelButton: true,
         confirmButtonText: "Launch",
-        confirmButtonColor: "#428bca",
+        confirmButtonColor: "#E94560",
         reverseButtons: true,
         allowOutsideClick: false,
         showLoaderOnConfirm: true,
@@ -52,6 +52,9 @@ function launch() {
                     launch_date: moment($("#launch_date").val(), "MMMM Do YYYY, h:mm a").utc().format(),
                     send_by_date: send_by_date || null,
                     groups: groups,
+                    training_presentation_id: parseInt($("#training_course").val()) || 0,
+                    feedback_enabled: $("#feedback_enabled_checkbox").prop("checked"),
+                    feedback_page_id: parseInt($("#feedback_page").val()) || 0,
                 }
                 // Submit the campaign
                 api.campaigns.post(campaign)
@@ -122,6 +125,10 @@ function dismiss() {
     $("#url").val("");
     $("#profile").val("").change();
     $("#users").val("").change();
+    $("#training_course").val("0");
+    $("#feedback_enabled_checkbox").prop("checked", false);
+    $("#feedback_page_select").hide();
+    $("#feedback_page").val("0");
     $("#modal").modal('hide');
 }
 
@@ -133,7 +140,7 @@ function deleteCampaign(idx) {
         animation: false,
         showCancelButton: true,
         confirmButtonText: "Delete " + campaigns[idx].name,
-        confirmButtonColor: "#428bca",
+        confirmButtonColor: "#E94560",
         reverseButtons: true,
         allowOutsideClick: false,
         preConfirm: function () {
@@ -244,6 +251,28 @@ function setupOptions() {
                 }
             }
         });
+    // Populate training course dropdown
+    api.trainingPresentations.get()
+        .success(function (presentations) {
+            var courseSelect = $("#training_course")
+            courseSelect.find("option:not(:first)").remove()
+            if (presentations && presentations.length > 0) {
+                $.each(presentations, function (i, pres) {
+                    courseSelect.append('<option value="' + pres.id + '">' + escapeHtml(pres.name) + '</option>')
+                })
+            }
+        })
+    // Populate feedback page dropdown
+    api.feedbackPages.get()
+        .success(function (fps) {
+            var fpSelect = $("#feedback_page")
+            fpSelect.find("option:not(:first)").remove()
+            if (fps && fps.length > 0) {
+                $.each(fps, function (i, fp) {
+                    fpSelect.append('<option value="' + fp.id + '">' + escapeHtml(fp.name) + '</option>')
+                })
+            }
+        })
 }
 
 function edit(campaign) {
@@ -284,6 +313,16 @@ function copy(idx) {
                 $("#profile").trigger("change.select2")
             }
             $("#url").val(campaign.url)
+            if (campaign.training_presentation_id) {
+                $("#training_course").val(campaign.training_presentation_id.toString())
+            }
+            if (campaign.feedback_enabled) {
+                $("#feedback_enabled_checkbox").prop("checked", true)
+                $("#feedback_page_select").show()
+            }
+            if (campaign.feedback_page_id) {
+                $("#feedback_page").val(campaign.feedback_page_id.toString())
+            }
         })
         .error(function (data) {
             $("#modal\\.flashes").empty().append("<div style=\"text-align:center\" class=\"alert alert-danger\">\
@@ -381,19 +420,25 @@ $(document).ready(function () {
                         var quickStats = launchDate + "<br><br>" + "Number of recipients: " + campaign.stats.total + "<br><br>" + "Emails opened: " + campaign.stats.opened + "<br><br>" + "Emails clicked: " + campaign.stats.clicked + "<br><br>" + "Submitted Credentials: " + campaign.stats.submitted_data + "<br><br>" + "Errors : " + campaign.stats.error + "<br><br>" + "Reported : " + campaign.stats.email_reported
                     }
 
-                    var row = [
-                        escapeHtml(campaign.name),
-                        moment(campaign.created_date).format('MMMM Do YYYY, h:mm:ss a'),
-                        "<span class=\"label " + label + "\" data-toggle=\"tooltip\" data-placement=\"right\" data-html=\"true\" title=\"" + quickStats + "\">" + campaign.status + "</span>",
-                        "<div class='pull-right'><a class='btn btn-primary' href='/campaigns/" + campaign.id + "' data-toggle='tooltip' data-placement='left' title='View Results'>\
+                    var actionButtons = "<div class='pull-right'><a class='btn btn-primary' href='/campaigns/" + campaign.id + "' data-toggle='tooltip' data-placement='left' title='View Results'>\
                     <i class='fa fa-bar-chart'></i>\
-                    </a>\
+                    </a>";
+                    if (typeof permissions !== 'undefined' && permissions.modify_objects) {
+                        actionButtons += "\
             <span data-toggle='modal' data-backdrop='static' data-target='#modal'><button class='btn btn-primary' data-toggle='tooltip' data-placement='left' title='Copy Campaign' onclick='copy(" + i + ")'>\
                     <i class='fa fa-copy'></i>\
                     </button></span>\
                     <button class='btn btn-danger' onclick='deleteCampaign(" + i + ")' data-toggle='tooltip' data-placement='left' title='Delete Campaign'>\
                     <i class='fa fa-trash-o'></i>\
-                    </button></div>"
+                    </button>";
+                    }
+                    actionButtons += "</div>";
+
+                    var row = [
+                        escapeHtml(campaign.name),
+                        moment(campaign.created_date).format('MMMM Do YYYY, h:mm:ss a'),
+                        "<span class=\"label " + label + "\" data-toggle=\"tooltip\" data-placement=\"right\" data-html=\"true\" title=\"" + quickStats + "\">" + campaign.status + "</span>",
+                        actionButtons
                     ]
                     if (campaign.status == 'Completed') {
                         rows['archived'].push(row)
@@ -412,6 +457,10 @@ $(document).ready(function () {
             $("#loading").hide()
             errorFlash("Error fetching campaigns")
         })
+    // Feedback page toggle
+    $("#feedback_enabled_checkbox").change(function () {
+        $("#feedback_page_select").toggle(this.checked)
+    })
     // Select2 Defaults
     $.fn.select2.defaults.set("width", "100%");
     $.fn.select2.defaults.set("dropdownParent", $("#modal_body"));

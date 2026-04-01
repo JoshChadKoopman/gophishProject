@@ -78,35 +78,40 @@ func createTestData(t *testing.T, ctx *testContext) {
 	models.PostSMTP(&smtp)
 }
 
+func workerTestScope(uid int64) models.OrgScope {
+	return models.OrgScope{OrgId: 0, UserId: uid, IsSuperAdmin: true}
+}
+
 func setupCampaign(id int) (*models.Campaign, error) {
 	// Setup and "launch" our campaign
 	// Set the status such that no emails are attempted
 	c := models.Campaign{Name: fmt.Sprintf("Test campaign - %d", id)}
 	c.UserId = 1
-	template, err := models.GetTemplate(1, 1)
+	scope := workerTestScope(1)
+	template, err := models.GetTemplate(1, scope)
 	if err != nil {
 		return nil, err
 	}
 	c.Template = template
 
-	page, err := models.GetPage(1, 1)
+	page, err := models.GetPage(1, scope)
 	if err != nil {
 		return nil, err
 	}
 	c.Page = page
 
-	smtp, err := models.GetSMTP(1, 1)
+	smtp, err := models.GetSMTP(1, scope)
 	if err != nil {
 		return nil, err
 	}
 	c.SMTP = smtp
 
-	group, err := models.GetGroup(1, 1)
+	group, err := models.GetGroup(1, scope)
 	if err != nil {
 		return nil, err
 	}
 	c.Groups = []models.Group{group}
-	err = models.PostCampaign(&c, c.UserId)
+	err = models.PostCampaign(&c, scope)
 	if err != nil {
 		return nil, err
 	}

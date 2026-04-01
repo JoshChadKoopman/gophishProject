@@ -94,7 +94,7 @@ func (s *ModelsSuite) TestMailLogBackoff(ch *check.C) {
 		ch.Assert(result.Status, check.Equals, StatusRetry)
 	}
 	// Get our updated campaign and check for the added event
-	campaign, err = GetCampaign(campaign.Id, int64(1))
+	campaign, err = GetCampaign(campaign.Id, testScope(1))
 	ch.Assert(err, check.Equals, nil)
 
 	// We expect MaxSendAttempts + the initial campaign created event
@@ -127,7 +127,7 @@ func (s *ModelsSuite) TestMailLogError(ch *check.C) {
 	ch.Assert(result.Status, check.Equals, Error)
 
 	// Get our updated campaign and check for the added event
-	campaign, err = GetCampaign(campaign.Id, int64(1))
+	campaign, err = GetCampaign(campaign.Id, testScope(1))
 	ch.Assert(err, check.Equals, nil)
 
 	expectedEventLength := 2
@@ -169,7 +169,7 @@ func (s *ModelsSuite) TestMailLogSuccess(ch *check.C) {
 	ch.Assert(result.Status, check.Equals, EventSent)
 
 	// Get our updated campaign and check for the added event
-	campaign, err = GetCampaign(campaign.Id, int64(1))
+	campaign, err = GetCampaign(campaign.Id, testScope(1))
 	ch.Assert(err, check.Equals, nil)
 
 	expectedEventLength := 2
@@ -226,7 +226,7 @@ func (s *ModelsSuite) TestMailLogGetSmtpFrom(ch *check.C) {
 	campaign := s.createCampaignDependencies(ch)
 	campaign.Template = template
 
-	ch.Assert(PostCampaign(&campaign, campaign.UserId), check.Equals, nil)
+	ch.Assert(PostCampaign(&campaign, testScope(campaign.UserId)), check.Equals, nil)
 	result := campaign.Results[0]
 
 	m := &MailLog{}
@@ -295,7 +295,7 @@ func (s *ModelsSuite) TestMailLogGenerateOverrideTransparencyHeaders(ch *check.C
 	campaign := s.createCampaignDependencies(ch)
 	campaign.SMTP = smtp
 
-	ch.Assert(PostCampaign(&campaign, campaign.UserId), check.Equals, nil)
+	ch.Assert(PostCampaign(&campaign, testScope(campaign.UserId)), check.Equals, nil)
 	got := s.emailFromFirstMailLog(campaign, ch)
 	for k, v := range expectedHeaders {
 		ch.Assert(got.Headers.Get(k), check.Equals, v)
@@ -331,7 +331,7 @@ func (s *ModelsSuite) TestURLTemplateRendering(ch *check.C) {
 	campaign.URL = "http://127.0.0.1/{{.Email}}/"
 	campaign.Template = template
 
-	ch.Assert(PostCampaign(&campaign, campaign.UserId), check.Equals, nil)
+	ch.Assert(PostCampaign(&campaign, testScope(campaign.UserId)), check.Equals, nil)
 	result := campaign.Results[0]
 	expectedURL := fmt.Sprintf("http://127.0.0.1/%s/?%s=%s", result.Email, RecipientParameter, result.RId)
 
@@ -348,7 +348,7 @@ func (s *ModelsSuite) TestMailLogGenerateEmptySubject(ch *check.C) {
 	// campaign := s.createCampaign(ch)
 	campaign := s.createCampaignDependencies(ch, "") // specify empty subject
 	// Setup and "launch" our campaign
-	ch.Assert(PostCampaign(&campaign, campaign.UserId), check.Equals, nil)
+	ch.Assert(PostCampaign(&campaign, testScope(campaign.UserId)), check.Equals, nil)
 	result := campaign.Results[0]
 
 	expected := &email.Email{
@@ -394,7 +394,7 @@ func (s *ModelsSuite) TestEmbedAttachment(ch *check.C) {
 		},
 	}
 	PutTemplate(&campaign.Template)
-	ch.Assert(PostCampaign(&campaign, campaign.UserId), check.Equals, nil)
+	ch.Assert(PostCampaign(&campaign, testScope(campaign.UserId)), check.Equals, nil)
 	got := s.emailFromFirstMailLog(campaign, ch)
 
 	// The email package simply ignores attachments where the Content-Disposition header is set

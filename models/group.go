@@ -16,6 +16,7 @@ import (
 type Group struct {
 	Id           int64     `json:"id"`
 	UserId       int64     `json:"-"`
+	OrgId        int64     `json:"-" gorm:"column:org_id"`
 	Name         string    `json:"name"`
 	ModifiedDate time.Time `json:"modified_date"`
 	Targets      []Target  `json:"targets" sql:"-"`
@@ -105,10 +106,11 @@ func (g *Group) Validate() error {
 	return nil
 }
 
-// GetGroups returns the groups owned by the given user.
-func GetGroups(uid int64) ([]Group, error) {
+// GetGroups returns the groups belonging to the given org scope.
+func GetGroups(scope OrgScope) ([]Group, error) {
 	gs := []Group{}
-	err := db.Where("user_id=?", uid).Find(&gs).Error
+	query := scopeQuery(db.Table("groups"), scope)
+	err := query.Find(&gs).Error
 	if err != nil {
 		log.Error(err)
 		return gs, err
@@ -123,10 +125,10 @@ func GetGroups(uid int64) ([]Group, error) {
 }
 
 // GetGroupSummaries returns the summaries for the groups
-// created by the given uid.
-func GetGroupSummaries(uid int64) (GroupSummaries, error) {
+// belonging to the given org scope.
+func GetGroupSummaries(scope OrgScope) (GroupSummaries, error) {
 	gs := GroupSummaries{}
-	query := db.Table("groups").Where("user_id=?", uid)
+	query := scopeQuery(db.Table("groups"), scope)
 	err := query.Select("id, name, modified_date").Scan(&gs.Groups).Error
 	if err != nil {
 		log.Error(err)
@@ -143,10 +145,11 @@ func GetGroupSummaries(uid int64) (GroupSummaries, error) {
 	return gs, nil
 }
 
-// GetGroup returns the group, if it exists, specified by the given id and user_id.
-func GetGroup(id int64, uid int64) (Group, error) {
+// GetGroup returns the group, if it exists, specified by the given id and org scope.
+func GetGroup(id int64, scope OrgScope) (Group, error) {
 	g := Group{}
-	err := db.Where("user_id=? and id=?", uid, id).Find(&g).Error
+	query := scopeQuery(db.Where("id=?", id), scope)
+	err := query.Find(&g).Error
 	if err != nil {
 		log.Error(err)
 		return g, err
@@ -159,9 +162,9 @@ func GetGroup(id int64, uid int64) (Group, error) {
 }
 
 // GetGroupSummary returns the summary for the requested group
-func GetGroupSummary(id int64, uid int64) (GroupSummary, error) {
+func GetGroupSummary(id int64, scope OrgScope) (GroupSummary, error) {
 	g := GroupSummary{}
-	query := db.Table("groups").Where("user_id=? and id=?", uid, id)
+	query := scopeQuery(db.Table("groups").Where("id=?", id), scope)
 	err := query.Select("id, name, modified_date").Scan(&g).Error
 	if err != nil {
 		log.Error(err)
@@ -175,10 +178,11 @@ func GetGroupSummary(id int64, uid int64) (GroupSummary, error) {
 	return g, nil
 }
 
-// GetGroupByName returns the group, if it exists, specified by the given name and user_id.
-func GetGroupByName(n string, uid int64) (Group, error) {
+// GetGroupByName returns the group, if it exists, specified by the given name and org scope.
+func GetGroupByName(n string, scope OrgScope) (Group, error) {
 	g := Group{}
-	err := db.Where("user_id=? and name=?", uid, n).Find(&g).Error
+	query := scopeQuery(db.Where("name=?", n), scope)
+	err := query.Find(&g).Error
 	if err != nil {
 		log.Error(err)
 		return g, err

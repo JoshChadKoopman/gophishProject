@@ -24,6 +24,12 @@ import (
 var db *gorm.DB
 var conf *config.Config
 
+// GetDB returns the global database handle. Use sparingly — prefer
+// package-level model functions for data access.
+func GetDB() *gorm.DB {
+	return db
+}
+
 const MaxDatabaseConnectionAttempts int = 10
 
 // DefaultAdminUsername is the default username for the administrative user
@@ -50,7 +56,8 @@ const (
 	EventOpened        string = "Email Opened"
 	EventClicked       string = "Clicked Link"
 	EventDataSubmit    string = "Submitted Data"
-	EventReported      string = "Email Reported"
+	EventReported         string = "Email Reported"
+	EventFeedbackViewed   string = "Feedback Viewed"
 	EventProxyRequest  string = "Proxied request"
 	StatusSuccess      string = "Success"
 	StatusQueued       string = "Queued"
@@ -209,6 +216,7 @@ func Setup(c *config.Config) error {
 	if userCount == 0 {
 		adminUser := User{
 			Username:               DefaultAdminUsername,
+			OrgId:                  1,
 			Role:                   adminRole,
 			RoleID:                 adminRole.ID,
 			PasswordChangeRequired: true,

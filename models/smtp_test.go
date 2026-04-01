@@ -17,7 +17,7 @@ func (s *ModelsSuite) TestPostSMTP(c *check.C) {
 	}
 	err := PostSMTP(&smtp)
 	c.Assert(err, check.Equals, nil)
-	ss, err := GetSMTPs(1)
+	ss, err := GetSMTPs(testScope(1))
 	c.Assert(err, check.Equals, nil)
 	c.Assert(len(ss), check.Equals, 1)
 }
@@ -77,7 +77,7 @@ func (s *ModelsSuite) TestPostSMTPValidHeader(c *check.C) {
 	}
 	err := PostSMTP(&smtp)
 	c.Assert(err, check.Equals, nil)
-	ss, err := GetSMTPs(1)
+	ss, err := GetSMTPs(testScope(1))
 	c.Assert(err, check.Equals, nil)
 	c.Assert(len(ss), check.Equals, 1)
 }
@@ -100,7 +100,7 @@ func (s *ModelsSuite) TestSMTPGetDialer(ch *check.C) {
 }
 
 func (s *ModelsSuite) TestGetInvalidSMTP(ch *check.C) {
-	_, err := GetSMTP(-1, 1)
+	_, err := GetSMTP(-1, testScope(1))
 	ch.Assert(err, check.Equals, gorm.ErrRecordNotFound)
 }
 

@@ -1,0 +1,187 @@
+{{define "body"}}
+<div class="container-fluid">
+    <div class="row">
+        {{template "nav" .}}
+        <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+            <h1 class="page-header">
+                Organization Settings
+            </h1>
+            <div id="flashes" class="row"></div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <h3 class="panel-title">Organization Details</h3>
+                        </div>
+                        <div class="panel-body">
+                            <form id="orgForm">
+                                <div class="form-group">
+                                    <label for="orgName">Name</label>
+                                    <input type="text" class="form-control" id="orgName" placeholder="Organization Name">
+                                </div>
+                                <div class="form-group">
+                                    <label for="orgSlug">Slug</label>
+                                    <input type="text" class="form-control" id="orgSlug" placeholder="organization-slug" readonly>
+                                </div>
+                                <div class="form-group">
+                                    <label for="orgLogoURL">Logo URL</label>
+                                    <input type="text" class="form-control" id="orgLogoURL" placeholder="https://example.com/logo.png">
+                                </div>
+                                <div class="form-group">
+                                    <label for="orgPrimaryColor">Primary Color</label>
+                                    <input type="color" class="form-control" id="orgPrimaryColor" value="#007bff" style="height:40px; padding:2px;">
+                                </div>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fa fa-save"></i> Save Changes
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <h3 class="panel-title">Tier &amp; Quotas</h3>
+                        </div>
+                        <div class="panel-body">
+                            <table class="table">
+                                <tr>
+                                    <td><strong>Tier</strong></td>
+                                    <td><span id="orgTier" class="label label-info"></span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Max Users</strong></td>
+                                    <td id="orgMaxUsers"></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Max Campaigns</strong></td>
+                                    <td id="orgMaxCampaigns"></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    {{if .IsSuperAdmin}}
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <h3 class="panel-title">All Organizations</h3>
+                        </div>
+                        <div class="panel-body">
+                            <table class="table table-striped" id="orgsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Slug</th>
+                                        <th>Tier</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="orgsList"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {{end}}
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <h3 class="panel-title">Organization Members</h3>
+                        </div>
+                        <div class="panel-body">
+                            <table class="table table-striped" id="membersTable">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th>Role</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="membersList"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{{end}}
+
+{{define "scripts"}}
+<script>
+var orgId = {{.User.OrgId}};
+
+function loadOrg() {
+    api.orgs.get(orgId).success(function(org) {
+        $("#orgName").val(org.name);
+        $("#orgSlug").val(org.slug);
+        $("#orgLogoURL").val(org.logo_url);
+        $("#orgPrimaryColor").val(org.primary_color || "#007bff");
+        $("#orgTier").text(org.tier);
+        $("#orgMaxUsers").text(org.max_users);
+        $("#orgMaxCampaigns").text(org.max_campaigns);
+    });
+}
+
+function loadMembers() {
+    api.orgs.members(orgId).success(function(members) {
+        var tbody = $("#membersList");
+        tbody.empty();
+        $.each(members, function(i, m) {
+            tbody.append(
+                "<tr>" +
+                "<td>" + escapeHtml(m.first_name + " " + m.last_name) + "</td>" +
+                "<td>" + escapeHtml(m.email) + "</td>" +
+                "<td>" + escapeHtml(m.role.slug) + "</td>" +
+                "</tr>"
+            );
+        });
+    });
+}
+
+{{if .IsSuperAdmin}}
+function loadAllOrgs() {
+    api.orgs.getAll().success(function(orgs) {
+        var tbody = $("#orgsList");
+        tbody.empty();
+        $.each(orgs, function(i, o) {
+            tbody.append(
+                "<tr>" +
+                "<td>" + escapeHtml(o.name) + "</td>" +
+                "<td>" + escapeHtml(o.slug) + "</td>" +
+                "<td><span class='label label-info'>" + escapeHtml(o.tier) + "</span></td>" +
+                "</tr>"
+            );
+        });
+    });
+}
+{{end}}
+
+$(document).ready(function() {
+    loadOrg();
+    loadMembers();
+    {{if .IsSuperAdmin}}
+    loadAllOrgs();
+    {{end}}
+
+    $("#orgForm").submit(function(e) {
+        e.preventDefault();
+        var data = {
+            name: $("#orgName").val(),
+            logo_url: $("#orgLogoURL").val(),
+            primary_color: $("#orgPrimaryColor").val()
+        };
+        api.orgs.put(orgId, data).success(function() {
+            successFlash("Organization settings saved.");
+        }).error(function(resp) {
+            var msg = resp.responseJSON ? resp.responseJSON.message : "Error saving settings";
+            errorFlash(msg);
+        });
+    });
+});
+</script>
+{{end}}

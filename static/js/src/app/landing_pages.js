@@ -57,7 +57,7 @@ var deletePage = function (idx) {
         animation: false,
         showCancelButton: true,
         confirmButtonText: "Delete " + escapeHtml(pages[idx].name),
-        confirmButtonColor: "#428bca",
+        confirmButtonColor: "#E94560",
         reverseButtons: true,
         allowOutsideClick: false,
         preConfirm: function () {

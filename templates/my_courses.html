@@ -1,0 +1,401 @@
+{{define "body"}}
+<div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+    <h1 class="page-header">
+        <i class="fa fa-graduation-cap"></i> {{.Title}}
+    </h1>
+    <div id="flashes" class="row"></div>
+
+    <!-- Tab navigation -->
+    <ul class="nav nav-tabs" id="courseTabs" style="margin-bottom:20px;">
+        <li class="active"><a href="#all" data-toggle="tab" data-filter="all">All Courses</a></li>
+        <li><a href="#assigned" data-toggle="tab" data-filter="assigned">Assigned to Me</a></li>
+        <li><a href="#completed" data-toggle="tab" data-filter="complete">Completed</a></li>
+        <li><a href="#incomplete" data-toggle="tab" data-filter="incomplete">Incomplete</a></li>
+        <li><a href="#certificates" data-toggle="tab" data-filter="certificates">My Certificates</a></li>
+    </ul>
+
+    <div id="coursesLoading" style="text-align:center; padding:40px;">
+        <i class="fa fa-spinner fa-spin fa-4x"></i>
+    </div>
+
+    <div id="coursesEmpty" style="display:none; text-align:center; padding:40px;">
+        <i class="fa fa-graduation-cap fa-4x" style="color:#ccc; margin-bottom:15px;"></i>
+        <h3>No courses found</h3>
+        <p>Training courses will appear here once you start them.</p>
+    </div>
+
+    <div id="coursesList" style="display:none;">
+        <!-- Course cards injected by JS -->
+    </div>
+
+    <div id="certificatesList" style="display:none;">
+        <!-- Certificate cards injected by JS -->
+    </div>
+
+    <style>
+        .course-item {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            transition: box-shadow 0.2s ease;
+        }
+        .course-item:hover {
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+        .course-item-thumb {
+            width: 80px;
+            height: 80px;
+            border-radius: 8px;
+            overflow: hidden;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            color: #fff;
+        }
+        .course-item-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .course-item-thumb.type-pdf { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+        .course-item-thumb.type-ppt { background: linear-gradient(135deg, #e67e22, #d35400); }
+        .course-item-thumb.type-video { background: linear-gradient(135deg, #9b59b6, #8e44ad); }
+        .course-item-thumb.type-default { background: linear-gradient(135deg, #3498db, #2980b9); }
+        .course-item-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .course-item-info h4 {
+            margin: 0 0 4px 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+        .course-item-info p {
+            margin: 0 0 8px 0;
+            font-size: 13px;
+            color: #777;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .course-progress-bar-wrap {
+            background: #eee;
+            border-radius: 10px;
+            height: 10px;
+            overflow: hidden;
+            margin-bottom: 6px;
+        }
+        .course-progress-bar-fill {
+            height: 100%;
+            border-radius: 10px;
+            transition: width 0.4s ease;
+        }
+        .course-progress-bar-fill.no-progress { width: 0; background: #ccc; }
+        .course-progress-bar-fill.in-progress { background: linear-gradient(90deg, #3498db, #2ecc71); }
+        .course-progress-bar-fill.complete { background: linear-gradient(90deg, #2ecc71, #27ae60); }
+        .course-progress-text {
+            font-size: 12px;
+            color: #999;
+        }
+        .course-item-actions {
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+        .status-tag {
+            font-size: 11px;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-weight: 600;
+            display: inline-block;
+        }
+        .status-tag.no-progress { background: #eee; color: #999; }
+        .status-tag.in-progress { background: #e8f4fd; color: #2980b9; }
+        .status-tag.complete { background: #e8f8e8; color: #27ae60; }
+        .due-date-badge {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            display: inline-block;
+            margin-left: 6px;
+        }
+        .due-date-badge.on-time { background: #e8f4fd; color: #2980b9; }
+        .due-date-badge.overdue { background: #fde8e8; color: #c0392b; font-weight: 600; }
+        .cert-item {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .cert-item:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+        .cert-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            color: #fff;
+            flex-shrink: 0;
+        }
+        .cert-info { flex: 1; }
+        .cert-info h4 { margin: 0 0 4px 0; font-size: 15px; font-weight: 600; color: #333; }
+        .cert-info p { margin: 0; font-size: 12px; color: #999; }
+    </style>
+</div>
+{{end}}
+
+{{define "scripts"}}
+<script>
+$(document).ready(function() {
+    var allCourses = [];
+    var myAssignments = [];
+    var myCertificates = [];
+    var currentFilter = 'all';
+
+    function getFileIcon(ct) {
+        if (ct && ct.indexOf('pdf') !== -1) return 'fa-file-pdf-o';
+        if (ct && (ct.indexOf('powerpoint') !== -1 || ct.indexOf('presentation') !== -1)) return 'fa-file-powerpoint-o';
+        if (ct && ct.indexOf('video') !== -1) return 'fa-file-video-o';
+        return 'fa-file-o';
+    }
+    function getThumbClass(ct) {
+        if (ct && ct.indexOf('pdf') !== -1) return 'type-pdf';
+        if (ct && (ct.indexOf('powerpoint') !== -1 || ct.indexOf('presentation') !== -1)) return 'type-ppt';
+        if (ct && ct.indexOf('video') !== -1) return 'type-video';
+        return 'type-default';
+    }
+    function thumbUrl(id) {
+        return '/api/training/' + id + '/thumbnail?api_key=' + encodeURIComponent(user.api_key);
+    }
+
+    // Find assignment for a given presentation
+    function getAssignmentForPres(presId) {
+        for (var i = 0; i < myAssignments.length; i++) {
+            if (myAssignments[i].presentation_id === presId) return myAssignments[i];
+        }
+        return null;
+    }
+
+    // Find certificate for a given presentation
+    function getCertForPres(presId) {
+        for (var i = 0; i < myCertificates.length; i++) {
+            if (myCertificates[i].presentation_id === presId) return myCertificates[i];
+        }
+        return null;
+    }
+
+    function renderCourses() {
+        var list = $('#coursesList');
+        var certList = $('#certificatesList');
+        list.empty();
+        certList.hide();
+
+        if (currentFilter === 'certificates') {
+            list.hide();
+            renderCertificates();
+            return;
+        }
+
+        var filtered = allCourses;
+        if (currentFilter === 'complete') {
+            filtered = allCourses.filter(function(c) { return c.progress && c.progress.status === 'complete'; });
+        } else if (currentFilter === 'incomplete') {
+            filtered = allCourses.filter(function(c) { return !c.progress || c.progress.status !== 'complete'; });
+        } else if (currentFilter === 'assigned') {
+            // Show only courses that have an assignment
+            var assignedPresIds = {};
+            myAssignments.forEach(function(a) { assignedPresIds[a.presentation_id] = true; });
+            filtered = allCourses.filter(function(c) { return c.presentation && assignedPresIds[c.presentation.id]; });
+        }
+
+        if (filtered.length === 0) {
+            $('#coursesEmpty').show();
+            list.hide();
+            return;
+        }
+        $('#coursesEmpty').hide();
+        list.show();
+
+        filtered.forEach(function(c) {
+            var tp = c.presentation;
+            var cp = c.progress || {};
+            var pct = c.progress_pct || 0;
+            var status = cp.status || 'no_progress';
+
+            var thumbHtml;
+            if (tp.thumbnail_path) {
+                thumbHtml = '<img src="' + thumbUrl(tp.id) + '" alt="" />';
+            } else {
+                thumbHtml = '<i class="fa ' + getFileIcon(tp.content_type) + '"></i>';
+            }
+            var thumbClass = tp.thumbnail_path ? '' : getThumbClass(tp.content_type);
+
+            var statusLabel, statusClass;
+            if (status === 'complete') { statusLabel = 'Complete'; statusClass = 'complete'; }
+            else if (status === 'in_progress') { statusLabel = 'In Progress'; statusClass = 'in-progress'; }
+            else { statusLabel = 'No Progress'; statusClass = 'no-progress'; }
+
+            // Due date badge
+            var dueBadge = '';
+            var assignment = c.assignment || getAssignmentForPres(tp.id);
+            if (assignment && assignment.due_date && assignment.due_date !== '0001-01-01T00:00:00Z') {
+                var dueM = moment(assignment.due_date);
+                var isOverdue = status !== 'complete' && dueM.isBefore(moment());
+                if (isOverdue) {
+                    dueBadge = '<span class="due-date-badge overdue"><i class="fa fa-exclamation-triangle"></i> Overdue (due ' + dueM.format('MMM D') + ')</span>';
+                } else {
+                    dueBadge = '<span class="due-date-badge on-time"><i class="fa fa-clock-o"></i> Due ' + dueM.format('MMM D, YYYY') + '</span>';
+                }
+            }
+
+            // Certificate link
+            var certLink = '';
+            var cert = c.certificate || getCertForPres(tp.id);
+            if (cert) {
+                certLink = '<a href="#" class="btn btn-warning btn-xs" style="margin-top:4px;" title="View Certificate"><i class="fa fa-certificate"></i> Certificate</a>';
+            }
+
+            var btnHtml = '';
+            if (status === 'in_progress') {
+                btnHtml = '<a href="/training" class="btn btn-primary btn-sm"><i class="fa fa-play"></i> Continue</a>';
+            } else if (status === 'complete') {
+                btnHtml = '<a href="/training" class="btn btn-info btn-sm"><i class="fa fa-refresh"></i> Take Again</a>';
+            } else {
+                btnHtml = '<a href="/training" class="btn btn-success btn-sm"><i class="fa fa-play-circle"></i> Start</a>';
+            }
+
+            var progressBarClass = status === 'complete' ? 'complete' : (status === 'in_progress' ? 'in-progress' : 'no-progress');
+
+            // Quiz badge
+            var quizBadge = '';
+            if (c.has_quiz) {
+                quizBadge = c.quiz_passed
+                    ? '<span style="font-size:11px; color:#27ae60; margin-left:6px;"><i class="fa fa-check-circle"></i> Quiz Passed</span>'
+                    : '<span style="font-size:11px; color:#e67e22; margin-left:6px;"><i class="fa fa-question-circle"></i> Quiz Required</span>';
+            }
+
+            var html = '<div class="course-item" data-status="' + status + '">' +
+                '<div class="course-item-thumb ' + thumbClass + '">' + thumbHtml + '</div>' +
+                '<div class="course-item-info">' +
+                    '<h4>' + escapeHtml(tp.name) + dueBadge + '</h4>' +
+                    '<p>' + escapeHtml(tp.description || '') + quizBadge + '</p>' +
+                    '<div class="course-progress-bar-wrap"><div class="course-progress-bar-fill ' + progressBarClass + '" style="width:' + pct + '%;"></div></div>' +
+                    '<span class="course-progress-text">' + pct + '% complete</span>' +
+                '</div>' +
+                '<div class="course-item-actions">' +
+                    '<span class="status-tag ' + statusClass + '">' + statusLabel + '</span>' +
+                    btnHtml +
+                    certLink +
+                '</div>' +
+            '</div>';
+            list.append(html);
+        });
+    }
+
+    function renderCertificates() {
+        var certList = $('#certificatesList');
+        certList.empty();
+        $('#coursesList').hide();
+
+        if (myCertificates.length === 0) {
+            $('#coursesEmpty').show();
+            certList.hide();
+            return;
+        }
+        $('#coursesEmpty').hide();
+        certList.show();
+
+        myCertificates.forEach(function(cert) {
+            var issuedDate = moment(cert.issued_date).format('MMM D, YYYY');
+            var courseName = cert.course_name || 'Training Course';
+            var html = '<div class="cert-item">' +
+                '<div class="cert-icon"><i class="fa fa-certificate"></i></div>' +
+                '<div class="cert-info">' +
+                    '<h4>' + escapeHtml(courseName) + '</h4>' +
+                    '<p><i class="fa fa-calendar"></i> Issued: ' + issuedDate +
+                    ' &nbsp;&middot;&nbsp; <i class="fa fa-key"></i> Code: ' + escapeHtml(cert.verification_code) + '</p>' +
+                '</div>' +
+            '</div>';
+            certList.append(html);
+        });
+    }
+
+    function loadCourses() {
+        $('#coursesLoading').show();
+        $('#coursesList').hide();
+        $('#coursesEmpty').hide();
+        $('#certificatesList').hide();
+
+        // Load courses, assignments, and certificates in parallel
+        var coursesLoaded = false, assignmentsLoaded = false, certificatesLoaded = false;
+        function checkAllLoaded() {
+            if (coursesLoaded && assignmentsLoaded && certificatesLoaded) {
+                $('#coursesLoading').hide();
+                renderCourses();
+            }
+        }
+
+        $.ajax({
+            url: '/api/training/my-courses',
+            method: 'GET',
+            dataType: 'json',
+            beforeSend: function(xhr) {
+                xhr.setRequestHeader('Authorization', 'Bearer ' + user.api_key);
+            }
+        })
+        .done(function(data) { allCourses = data || []; })
+        .fail(function() { allCourses = []; })
+        .always(function() { coursesLoaded = true; checkAllLoaded(); });
+
+        $.ajax({
+            url: '/api/training/my-assignments',
+            method: 'GET',
+            dataType: 'json',
+            beforeSend: function(xhr) {
+                xhr.setRequestHeader('Authorization', 'Bearer ' + user.api_key);
+            }
+        })
+        .done(function(data) { myAssignments = data || []; })
+        .fail(function() { myAssignments = []; })
+        .always(function() { assignmentsLoaded = true; checkAllLoaded(); });
+
+        $.ajax({
+            url: '/api/training/my-certificates',
+            method: 'GET',
+            dataType: 'json',
+            beforeSend: function(xhr) {
+                xhr.setRequestHeader('Authorization', 'Bearer ' + user.api_key);
+            }
+        })
+        .done(function(data) { myCertificates = data || []; })
+        .fail(function() { myCertificates = []; })
+        .always(function() { certificatesLoaded = true; checkAllLoaded(); });
+    }
+
+    // Tab switching
+    $('#courseTabs a').on('click', function(e) {
+        currentFilter = $(this).data('filter');
+        renderCourses();
+    });
+
+    loadCourses();
+});
+</script>
+{{end}}

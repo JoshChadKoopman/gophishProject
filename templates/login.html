@@ -1,18 +1,18 @@
 {{ define "base" }}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{.Locale}}">
 
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Gophish - Open-Source Phishing Toolkit">
-    <meta name="author" content="Jordan Wright (http://github.com/jordan-wright)">
+    <meta name="description" content="{{T .Locale "app.description"}}">
     <link rel="shortcut icon" href="/images/favicon.ico">
 
-    <title>Gophish - {{ .Title }}</title>
+    <title>Nivoxis - {{T .Locale "login.title"}}</title>
 
     <link href="/css/dist/gophish.css" rel="stylesheet">
+    <link href='https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap' rel='stylesheet'>
     <link href='https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,300,600,700' rel='stylesheet' type='text/css'>
 </head>
 
@@ -26,14 +26,14 @@
                     <span class="icon-bar"></span>
                     <span class="icon-bar"></span>
                 </button>
-                <img class="navbar-logo" src="/images/logo_inv_small.png" />
-                <a class="navbar-brand" href="/">&nbsp;gophish</a>
+                <img class="navbar-logo" src="/images/logo_inv_small.png" alt="Nivoxis" />
+                <a class="navbar-brand" href="/">&nbsp;Nivoxis</a>
             </div>
             <div class="navbar-collapse collapse">
                 <ul class="nav navbar-nav navbar-right">
                     <li>
                         <a id="login-button" href="/login">
-                            <button type="button" class="btn btn-primary">Login</button>
+                            <button type="button" class="btn btn-primary">{{T .Locale "login.title"}}</button>
                         </a>
                     </li>
                 </ul>
@@ -43,13 +43,21 @@
     <div class="container">
         <form class="form-signin" action="" method="POST">
             <img id="logo" src="/images/logo_purple.png" />
-            <h2 class="form-signin-heading">Please sign in</h2>
+            <h2 class="form-signin-heading">{{T .Locale "login.heading"}}</h2>
             {{template "flashes" .Flashes}}
-            <input type="text" name="username" class="form-control top-input" placeholder="Username" required autofocus>
-            <input type="password" name="password" class="form-control bottom-input" placeholder="Password" autocomplete="off" required>
+            <input type="text" name="username" class="form-control top-input" placeholder="{{T .Locale "login.email_placeholder"}}" required autofocus>
+            <input type="password" name="password" class="form-control bottom-input" placeholder="{{T .Locale "login.password_placeholder"}}" autocomplete="off" required>
             <input type="hidden" name="csrf_token" value="{{.Token}}" />
-            <button class="btn btn-lg btn-primary btn-block" type="submit">Sign in</button>
+            <button class="btn btn-lg btn-primary btn-block" type="submit">{{T .Locale "login.submit"}}</button>
         </form>
+        {{if .OIDCEnabled}}
+        <div style="max-width:340px; margin:0 auto; text-align:center;">
+            <p style="color:#999; margin:15px 0 10px;">{{T .Locale "login.or"}}</p>
+            <a href="/auth/oidc/login" class="btn btn-default btn-block">
+                <i class="fa fa-sign-in"></i>&nbsp; {{T .Locale "login.sso"}}
+            </a>
+        </div>
+        {{end}}
     </div>
     <!-- Placed at the end of the document so the pages load faster -->
     <script src="/js/dist/vendor.min.js"></script>

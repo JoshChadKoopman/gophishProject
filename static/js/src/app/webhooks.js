@@ -116,7 +116,7 @@ const deleteWebhook = (id) => {
         animation: false,
         showCancelButton: true,
         confirmButtonText: "Delete",
-        confirmButtonColor: "#428bca",
+        confirmButtonColor: "#E94560",
         reverseButtons: true,
         allowOutsideClick: false,
         preConfirm: function () {

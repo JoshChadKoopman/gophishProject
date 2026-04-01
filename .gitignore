@@ -29,3 +29,8 @@ gophish_admin.key
 *.exe
 gophish.db*
 gophish
+
+# Environment files with secrets
+.env
+docker/.env
+*.env.local

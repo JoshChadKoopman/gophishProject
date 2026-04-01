@@ -13,10 +13,58 @@
         </div>
     </div>
     <div id="dashboard" style="display:none;">
+        <!-- Summary Cards -->
+        <div class="row" id="summaryCards" style="margin-bottom:20px;"></div>
+
+        <!-- Trend Chart with date range selector -->
         <div class="row">
-            <div id="overview_chart" style="height:200px;" class="col-lg-12 col-md-12 col-sm-12 col-xs-12"></div>
+            <div class="col-lg-12">
+                <div style="margin-bottom:10px;">
+                    <div class="btn-group btn-group-sm" id="trendRange">
+                        <button class="btn btn-default" data-days="7">7d</button>
+                        <button class="btn btn-default active" data-days="30">30d</button>
+                        <button class="btn btn-default" data-days="90">90d</button>
+                    </div>
+                </div>
+                <div id="trendChart" style="height:280px;"></div>
+            </div>
         </div>
-        <div class="row">
+
+        <!-- Risk Gauge + Training Completion + Top Vulnerable -->
+        <div class="row" style="margin-top:20px;">
+            <div class="col-md-4">
+                <div class="panel panel-default">
+                    <div class="panel-heading"><strong><i class="fa fa-tachometer"></i> Organization Risk</strong></div>
+                    <div class="panel-body" style="text-align:center;">
+                        <div id="riskGauge" style="height:200px;"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="panel panel-default">
+                    <div class="panel-heading"><strong><i class="fa fa-graduation-cap"></i> Training Completion</strong></div>
+                    <div class="panel-body" id="trainingWidget">
+                        <div style="text-align:center; padding:20px;">
+                            <i class="fa fa-spinner fa-spin"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="panel panel-default">
+                    <div class="panel-heading"><strong><i class="fa fa-exclamation-triangle"></i> Top Vulnerable Users</strong></div>
+                    <div class="panel-body" style="padding:0;">
+                        <table class="table table-condensed" style="margin:0;" id="topRiskTable">
+                            <thead><tr><th>Email</th><th>Risk</th></tr></thead>
+                            <tbody id="topRiskBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Donut charts row -->
+        <div class="row" style="margin-top:10px;">
             <div style="height:200px;" class="col-lg-1 col-md-1"></div>
             <div id="sent_chart" style="height:200px;" class="col-lg-2 col-md-2"></div>
             <div id="opened_chart" style="height:200px;" class="col-lg-2 col-md-2"></div>
@@ -25,6 +73,8 @@
             <div id="email_reported_chart" style="height:200px;" class="col-lg-2 col-md-2"></div>
             <div style="height:200px;" class="col-lg-1 col-md-1"></div>
         </div>
+
+        <!-- Recent Campaigns -->
         <div class="row">
             <h2>Recent Campaigns</h2>
         </div>

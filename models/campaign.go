@@ -15,6 +15,7 @@ import (
 type Campaign struct {
 	Id            int64     `json:"id"`
 	UserId        int64     `json:"-"`
+	OrgId         int64     `json:"-" gorm:"column:org_id"`
 	Name          string    `json:"name" sql:"not null"`
 	CreatedDate   time.Time `json:"created_date"`
 	LaunchDate    time.Time `json:"launch_date"`
@@ -29,8 +30,11 @@ type Campaign struct {
 	Groups        []Group   `json:"groups,omitempty"`
 	Events        []Event   `json:"timeline,omitempty"`
 	SMTPId        int64     `json:"-"`
-	SMTP          SMTP      `json:"smtp"`
-	URL           string    `json:"url"`
+	SMTP                   SMTP   `json:"smtp"`
+	URL                    string `json:"url"`
+	TrainingPresentationId int64  `json:"training_presentation_id" gorm:"column:training_presentation_id"`
+	FeedbackEnabled        bool   `json:"feedback_enabled" gorm:"column:feedback_enabled"`
+	FeedbackPageId         int64  `json:"feedback_page_id" gorm:"column:feedback_page_id"`
 }
 
 // CampaignResults is a struct representing the results from a campaign
@@ -301,10 +305,10 @@ func getCampaignStats(cid int64) (CampaignStats, error) {
 	return s, err
 }
 
-// GetCampaigns returns the campaigns owned by the given user.
-func GetCampaigns(uid int64) ([]Campaign, error) {
+// GetCampaigns returns the campaigns belonging to the given org scope.
+func GetCampaigns(scope OrgScope) ([]Campaign, error) {
 	cs := []Campaign{}
-	err := db.Model(&User{Id: uid}).Related(&cs).Error
+	err := scopeQuery(db.Table("campaigns"), scope).Find(&cs).Error
 	if err != nil {
 		log.Error(err)
 	}
@@ -318,12 +322,11 @@ func GetCampaigns(uid int64) ([]Campaign, error) {
 }
 
 // GetCampaignSummaries gets the summary objects for all the campaigns
-// owned by the current user
-func GetCampaignSummaries(uid int64) (CampaignSummaries, error) {
+// belonging to the given org scope.
+func GetCampaignSummaries(scope OrgScope) (CampaignSummaries, error) {
 	overview := CampaignSummaries{}
 	cs := []CampaignSummary{}
-	// Get the basic campaign information
-	query := db.Table("campaigns").Where("user_id = ?", uid)
+	query := scopeQuery(db.Table("campaigns"), scope)
 	query = query.Select("id, name, created_date, launch_date, send_by_date, completed_date, status")
 	err := query.Scan(&cs).Error
 	if err != nil {
@@ -344,9 +347,9 @@ func GetCampaignSummaries(uid int64) (CampaignSummaries, error) {
 }
 
 // GetCampaignSummary gets the summary object for a campaign specified by the campaign ID
-func GetCampaignSummary(id int64, uid int64) (CampaignSummary, error) {
+func GetCampaignSummary(id int64, scope OrgScope) (CampaignSummary, error) {
 	cs := CampaignSummary{}
-	query := db.Table("campaigns").Where("user_id = ? AND id = ?", uid, id)
+	query := scopeQuery(db.Table("campaigns").Where("id = ?", id), scope)
 	query = query.Select("id, name, created_date, launch_date, send_by_date, completed_date, status")
 	err := query.Scan(&cs).Error
 	if err != nil {
@@ -394,10 +397,10 @@ func GetCampaignMailContext(id int64, uid int64) (Campaign, error) {
 	return c, nil
 }
 
-// GetCampaign returns the campaign, if it exists, specified by the given id and user_id.
-func GetCampaign(id int64, uid int64) (Campaign, error) {
+// GetCampaign returns the campaign, if it exists, specified by the given id and org scope.
+func GetCampaign(id int64, scope OrgScope) (Campaign, error) {
 	c := Campaign{}
-	err := db.Where("id = ?", id).Where("user_id = ?", uid).Find(&c).Error
+	err := scopeQuery(db.Where("id = ?", id), scope).Find(&c).Error
 	if err != nil {
 		log.Errorf("%s: campaign not found", err)
 		return c, err
@@ -407,9 +410,9 @@ func GetCampaign(id int64, uid int64) (Campaign, error) {
 }
 
 // GetCampaignResults returns just the campaign results for the given campaign
-func GetCampaignResults(id int64, uid int64) (CampaignResults, error) {
+func GetCampaignResults(id int64, scope OrgScope) (CampaignResults, error) {
 	cr := CampaignResults{}
-	err := db.Table("campaigns").Where("id=? and user_id=?", id, uid).Find(&cr).Error
+	err := scopeQuery(db.Table("campaigns").Where("id=?", id), scope).Find(&cr).Error
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"campaign_id": id,
@@ -417,7 +420,7 @@ func GetCampaignResults(id int64, uid int64) (CampaignResults, error) {
 		}).Error(err)
 		return cr, err
 	}
-	err = db.Table("results").Where("campaign_id=? and user_id=?", cr.Id, uid).Find(&cr.Results).Error
+	err = db.Table("results").Where("campaign_id=?", cr.Id).Find(&cr.Results).Error
 	if err != nil {
 		log.Errorf("%s: results not found for campaign", err)
 		return cr, err
@@ -449,13 +452,14 @@ func GetQueuedCampaigns(t time.Time) ([]Campaign, error) {
 }
 
 // PostCampaign inserts a campaign and all associated records into the database.
-func PostCampaign(c *Campaign, uid int64) error {
+func PostCampaign(c *Campaign, scope OrgScope) error {
 	err := c.Validate()
 	if err != nil {
 		return err
 	}
 	// Fill in the details
-	c.UserId = uid
+	c.UserId = scope.UserId
+	c.OrgId = scope.OrgId
 	c.CreatedDate = time.Now().UTC()
 	c.CompletedDate = time.Time{}
 	c.Status = CampaignQueued
@@ -475,7 +479,7 @@ func PostCampaign(c *Campaign, uid int64) error {
 	// duplicates is ok for now), so we'll do that here to save a loop.
 	totalRecipients := 0
 	for i, g := range c.Groups {
-		c.Groups[i], err = GetGroupByName(g.Name, uid)
+		c.Groups[i], err = GetGroupByName(g.Name, scope)
 		if err == gorm.ErrRecordNotFound {
 			log.WithFields(logrus.Fields{
 				"group": g.Name,
@@ -488,7 +492,7 @@ func PostCampaign(c *Campaign, uid int64) error {
 		totalRecipients += len(c.Groups[i].Targets)
 	}
 	// Check to make sure the template exists
-	t, err := GetTemplateByName(c.Template.Name, uid)
+	t, err := GetTemplateByName(c.Template.Name, scope)
 	if err == gorm.ErrRecordNotFound {
 		log.WithFields(logrus.Fields{
 			"template": c.Template.Name,
@@ -501,7 +505,7 @@ func PostCampaign(c *Campaign, uid int64) error {
 	c.Template = t
 	c.TemplateId = t.Id
 	// Check to make sure the page exists
-	p, err := GetPageByName(c.Page.Name, uid)
+	p, err := GetPageByName(c.Page.Name, scope)
 	if err == gorm.ErrRecordNotFound {
 		log.WithFields(logrus.Fields{
 			"page": c.Page.Name,
@@ -514,7 +518,7 @@ func PostCampaign(c *Campaign, uid int64) error {
 	c.Page = p
 	c.PageId = p.Id
 	// Check to make sure the sending profile exists
-	s, err := GetSMTPByName(c.SMTP.Name, uid)
+	s, err := GetSMTPByName(c.SMTP.Name, scope)
 	if err == gorm.ErrRecordNotFound {
 		log.WithFields(logrus.Fields{
 			"smtp": c.SMTP.Name,
@@ -640,11 +644,11 @@ func DeleteCampaign(id int64) error {
 
 // CompleteCampaign effectively "ends" a campaign.
 // Any future emails clicked will return a simple "404" page.
-func CompleteCampaign(id int64, uid int64) error {
+func CompleteCampaign(id int64, scope OrgScope) error {
 	log.WithFields(logrus.Fields{
 		"campaign_id": id,
 	}).Info("Marking campaign as complete")
-	c, err := GetCampaign(id, uid)
+	c, err := GetCampaign(id, scope)
 	if err != nil {
 		return err
 	}
@@ -661,7 +665,7 @@ func CompleteCampaign(id int64, uid int64) error {
 	// Mark the campaign as complete
 	c.CompletedDate = time.Now().UTC()
 	c.Status = CampaignComplete
-	err = db.Model(&Campaign{}).Where("id=? and user_id=?", id, uid).
+	err = scopeQuery(db.Model(&Campaign{}).Where("id=?", id), scope).
 		Select([]string{"completed_date", "status"}).UpdateColumns(&c).Error
 	if err != nil {
 		log.Error(err)

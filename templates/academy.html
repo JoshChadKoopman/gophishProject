@@ -1,0 +1,215 @@
+{{define "body"}}
+<div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+    <h1 class="page-header">
+        <i class="fa fa-graduation-cap"></i> {{.Title}}
+    </h1>
+    <div id="flashes" class="row"></div>
+
+    <div id="loading">
+        <i class="fa fa-spinner fa-spin fa-4x"></i>
+    </div>
+
+    <div id="academyContent" style="display:none;">
+        <!-- User Stats Bar -->
+        <div class="row" style="margin-bottom:20px;">
+            <div class="col-md-3">
+                <div class="panel panel-default text-center">
+                    <div class="panel-body">
+                        <h3 id="tiersCompleted" style="margin:5px 0;">0 / 4</h3>
+                        <p style="color:#888;margin:0;">Tiers Completed</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="panel panel-default text-center">
+                    <div class="panel-body">
+                        <h3 id="badgeCount" style="margin:5px 0;">0</h3>
+                        <p style="color:#888;margin:0;">Badges Earned</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="panel panel-default text-center">
+                    <div class="panel-body">
+                        <h3 id="streakCount" style="margin:5px 0;">0 weeks</h3>
+                        <p style="color:#888;margin:0;">Current Streak</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="panel panel-default text-center">
+                    <div class="panel-body">
+                        <h3 id="complianceCount" style="margin:5px 0;">0</h3>
+                        <p style="color:#888;margin:0;">Compliance Certs</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tier Progression -->
+        <div class="row">
+            <div class="col-md-12">
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <h3 class="panel-title"><i class="fa fa-trophy"></i> Academy Progression</h3>
+                    </div>
+                    <div class="panel-body">
+                        <!-- Horizontal tier progress bar -->
+                        <div class="tier-progress-bar" id="tierProgressBar" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:30px;padding:0 20px;">
+                        </div>
+                        <!-- Tier detail cards -->
+                        <div class="row" id="tierCards">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tier Sessions (shown when a tier is expanded) -->
+        <div class="row" id="sessionsPanel" style="display:none;">
+            <div class="col-md-12">
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <h3 class="panel-title">
+                            <i class="fa fa-list"></i> <span id="sessionsTierName">Sessions</span>
+                            <button class="btn btn-xs btn-default pull-right" onclick="closeSessions()">
+                                <i class="fa fa-times"></i> Close
+                            </button>
+                        </h3>
+                    </div>
+                    <div class="panel-body">
+                        <table class="table table-striped" id="sessionsTable">
+                            <thead>
+                                <tr>
+                                    <th style="width:40px;">#</th>
+                                    <th>Course</th>
+                                    <th style="width:100px;">Duration</th>
+                                    <th style="width:80px;">Required</th>
+                                    <th style="width:100px;">Status</th>
+                                    <th style="width:120px;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sessionsBody">
+                            </tbody>
+                        </table>
+                        <div class="text-center" style="margin-top:15px;">
+                            <button id="btnCompleteTier" class="btn btn-success btn-lg" style="display:none;">
+                                <i class="fa fa-check-circle"></i> Complete Tier
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- My Badges -->
+        {{if and .OrgFeatures (index .OrgFeatures "gamification")}}
+        <div class="row">
+            <div class="col-md-12">
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <h3 class="panel-title"><i class="fa fa-star"></i> My Badges</h3>
+                    </div>
+                    <div class="panel-body">
+                        <div id="badgesContainer" style="display:flex;flex-wrap:wrap;gap:15px;">
+                        </div>
+                        <p id="noBadges" style="color:#888;display:none;">Complete courses and quizzes to earn badges!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {{end}}
+
+        <!-- Compliance Certifications -->
+        {{if and .OrgFeatures (index .OrgFeatures "academy_advanced")}}
+        <div class="row">
+            <div class="col-md-12">
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <h3 class="panel-title"><i class="fa fa-certificate"></i> Compliance Certifications</h3>
+                    </div>
+                    <div class="panel-body">
+                        <div id="complianceContainer" class="row">
+                        </div>
+                        <p id="noCompliance" style="color:#888;display:none;">No compliance certifications available.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {{end}}
+    </div>
+</div>
+
+<style>
+.tier-node {
+    text-align: center;
+    flex: 0 0 auto;
+}
+.tier-circle {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 8px;
+    font-size: 24px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+.tier-circle:hover {
+    transform: scale(1.1);
+}
+.tier-circle.locked {
+    background: #ddd;
+    color: #999;
+    cursor: not-allowed;
+}
+.tier-circle.unlocked {
+    background: #f0ad4e;
+    color: #fff;
+}
+.tier-circle.completed {
+    background: #5cb85c;
+    color: #fff;
+}
+.tier-connector {
+    flex: 1;
+    height: 4px;
+    background: #ddd;
+    margin: 0 5px;
+    margin-bottom: 30px;
+}
+.tier-connector.active {
+    background: #5cb85c;
+}
+.badge-card {
+    text-align: center;
+    padding: 15px;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    width: 120px;
+}
+.badge-card.earned {
+    border-color: #f0ad4e;
+    background: #fffdf5;
+}
+.badge-card.unearned {
+    opacity: 0.4;
+}
+.badge-icon {
+    font-size: 32px;
+    margin-bottom: 8px;
+}
+.compliance-card {
+    border: 1px solid #eee;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+</style>
+{{end}}
+
+{{define "scripts"}}
+<script src="/js/dist/app/academy.min.js"></script>
+{{end}}

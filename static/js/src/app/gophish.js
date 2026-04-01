@@ -191,6 +191,29 @@ var api = {
             return query("/pages/" + id, "DELETE", {}, false)
         }
     },
+    // feedbackPages contains the endpoints for /feedback_pages
+    feedbackPages: {
+        get: function () {
+            return query("/feedback_pages/", "GET", {}, false)
+        },
+        post: function (fp) {
+            return query("/feedback_pages/", "POST", fp, false)
+        },
+        getDefault: function (lang) {
+            return query("/feedback_pages/default?lang=" + (lang || "en"), "GET", {}, false)
+        }
+    },
+    feedbackPageId: {
+        get: function (id) {
+            return query("/feedback_pages/" + id, "GET", {}, false)
+        },
+        put: function (fp) {
+            return query("/feedback_pages/" + fp.id, "PUT", fp, false)
+        },
+        delete: function (id) {
+            return query("/feedback_pages/" + id, "DELETE", {}, false)
+        }
+    },
     // SMTP contains the endpoints for /smtp
     SMTP: {
         // get() - Queries the API for GET /smtp
@@ -238,6 +261,13 @@ var api = {
         // post() - Posts a user to POST /users
         post: function (user) {
             return query("/users/", "POST", user, true)
+        }
+    },
+    // roles contains the endpoints for /roles
+    roles: {
+        // get() - Queries the API for GET /roles
+        get: function () {
+            return query("/roles/", "GET", {}, true)
         }
     },
     // userId contains the endpoints for /users/:id
@@ -291,6 +321,290 @@ var api = {
     },
     reset: function () {
         return query("/reset", "POST", {}, true)
+    },
+    // Training presentations
+    trainingPresentations: {
+        get: function () {
+            return query("/training/", "GET", {}, true)
+        }
+    },
+    // Quiz endpoints
+    quiz: {
+        get: function (presentationId) {
+            return query("/training/" + presentationId + "/quiz", "GET", {}, true)
+        },
+        post: function (presentationId, data) {
+            return query("/training/" + presentationId + "/quiz", "POST", data, false)
+        },
+        delete: function (presentationId) {
+            return query("/training/" + presentationId + "/quiz", "DELETE", {}, false)
+        }
+    },
+    quizAttempt: {
+        get: function (presentationId) {
+            return query("/training/" + presentationId + "/quiz/attempt", "GET", {}, true)
+        },
+        post: function (presentationId, data) {
+            return query("/training/" + presentationId + "/quiz/attempt", "POST", data, false)
+        }
+    },
+    // Assignment endpoints
+    assignments: {
+        get: function () {
+            return query("/training/assignments/", "GET", {}, true)
+        },
+        post: function (assignment) {
+            return query("/training/assignments/", "POST", assignment, false)
+        },
+        delete: function (id) {
+            return query("/training/assignments/" + id, "DELETE", {}, false)
+        },
+        assignGroup: function (data) {
+            return query("/training/assignments/group", "POST", data, false)
+        },
+        mine: function () {
+            return query("/training/my-assignments", "GET", {}, true)
+        }
+    },
+    // Certificate endpoints
+    certificates: {
+        verify: function (code) {
+            return query("/training/certificates/verify/" + code, "GET", {}, true)
+        },
+        mine: function () {
+            return query("/training/my-certificates", "GET", {}, true)
+        }
+    },
+    // Report endpoints
+    reports: {
+        overview: function () {
+            return query("/reports/overview", "GET", {}, true)
+        },
+        trend: function (days) {
+            return query("/reports/trend?days=" + (days || 30), "GET", {}, true)
+        },
+        riskScores: function () {
+            return query("/reports/risk-scores", "GET", {}, true)
+        },
+        trainingSummary: function () {
+            return query("/reports/training-summary", "GET", {}, true)
+        },
+        groupComparison: function () {
+            return query("/reports/group-comparison", "GET", {}, true)
+        }
+    },
+    // BRS (Behavioral Risk Score) endpoints
+    brs: {
+        user: function (id) {
+            return query("/reports/brs/user/" + id, "GET", {}, true)
+        },
+        department: function () {
+            return query("/reports/brs/department", "GET", {}, true)
+        },
+        benchmark: function () {
+            return query("/reports/brs/benchmark", "GET", {}, true)
+        },
+        trend: function (userId, days) {
+            return query("/reports/brs/trend?user_id=" + userId + "&days=" + (days || 90), "GET", {}, true)
+        },
+        leaderboard: function (limit) {
+            return query("/reports/brs/leaderboard?limit=" + (limit || 25), "GET", {}, true)
+        },
+        recalculate: function () {
+            return query("/reports/brs/recalculate", "POST", {}, true)
+        }
+    },
+    // Audit log endpoint
+    auditLog: {
+        get: function (params) {
+            var qs = $.param(params || {});
+            return query("/audit-log?" + qs, "GET", {}, true)
+        }
+    },
+    // Organization endpoints
+    orgs: {
+        get: function (id) {
+            return query("/orgs/" + id, "GET", {}, true)
+        },
+        getAll: function () {
+            return query("/orgs/", "GET", {}, true)
+        },
+        post: function (data) {
+            return query("/orgs/", "POST", data, true)
+        },
+        put: function (id, data) {
+            return query("/orgs/" + id, "PUT", data, true)
+        },
+        delete: function (id) {
+            return query("/orgs/" + id, "DELETE", {}, true)
+        },
+        members: function (id) {
+            return query("/orgs/" + id + "/members", "GET", {}, true)
+        },
+        addMember: function (id, data) {
+            return query("/orgs/" + id + "/members", "POST", data, true)
+        },
+        removeMember: function (id, uid) {
+            return query("/orgs/" + id + "/members/" + uid, "DELETE", {}, true)
+        }
+    },
+    // tiers contains the endpoints for /tiers
+    tiers: {
+        get: function () {
+            return query("/tiers/", "GET", {}, true)
+        }
+    },
+    // orgFeatures returns the feature flags for the current org
+    orgFeatures: {
+        get: function () {
+            return query("/org/features", "GET", {}, true)
+        }
+    },
+    // AI template generation endpoints
+    ai: {
+        generateTemplate: function (data) {
+            return query("/ai/generate-template", "POST", data, true)
+        },
+        usage: function () {
+            return query("/ai/usage", "GET", {}, true)
+        }
+    },
+    // Autopilot endpoints
+    autopilot: {
+        getConfig: function () {
+            return query("/autopilot/config", "GET", {}, true)
+        },
+        saveConfig: function (data) {
+            return query("/autopilot/config", "PUT", data, false)
+        },
+        enable: function () {
+            return query("/autopilot/enable", "POST", {}, false)
+        },
+        disable: function () {
+            return query("/autopilot/disable", "POST", {}, false)
+        },
+        getSchedule: function (limit) {
+            return query("/autopilot/schedule?limit=" + (limit || 50), "GET", {}, true)
+        },
+        getBlackouts: function () {
+            return query("/autopilot/blackout", "GET", {}, true)
+        },
+        addBlackout: function (data) {
+            return query("/autopilot/blackout", "POST", data, false)
+        },
+        deleteBlackout: function (id) {
+            return query("/autopilot/blackout/" + id, "DELETE", {}, false)
+        }
+    },
+    // Academy endpoints
+    academy: {
+        getTiers: function () {
+            return query("/academy/tiers", "GET", {}, true)
+        },
+        getTierSessions: function (slug) {
+            return query("/academy/tiers/" + slug + "/sessions", "GET", {}, true)
+        },
+        completeTier: function (slug) {
+            return query("/academy/tiers/" + slug + "/complete", "POST", {}, false)
+        },
+        myProgress: function () {
+            return query("/academy/my-progress", "GET", {}, true)
+        },
+        createSession: function (data) {
+            return query("/academy/sessions", "POST", data, false)
+        },
+        updateSession: function (data) {
+            return query("/academy/sessions", "PUT", data, false)
+        },
+        deleteSession: function (id) {
+            return query("/academy/sessions/" + id, "DELETE", {}, false)
+        },
+        getComplianceCerts: function () {
+            return query("/academy/compliance", "GET", {}, true)
+        },
+        completeCert: function (id) {
+            return query("/academy/compliance/" + id + "/complete", "POST", {}, false)
+        },
+        myCerts: function () {
+            return query("/academy/compliance/my-certs", "GET", {}, true)
+        },
+        verifyCert: function (code) {
+            return query("/academy/compliance/verify/" + code, "GET", {}, true)
+        }
+    },
+    // Gamification endpoints
+    gamification: {
+        getLeaderboard: function (period, department) {
+            var url = "/gamification/leaderboard?period=" + (period || "all_time");
+            if (department) url += "&department=" + encodeURIComponent(department);
+            return query(url, "GET", {}, true)
+        },
+        myPosition: function (period) {
+            return query("/gamification/my-position?period=" + (period || "all_time"), "GET", {}, true)
+        },
+        getBadges: function () {
+            return query("/gamification/badges", "GET", {}, true)
+        },
+        myBadges: function () {
+            return query("/gamification/my-badges", "GET", {}, true)
+        },
+        myStreak: function () {
+            return query("/gamification/my-streak", "GET", {}, true)
+        }
+    },
+    // i18n endpoints
+    i18n: {
+        getTranslations: function (locale) {
+            return query("/i18n/" + (locale || "en"), "GET", {}, true)
+        },
+        getLanguages: function () {
+            return query("/i18n/languages", "GET", {}, true)
+        },
+        setLanguage: function (lang) {
+            return query("/user/language", "PUT", { preferred_language: lang }, false)
+        }
+    },
+    // Report button endpoints
+    reportButton: {
+        getConfig: function () {
+            return query("/report-button/config", "GET", {}, true)
+        },
+        saveConfig: function (data) {
+            return query("/report-button/config", "PUT", data, false)
+        },
+        regenerateKey: function () {
+            return query("/report-button/regenerate-key", "POST", {}, false)
+        }
+    },
+    // Reported emails endpoints
+    reportedEmails: {
+        get: function () {
+            return query("/reported-emails", "GET", {}, true)
+        },
+        classify: function (id, data) {
+            return query("/reported-emails/" + id + "/classify", "PUT", data, false)
+        }
+    },
+    // Threat alerts endpoints
+    threatAlerts: {
+        get: function () {
+            return query("/threat-alerts", "GET", {}, true)
+        },
+        create: function (data) {
+            return query("/threat-alerts/create", "POST", data, false)
+        },
+        getOne: function (id) {
+            return query("/threat-alerts/" + id, "GET", {}, true)
+        },
+        update: function (id, data) {
+            return query("/threat-alerts/" + id, "PUT", data, false)
+        },
+        delete: function (id) {
+            return query("/threat-alerts/" + id, "DELETE", {}, false)
+        },
+        unreadCount: function () {
+            return query("/threat-alerts/unread-count", "GET", {}, true)
+        }
     }
 }
 window.api = api

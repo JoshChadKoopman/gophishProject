@@ -13,6 +13,7 @@ import (
 type Page struct {
 	Id                 int64     `json:"id" gorm:"column:id; primary_key:yes"`
 	UserId             int64     `json:"-" gorm:"column:user_id"`
+	OrgId              int64     `json:"-" gorm:"column:org_id"`
 	Name               string    `json:"name"`
 	HTML               string    `json:"html" gorm:"column:html"`
 	CaptureCredentials bool      `json:"capture_credentials" gorm:"column:capture_credentials"`
@@ -88,10 +89,10 @@ func (p *Page) Validate() error {
 	return p.parseHTML()
 }
 
-// GetPages returns the pages owned by the given user.
-func GetPages(uid int64) ([]Page, error) {
+// GetPages returns the pages belonging to the given org scope.
+func GetPages(scope OrgScope) ([]Page, error) {
 	ps := []Page{}
-	err := db.Where("user_id=?", uid).Find(&ps).Error
+	err := scopeQuery(db.Table("pages"), scope).Find(&ps).Error
 	if err != nil {
 		log.Error(err)
 		return ps, err
@@ -99,20 +100,20 @@ func GetPages(uid int64) ([]Page, error) {
 	return ps, err
 }
 
-// GetPage returns the page, if it exists, specified by the given id and user_id.
-func GetPage(id int64, uid int64) (Page, error) {
+// GetPage returns the page, if it exists, specified by the given id and org scope.
+func GetPage(id int64, scope OrgScope) (Page, error) {
 	p := Page{}
-	err := db.Where("user_id=? and id=?", uid, id).Find(&p).Error
+	err := scopeQuery(db.Where("id=?", id), scope).Find(&p).Error
 	if err != nil {
 		log.Error(err)
 	}
 	return p, err
 }
 
-// GetPageByName returns the page, if it exists, specified by the given name and user_id.
-func GetPageByName(n string, uid int64) (Page, error) {
+// GetPageByName returns the page, if it exists, specified by the given name and org scope.
+func GetPageByName(n string, scope OrgScope) (Page, error) {
 	p := Page{}
-	err := db.Where("user_id=? and name=?", uid, n).Find(&p).Error
+	err := scopeQuery(db.Where("name=?", n), scope).Find(&p).Error
 	if err != nil {
 		log.Error(err)
 	}
@@ -149,9 +150,8 @@ func PutPage(p *Page) error {
 }
 
 // DeletePage deletes an existing page in the database.
-// An error is returned if a page with the given user id and page id is not found.
-func DeletePage(id int64, uid int64) error {
-	err := db.Where("user_id=?", uid).Delete(Page{Id: id}).Error
+func DeletePage(id int64, scope OrgScope) error {
+	err := scopeQuery(db.Where("id=?", id), scope).Delete(Page{}).Error
 	if err != nil {
 		log.Error(err)
 	}

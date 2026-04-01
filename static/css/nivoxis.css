@@ -1,0 +1,384 @@
+/* ============================================================
+   Nivoxis CyberAwareness Platform — Brand Overrides
+   Color Palette:
+     --nv-navy:    #1A1A2E  (primary dark / navbar / sidebar active)
+     --nv-indigo:  #16213E  (sidebar background)
+     --nv-blue:    #0F3460  (secondary dark / accents)
+     --nv-red:     #E94560  (primary action / brand accent)
+     --nv-red-hover: #d63b54
+     --nv-text:    #E0E0E0  (light text on dark bg)
+     --nv-bg:      #ffffff  (light mode main bg)
+     --nv-sidebar-bg: #16213E
+   ============================================================ */
+
+:root {
+    --nv-navy: #1A1A2E;
+    --nv-indigo: #16213E;
+    --nv-blue: #0F3460;
+    --nv-red: #E94560;
+    --nv-red-hover: #d63b54;
+    --nv-text-light: #E0E0E0;
+    --nv-text-dark: #2c2c2c;
+    --nv-bg: #ffffff;
+    --nv-sidebar-bg: #16213E;
+    --nv-sidebar-text: #c5c8d4;
+    --nv-sidebar-hover: #1A1A2E;
+    --nv-sidebar-active: #E94560;
+    --nv-border: #e0e0e0;
+    --nv-card-bg: #ffffff;
+    --nv-muted: #8c8fa3;
+}
+
+/* ----- Navbar ----- */
+.navbar-inverse {
+    background-color: var(--nv-navy);
+    border-color: var(--nv-navy);
+    background-image: none;
+}
+
+.navbar-inverse .navbar-brand {
+    color: #ffffff;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+}
+
+.navbar-inverse .navbar-brand:hover {
+    color: var(--nv-red);
+}
+
+.navbar-inverse .navbar-nav > li > a {
+    color: var(--nv-text-light);
+}
+
+.navbar-inverse .navbar-toggle .icon-bar {
+    background-color: var(--nv-text-light);
+}
+
+/* Primary button overrides */
+.btn-primary {
+    background-color: var(--nv-red);
+    border-color: var(--nv-red);
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active,
+.btn-primary.active,
+.open > .dropdown-toggle.btn-primary {
+    background-color: var(--nv-red-hover);
+    border-color: var(--nv-red-hover);
+}
+
+.btn-blue {
+    background-color: var(--nv-blue);
+    border-color: var(--nv-blue);
+}
+
+.btn-blue:hover {
+    background-color: #124a80;
+}
+
+/* ----- Sidebar ----- */
+@media (min-width: 768px) {
+    .sidebar {
+        background-color: var(--nv-sidebar-bg);
+        border-right: 1px solid #0d1a30;
+    }
+}
+
+.sidebar a {
+    color: var(--nv-sidebar-text) !important;
+    transition: color 0.15s, background-color 0.15s;
+}
+
+.sidebar a:hover {
+    color: #ffffff !important;
+}
+
+.sidebar a i.fa {
+    margin-right: 4px;
+    width: 18px;
+    text-align: center;
+}
+
+.nav-sidebar > .active > a,
+.nav-sidebar > .active > a:hover,
+.nav-sidebar > .active > a:focus {
+    color: #ffffff !important;
+    background-color: var(--nv-sidebar-active);
+}
+
+.nav-sidebar > li.active > a:focus,
+.nav-sidebar > li.active > a:hover {
+    background-color: var(--nv-red-hover);
+}
+
+.sidebar hr {
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Sidebar submenu chevrons */
+.sidebar .fa-chevron-down {
+    color: var(--nv-muted);
+}
+
+/* ----- Login page ----- */
+.form-signin {
+    max-width: 400px;
+    padding: 30px;
+    margin: 50px auto 0 auto;
+    background: var(--nv-card-bg);
+    border-radius: 8px;
+    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.08);
+}
+
+.form-signin-heading {
+    text-align: center;
+    color: var(--nv-navy);
+    font-weight: 600;
+}
+
+.form-signin .form-control {
+    font-family: 'Inter', 'Source Sans Pro', sans-serif;
+}
+
+.form-signin .form-control:focus {
+    border-color: var(--nv-red);
+    box-shadow: 0 0 0 2px rgba(233, 69, 96, 0.15);
+}
+
+/* ----- Typography ----- */
+body {
+    font-family: 'Inter', 'Source Sans Pro', sans-serif;
+    color: var(--nv-text-dark);
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Inter', 'Source Sans Pro', sans-serif;
+}
+
+.label {
+    font-family: 'Inter', 'Roboto', sans-serif !important;
+}
+
+/* ----- Chart tooltips ----- */
+.chartist-tooltip,
+.chartist-pie-tooltip {
+    background: var(--nv-navy);
+}
+
+.chartist-tooltip:after {
+    border-top-color: var(--nv-navy);
+}
+
+/* ----- Sort icon accent ----- */
+table.dataTable thead .sorting:after,
+table.dataTable thead .sorting_asc:after,
+table.dataTable thead .sorting_desc:after {
+    color: var(--nv-red);
+}
+
+/* ----- Footer ----- */
+footer > p {
+    color: var(--nv-muted);
+    font-family: 'Inter', 'Source Sans Pro', sans-serif;
+}
+
+/* ----- API heading ----- */
+.api_heading {
+    background-color: var(--nv-navy);
+    font-family: 'Inter', 'Source Sans Pro', sans-serif;
+}
+
+/* ----- Typeahead cursor ----- */
+.tt-suggestion.tt-cursor {
+    background-color: var(--nv-red);
+}
+
+/* ----- User dropdown ----- */
+#navbar-dropdown .btn-primary {
+    background-color: var(--nv-red);
+    border-color: var(--nv-red);
+}
+
+#navbar-dropdown .btn-primary:hover,
+#navbar-dropdown .btn-primary:focus {
+    background-color: var(--nv-red-hover);
+    border-color: var(--nv-red-hover);
+}
+
+/* ----- Alerts (softer) ----- */
+.alert-danger {
+    border-color: var(--nv-red);
+}
+
+/* ----- Modal headers ----- */
+.modal-header {
+    background-color: var(--nv-navy);
+    color: #ffffff;
+    border-radius: 5px 5px 0 0;
+}
+
+.modal-header .close {
+    color: #ffffff;
+    opacity: 0.7;
+}
+
+.modal-header .close:hover {
+    opacity: 1;
+}
+
+.modal-title {
+    color: #ffffff;
+}
+
+/* ----- Progress bars ----- */
+.progress-bar {
+    background-color: var(--nv-red);
+}
+
+/* ----- Misc ----- */
+a {
+    color: var(--nv-blue);
+}
+
+a:hover {
+    color: var(--nv-red);
+}
+
+.gophish-editor {
+    font-family: 'Courier New', Monospace !important;
+    font-size: small !important;
+}
+
+/* ============================================================
+   Dark Mode
+   Toggle by adding class="dark-mode" to <html> or <body>
+   ============================================================ */
+
+body.dark-mode {
+    --nv-bg: #121225;
+    --nv-card-bg: #1a1a35;
+    --nv-text-dark: #E0E0E0;
+    --nv-border: #2a2a4a;
+    --nv-muted: #7a7d92;
+
+    background-color: var(--nv-bg);
+    color: var(--nv-text-dark);
+}
+
+body.dark-mode .sidebar {
+    background-color: #0e0e20;
+    border-right-color: #1a1a35;
+}
+
+body.dark-mode .main {
+    background-color: var(--nv-bg);
+}
+
+body.dark-mode .form-signin {
+    background-color: var(--nv-card-bg);
+    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-mode .form-signin-heading {
+    color: #ffffff;
+}
+
+body.dark-mode .form-control {
+    background-color: #22223a;
+    border-color: #2a2a4a;
+    color: #E0E0E0;
+}
+
+body.dark-mode .form-control:focus {
+    border-color: var(--nv-red);
+    box-shadow: 0 0 0 2px rgba(233, 69, 96, 0.25);
+}
+
+body.dark-mode .panel,
+body.dark-mode .well {
+    background-color: var(--nv-card-bg);
+    border-color: var(--nv-border);
+}
+
+body.dark-mode table,
+body.dark-mode .table {
+    color: var(--nv-text-dark);
+}
+
+body.dark-mode .table-striped > tbody > tr:nth-of-type(odd) {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+body.dark-mode .table-hover > tbody > tr:hover {
+    background-color: rgba(233, 69, 96, 0.06);
+}
+
+body.dark-mode .modal-content {
+    background-color: var(--nv-card-bg);
+    color: var(--nv-text-dark);
+}
+
+body.dark-mode .dropdown-menu {
+    background-color: var(--nv-card-bg);
+    border-color: var(--nv-border);
+}
+
+body.dark-mode .dropdown-menu > li > a {
+    color: var(--nv-text-dark);
+}
+
+body.dark-mode .dropdown-menu > li > a:hover {
+    background-color: rgba(233, 69, 96, 0.1);
+    color: #ffffff;
+}
+
+body.dark-mode .alert {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: var(--nv-border);
+}
+
+body.dark-mode .sub-header {
+    border-bottom-color: var(--nv-border);
+}
+
+body.dark-mode .timeline {
+    background-color: var(--nv-bg);
+}
+
+body.dark-mode .page-header {
+    border-bottom-color: var(--nv-border);
+}
+
+body.dark-mode .select2-container--bootstrap .select2-selection {
+    background-color: #22223a;
+    border-color: #2a2a4a;
+    color: #E0E0E0;
+}
+
+body.dark-mode .nav-tabs > li > a {
+    color: var(--nv-text-dark);
+}
+
+body.dark-mode .nav-tabs > li.active > a {
+    background-color: var(--nv-card-bg);
+    border-color: var(--nv-border);
+    color: #ffffff;
+}
+
+/* Dark mode toggle button in navbar */
+.dark-mode-toggle {
+    background: none;
+    border: none;
+    color: var(--nv-text-light);
+    cursor: pointer;
+    padding: 8px 12px;
+    font-size: 16px;
+    opacity: 0.7;
+    transition: opacity 0.15s;
+}
+
+.dark-mode-toggle:hover {
+    opacity: 1;
+}

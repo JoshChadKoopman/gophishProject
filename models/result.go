@@ -120,7 +120,32 @@ func (r *Result) HandleClickedLink(details EventDetails) error {
 	}
 	r.Status = EventClicked
 	r.ModifiedDate = event.Time
-	return db.Save(r).Error
+	err = db.Save(r).Error
+	if err != nil {
+		return err
+	}
+	// Auto-assign training course on click if campaign has one configured
+	go autoAssignTrainingOnClick(r.CampaignId, r.Email)
+	return nil
+}
+
+// autoAssignTrainingOnClick looks up the campaign's training presentation
+// and creates an assignment for the clicked target if they are a platform user.
+// Runs in a goroutine so it does not block the phishing response.
+func autoAssignTrainingOnClick(campaignId int64, email string) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Errorf("panic in autoAssignTrainingOnClick: %v", r)
+		}
+	}()
+	c := Campaign{}
+	err := db.Where("id=?", campaignId).First(&c).Error
+	if err != nil || c.TrainingPresentationId == 0 {
+		return
+	}
+	if err := AutoAssignOnClick(email, c.TrainingPresentationId, campaignId); err != nil {
+		log.Errorf("auto-assign training on click: %v", err)
+	}
 }
 
 // HandleFormSubmit updates a Result in the case where the recipient submitted
@@ -133,6 +158,13 @@ func (r *Result) HandleFormSubmit(details EventDetails) error {
 	r.Status = EventDataSubmit
 	r.ModifiedDate = event.Time
 	return db.Save(r).Error
+}
+
+// HandleFeedbackViewed records an event when the recipient views the
+// educational feedback interstitial after clicking a phishing link.
+func (r *Result) HandleFeedbackViewed(details EventDetails) error {
+	_, err := r.createEvent(EventFeedbackViewed, details)
+	return err
 }
 
 // HandleEmailReport updates a Result in the case where they report a simulated

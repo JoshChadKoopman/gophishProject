@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"html/template"
 	"net/http"
 	"net/url"
@@ -15,6 +16,7 @@ import (
 	"github.com/gophish/gophish/config"
 	ctx "github.com/gophish/gophish/context"
 	"github.com/gophish/gophish/controllers/api"
+	"github.com/gophish/gophish/i18n"
 	log "github.com/gophish/gophish/logger"
 	mid "github.com/gophish/gophish/middleware"
 	"github.com/gophish/gophish/middleware/ratelimit"
@@ -35,10 +37,13 @@ type AdminServerOption func(*AdminServer)
 // AdminServer is an HTTP server that implements the administrative Gophish
 // handlers, including the dashboard and REST API.
 type AdminServer struct {
-	server  *http.Server
-	worker  worker.Worker
-	config  config.AdminServer
-	limiter *ratelimit.PostLimiter
+	server     *http.Server
+	worker     worker.Worker
+	config     config.AdminServer
+	limiter    *ratelimit.PostLimiter
+	oidcClient *auth.OIDCClient
+	mfaEncKey  string // base64-encoded 32-byte AES key for TOTP secret encryption
+	aiConfig   config.AIConfig
 }
 
 var defaultTLSConfig = &tls.Config{
@@ -74,8 +79,10 @@ func WithWorker(w worker.Worker) AdminServerOption {
 func NewAdminServer(config config.AdminServer, options ...AdminServerOption) *AdminServer {
 	defaultWorker, _ := worker.New()
 	defaultServer := &http.Server{
-		ReadTimeout: 10 * time.Second,
-		Addr:        config.ListenURL,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  60 * time.Second,
+		Addr:         config.ListenURL,
 	}
 	defaultLimiter := ratelimit.NewPostLimiter()
 	as := &AdminServer{
@@ -89,6 +96,28 @@ func NewAdminServer(config config.AdminServer, options ...AdminServerOption) *Ad
 	}
 	as.registerRoutes()
 	return as
+}
+
+// WithOIDCClient is an option that sets the OIDC client for SSO login.
+func WithOIDCClient(oidcClient *auth.OIDCClient) AdminServerOption {
+	return func(as *AdminServer) {
+		as.oidcClient = oidcClient
+	}
+}
+
+// WithMFAEncKey is an option that sets the base64-encoded AES-256 key used to
+// encrypt TOTP secrets at rest.
+func WithMFAEncKey(key string) AdminServerOption {
+	return func(as *AdminServer) {
+		as.mfaEncKey = key
+	}
+}
+
+// WithAIConfig sets the AI provider configuration for template generation.
+func WithAIConfig(cfg config.AIConfig) AdminServerOption {
+	return func(as *AdminServer) {
+		as.aiConfig = cfg
+	}
 }
 
 // Start launches the admin server, listening on the configured address.
@@ -123,26 +152,50 @@ func (as *AdminServer) Shutdown() error {
 func (as *AdminServer) registerRoutes() {
 	router := mux.NewRouter()
 	// Base Front-end routes
-	router.HandleFunc("/", mid.Use(as.Base, mid.RequireLogin))
+	router.HandleFunc("/", mid.Use(as.Base, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireLogin))
 	router.HandleFunc("/login", mid.Use(as.Login, as.limiter.Limit))
 	router.HandleFunc("/logout", mid.Use(as.Logout, mid.RequireLogin))
 	router.HandleFunc("/reset_password", mid.Use(as.ResetPassword, mid.RequireLogin))
-	router.HandleFunc("/campaigns", mid.Use(as.Campaigns, mid.RequireLogin))
-	router.HandleFunc("/campaigns/{id:[0-9]+}", mid.Use(as.CampaignID, mid.RequireLogin))
-	router.HandleFunc("/templates", mid.Use(as.Templates, mid.RequireLogin))
-	router.HandleFunc("/groups", mid.Use(as.Groups, mid.RequireLogin))
-	router.HandleFunc("/landing_pages", mid.Use(as.LandingPages, mid.RequireLogin))
-	router.HandleFunc("/sending_profiles", mid.Use(as.SendingProfiles, mid.RequireLogin))
-	router.HandleFunc("/settings", mid.Use(as.Settings, mid.RequireLogin))
+	router.HandleFunc("/campaigns", mid.Use(as.Campaigns, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireLogin))
+	router.HandleFunc("/campaigns/{id:[0-9]+}", mid.Use(as.CampaignID, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireLogin))
+	router.HandleFunc("/templates", mid.Use(as.Templates, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireLogin))
+	router.HandleFunc("/groups", mid.Use(as.Groups, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireLogin))
+	router.HandleFunc("/landing_pages", mid.Use(as.LandingPages, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireLogin))
+	router.HandleFunc("/sending_profiles", mid.Use(as.SendingProfiles, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireLogin))
+	router.HandleFunc("/feedback_pages", mid.Use(as.FeedbackPages, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireLogin))
+	router.HandleFunc("/settings", mid.Use(as.Settings, mid.RequirePermission(models.PermissionModifySystem), mid.RequireLogin))
 	router.HandleFunc("/users", mid.Use(as.UserManagement, mid.RequirePermission(models.PermissionModifySystem), mid.RequireLogin))
 	router.HandleFunc("/webhooks", mid.Use(as.Webhooks, mid.RequirePermission(models.PermissionModifySystem), mid.RequireLogin))
 	router.HandleFunc("/impersonate", mid.Use(as.Impersonate, mid.RequirePermission(models.PermissionModifySystem), mid.RequireLogin))
+	router.HandleFunc("/training", mid.Use(as.Training, mid.RequireLogin))
+	router.HandleFunc("/my-courses", mid.Use(as.MyCourses, mid.RequireLogin))
+	router.HandleFunc("/autopilot", mid.Use(as.Autopilot, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireLogin))
+	router.HandleFunc("/academy", mid.Use(as.Academy, mid.RequireLogin))
+	router.HandleFunc("/leaderboard", mid.Use(as.Leaderboard, mid.RequireLogin))
+	router.HandleFunc("/reports", mid.Use(as.Reports, mid.RequireReportAccess, mid.RequireLogin))
+	router.HandleFunc("/audit-log", mid.Use(as.AuditLogPage, mid.RequirePermission(models.PermissionViewReports), mid.RequireLogin))
+	router.HandleFunc("/org-settings", mid.Use(as.OrgSettings, mid.RequirePermission(models.PermissionModifySystem), mid.RequireLogin))
+	// OIDC / SSO routes
+	router.HandleFunc("/auth/oidc/login", mid.Use(as.OIDCLogin))
+	router.HandleFunc("/auth/oidc/callback", mid.Use(as.OIDCCallback, as.limiter.Limit))
+	router.HandleFunc("/auth/oidc/logout", mid.Use(as.OIDCLogout, mid.RequireLogin))
+	// MFA routes — /mfa/enroll and /mfa/verify are pre-login so must NOT use RequireLogin
+	router.HandleFunc("/mfa/enroll", mid.Use(as.MFAEnroll))
+	router.HandleFunc("/mfa/verify", mid.Use(as.MFAVerify))
+	router.HandleFunc("/mfa/backup-codes", mid.Use(as.MFABackupCodes, mid.RequireLogin))
+	// New page routes for Phase 13
+	router.HandleFunc("/reported-emails", mid.Use(as.ReportedEmailsPage, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireLogin))
+	router.HandleFunc("/threat-alerts", mid.Use(as.ThreatAlertsPage, mid.RequireLogin))
 	// Create the API routes
-	api := api.NewServer(
+	apiServer := api.NewServer(
 		api.WithWorker(as.worker),
 		api.WithLimiter(as.limiter),
+		api.WithAIConfig(as.aiConfig),
 	)
-	router.PathPrefix("/api/").Handler(api)
+	router.PathPrefix("/api/").Handler(apiServer)
+	// Plugin API route — uses plugin API key auth, not user sessions.
+	// The /api prefix makes it CSRF-exempt via CSRFExemptPrefixes.
+	router.HandleFunc("/api/plugin/report-email", mid.Use(as.PluginReportEmail))
 
 	// Setup static file serving
 	router.PathPrefix("/").Handler(http.FileServer(unindexed.Dir("./static/")))
@@ -173,12 +226,21 @@ func (as *AdminServer) registerRoutes() {
 }
 
 type templateParams struct {
-	Title        string
-	Flashes      []interface{}
-	User         models.User
-	Token        string
-	Version      string
-	ModifySystem bool
+	Title          string
+	Flashes        []interface{}
+	User           models.User
+	Org            models.Organization
+	IsSuperAdmin   bool
+	Token          string
+	Version        string
+	ModifySystem   bool
+	ModifyObjects  bool
+	ViewReports    bool
+	ManageTraining bool
+	OIDCEnabled    bool
+	OrgFeatures    map[string]bool
+	Locale         string
+	Languages      []i18n.LanguageInfo
 }
 
 // newTemplateParams returns the default template parameters for a user and
@@ -187,12 +249,25 @@ func newTemplateParams(r *http.Request) templateParams {
 	user := ctx.Get(r, "user").(models.User)
 	session := ctx.Get(r, "session").(*sessions.Session)
 	modifySystem, _ := user.HasPermission(models.PermissionModifySystem)
+	modifyObjects, _ := user.HasPermission(models.PermissionModifyObjects)
+	viewReports, _ := user.HasPermission(models.PermissionViewReports)
+	manageTraining, _ := user.HasPermission(models.PermissionManageTraining)
+	org, _ := models.GetOrganization(user.OrgId)
+	locale := i18n.DetectLocale(user.PreferredLanguage, org.DefaultLanguage, r.Header.Get("Accept-Language"))
 	return templateParams{
-		Token:        csrf.Token(r),
-		User:         user,
-		ModifySystem: modifySystem,
-		Version:      config.Version,
-		Flashes:      session.Flashes(),
+		Token:          csrf.Token(r),
+		User:           user,
+		Org:            org,
+		IsSuperAdmin:   user.Role.Slug == models.RoleSuperAdmin,
+		ModifySystem:   modifySystem,
+		ModifyObjects:  modifyObjects,
+		ViewReports:    viewReports,
+		ManageTraining: manageTraining,
+		Version:        config.Version,
+		Flashes:        session.Flashes(),
+		OrgFeatures:    models.GetOrgFeatures(user.OrgId),
+		Locale:         locale,
+		Languages:      i18n.GetLanguages(),
 	}
 }
 
@@ -236,6 +311,13 @@ func (as *AdminServer) LandingPages(w http.ResponseWriter, r *http.Request) {
 	params := newTemplateParams(r)
 	params.Title = "Landing Pages"
 	getTemplate(w, "landing_pages").ExecuteTemplate(w, "base", params)
+}
+
+// FeedbackPages handles the default path and template execution
+func (as *AdminServer) FeedbackPages(w http.ResponseWriter, r *http.Request) {
+	params := newTemplateParams(r)
+	params.Title = "Feedback Pages"
+	getTemplate(w, "feedback_pages").ExecuteTemplate(w, "base", params)
 }
 
 // SendingProfiles handles the default path and template execution
@@ -294,7 +376,7 @@ func (as *AdminServer) UserManagement(w http.ResponseWriter, r *http.Request) {
 	getTemplate(w, "users").ExecuteTemplate(w, "base", params)
 }
 
-func (as *AdminServer) nextOrIndex(w http.ResponseWriter, r *http.Request) {
+func (as *AdminServer) nextOrIndex(w http.ResponseWriter, r *http.Request, u *models.User) {
 	next := "/"
 	url, err := url.Parse(r.FormValue("next"))
 	if err == nil {
@@ -303,26 +385,39 @@ func (as *AdminServer) nextOrIndex(w http.ResponseWriter, r *http.Request) {
 			next = "/" + strings.TrimLeft(path, "/")
 		}
 	}
+	// If the user is a reader (no ModifyObjects permission), redirect to training
+	// instead of the dashboard, since they can't access dashboard/campaigns.
+	// The user is passed explicitly because context may not be populated yet
+	// (e.g. right after login before middleware re-runs).
+	if next == "/" && u != nil {
+		hasModify, _ := u.HasPermission(models.PermissionModifyObjects)
+		if !hasModify {
+			next = "/training"
+		}
+	}
 	http.Redirect(w, r, next, http.StatusFound)
 }
 
 func (as *AdminServer) handleInvalidLogin(w http.ResponseWriter, r *http.Request, message string) {
 	session := ctx.Get(r, "session").(*sessions.Session)
 	Flash(w, r, "danger", message)
+	locale := i18n.DetectLocale("", "", r.Header.Get("Accept-Language"))
 	params := struct {
-		User    models.User
-		Title   string
-		Flashes []interface{}
-		Token   string
-	}{Title: "Login", Token: csrf.Token(r)}
+		User        models.User
+		Title       string
+		Flashes     []interface{}
+		Token       string
+		OIDCEnabled bool
+		Locale      string
+		Languages   []i18n.LanguageInfo
+	}{Title: "Login", Token: csrf.Token(r), OIDCEnabled: as.oidcClient != nil, Locale: locale, Languages: i18n.GetLanguages()}
 	params.Flashes = session.Flashes()
 	session.Save(r, w)
-	templates := template.New("template")
+	templates := template.New("template").Funcs(templateFuncs)
 	_, err := templates.ParseFiles("templates/login.html", "templates/flashes.html")
 	if err != nil {
 		log.Error(err)
 	}
-	// w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusUnauthorized)
 	template.Must(templates, err).ExecuteTemplate(w, "base", params)
 }
@@ -334,9 +429,144 @@ func (as *AdminServer) Webhooks(w http.ResponseWriter, r *http.Request) {
 	getTemplate(w, "webhooks").ExecuteTemplate(w, "base", params)
 }
 
+// Training handles the training presentations page accessible to all users
+func (as *AdminServer) Training(w http.ResponseWriter, r *http.Request) {
+	params := newTemplateParams(r)
+	params.Title = "Training"
+	getTemplate(w, "training").ExecuteTemplate(w, "base", params)
+}
+
+// MyCourses handles the display of the user's course progress page
+func (as *AdminServer) MyCourses(w http.ResponseWriter, r *http.Request) {
+	params := newTemplateParams(r)
+	params.Title = "My Courses"
+	getTemplate(w, "my_courses").ExecuteTemplate(w, "base", params)
+}
+
+// Autopilot handles the autopilot configuration page
+func (as *AdminServer) Autopilot(w http.ResponseWriter, r *http.Request) {
+	params := newTemplateParams(r)
+	params.Title = "Autopilot"
+	getTemplate(w, "autopilot").ExecuteTemplate(w, "base", params)
+}
+
+// Academy handles the academy tier progression page
+func (as *AdminServer) Academy(w http.ResponseWriter, r *http.Request) {
+	params := newTemplateParams(r)
+	params.Title = "Academy"
+	getTemplate(w, "academy").ExecuteTemplate(w, "base", params)
+}
+
+// Leaderboard handles the gamification leaderboard page
+func (as *AdminServer) Leaderboard(w http.ResponseWriter, r *http.Request) {
+	params := newTemplateParams(r)
+	params.Title = "Leaderboard"
+	getTemplate(w, "leaderboard").ExecuteTemplate(w, "base", params)
+}
+
+// Reports handles the reports page accessible to users with view_reports or modify_objects
+func (as *AdminServer) Reports(w http.ResponseWriter, r *http.Request) {
+	params := newTemplateParams(r)
+	params.Title = "Reports"
+	getTemplate(w, "reports").ExecuteTemplate(w, "base", params)
+}
+
+// AuditLogPage handles the audit log web UI page
+func (as *AdminServer) AuditLogPage(w http.ResponseWriter, r *http.Request) {
+	params := newTemplateParams(r)
+	params.Title = "Audit Log"
+	getTemplate(w, "audit_log").ExecuteTemplate(w, "base", params)
+}
+
+// OrgSettings renders the organization settings page.
+func (as *AdminServer) OrgSettings(w http.ResponseWriter, r *http.Request) {
+	params := newTemplateParams(r)
+	params.Title = "Organization Settings"
+	getTemplate(w, "org_settings").ExecuteTemplate(w, "base", params)
+}
+
+// ReportedEmailsPage renders the reported emails admin dashboard.
+func (as *AdminServer) ReportedEmailsPage(w http.ResponseWriter, r *http.Request) {
+	params := newTemplateParams(r)
+	params.Title = "Reported Emails"
+	getTemplate(w, "reported_emails").ExecuteTemplate(w, "base", params)
+}
+
+// ThreatAlertsPage renders the threat alerts page.
+func (as *AdminServer) ThreatAlertsPage(w http.ResponseWriter, r *http.Request) {
+	params := newTemplateParams(r)
+	params.Title = "Threat Alerts"
+	getTemplate(w, "threat_alerts").ExecuteTemplate(w, "base", params)
+}
+
+// PluginReportEmail handles POST /api/plugin/report-email from the
+// Outlook/Gmail report button plugin. Uses plugin API key auth.
+func (as *AdminServer) PluginReportEmail(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	apiKey := extractPluginAPIKey(r)
+	if apiKey == "" {
+		api.JSONResponse(w, models.Response{Success: false, Message: "Plugin API key not provided"}, http.StatusUnauthorized)
+		return
+	}
+	config, err := models.GetReportButtonConfigByAPIKey(apiKey)
+	if err != nil {
+		api.JSONResponse(w, models.Response{Success: false, Message: "Invalid plugin API key"}, http.StatusUnauthorized)
+		return
+	}
+	var re models.ReportedEmail
+	if err := json.NewDecoder(r.Body).Decode(&re); err != nil {
+		api.JSONResponse(w, models.Response{Success: false, Message: "Invalid request body"}, http.StatusBadRequest)
+		return
+	}
+	if re.ReporterEmail == "" {
+		api.JSONResponse(w, models.Response{Success: false, Message: "reporter_email is required"}, http.StatusBadRequest)
+		return
+	}
+	re.OrgId = config.OrgId
+	isSimulation := models.ClassifyEmailBySimulation(&re)
+	if !isSimulation {
+		re.Classification = "pending"
+	}
+	if err := models.CreateReportedEmail(&re); err != nil {
+		api.JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+	feedback := config.FeedbackReal
+	if isSimulation {
+		feedback = config.FeedbackSimulation
+	}
+	if feedback == "" {
+		if isSimulation {
+			feedback = "Good catch! This was a simulated phishing email."
+		} else {
+			feedback = "Thank you for reporting. Our security team will review this email."
+		}
+	}
+	api.JSONResponse(w, struct {
+		Success      bool   `json:"success"`
+		Message      string `json:"message"`
+		IsSimulation bool   `json:"is_simulation"`
+	}{Success: true, Message: feedback, IsSimulation: isSimulation}, http.StatusOK)
+}
+
+// extractPluginAPIKey extracts the Bearer token from the Authorization header.
+func extractPluginAPIKey(r *http.Request) string {
+	tokens, ok := r.Header["Authorization"]
+	if !ok || len(tokens) == 0 {
+		return ""
+	}
+	token := tokens[0]
+	if len(token) > 7 && token[:7] == "Bearer " {
+		return token[7:]
+	}
+	return token
+}
+
 // Impersonate allows an admin to login to a user account without needing the password
 func (as *AdminServer) Impersonate(w http.ResponseWriter, r *http.Request) {
-
 	if r.Method == "POST" {
 		username := r.FormValue("username")
 		u, err := models.GetUserByUsername(username)
@@ -347,6 +577,9 @@ func (as *AdminServer) Impersonate(w http.ResponseWriter, r *http.Request) {
 		}
 		session := ctx.Get(r, "session").(*sessions.Session)
 		session.Values["id"] = u.Id
+		// The acting admin has already authenticated; grant MFA credit so the
+		// impersonated session is not immediately redirected to /mfa/verify.
+		session.Values["mfa_verified"] = true
 		session.Save(r, w)
 	}
 	http.Redirect(w, r, "/", http.StatusFound)
@@ -355,41 +588,57 @@ func (as *AdminServer) Impersonate(w http.ResponseWriter, r *http.Request) {
 // Login handles the authentication flow for a user. If credentials are valid,
 // a session is created
 func (as *AdminServer) Login(w http.ResponseWriter, r *http.Request) {
+	locale := i18n.DetectLocale("", "", r.Header.Get("Accept-Language"))
 	params := struct {
-		User    models.User
-		Title   string
-		Flashes []interface{}
-		Token   string
-	}{Title: "Login", Token: csrf.Token(r)}
+		User        models.User
+		Title       string
+		Flashes     []interface{}
+		Token       string
+		OIDCEnabled bool
+		Locale      string
+		Languages   []i18n.LanguageInfo
+	}{Title: "Login", Token: csrf.Token(r), OIDCEnabled: as.oidcClient != nil, Locale: locale, Languages: i18n.GetLanguages()}
 	session := ctx.Get(r, "session").(*sessions.Session)
 	switch {
 	case r.Method == "GET":
 		params.Flashes = session.Flashes()
 		session.Save(r, w)
-		templates := template.New("template")
+		templates := template.New("template").Funcs(templateFuncs)
 		_, err := templates.ParseFiles("templates/login.html", "templates/flashes.html")
 		if err != nil {
 			log.Error(err)
 		}
 		template.Must(templates, err).ExecuteTemplate(w, "base", params)
 	case r.Method == "POST":
-		// Find the user with the provided username
-		username, password := r.FormValue("username"), r.FormValue("password")
-		u, err := models.GetUserByUsername(username)
+		// Find the user with the provided email (or username for legacy admin account)
+		loginInput, password := r.FormValue("username"), r.FormValue("password")
+		// Try to find the user by email first, then fall back to username
+		// This allows the built-in "admin" account to still log in by username
+		u, err := models.GetUserByEmail(loginInput)
 		if err != nil {
-			log.Error(err)
-			as.handleInvalidLogin(w, r, "Invalid Username/Password")
+			// Fall back to username lookup (for admin account)
+			u, err = models.GetUserByUsername(loginInput)
+			if err != nil {
+				log.Error(err)
+				as.handleInvalidLogin(w, r, "Invalid Email/Password")
+				return
+			}
+		}
+		// Check for temporary lockout due to failed login attempts
+		if models.IsLoginLockedOut(&u) {
+			as.handleInvalidLogin(w, r, "Account temporarily locked. Try again in 15 minutes.")
+			return
+		}
+		if u.AccountLocked {
+			as.handleInvalidLogin(w, r, "Account Locked")
 			return
 		}
 		// Validate the user's password
 		err = auth.ValidatePassword(password, u.Hash)
 		if err != nil {
 			log.Error(err)
-			as.handleInvalidLogin(w, r, "Invalid Username/Password")
-			return
-		}
-		if u.AccountLocked {
-			as.handleInvalidLogin(w, r, "Account Locked")
+			models.RecordFailedLogin(u.Id)
+			as.handleInvalidLogin(w, r, "Invalid Email/Password")
 			return
 		}
 		u.LastLogin = time.Now().UTC()
@@ -397,10 +646,26 @@ func (as *AdminServer) Login(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Error(err)
 		}
-		// If we've logged in, save the session and redirect to the dashboard
+		models.ResetFailedLogins(u.Id)
+		// MFA gate: temporarily disabled — uncomment to re-enable.
+		// if auth.MFARequired(u.Role.Slug) {
+		// 	if !as.isDeviceRemembered(r, u.Id) {
+		// 		session.Values["pending_user_id"] = u.Id
+		// 		session.Save(r, w)
+		// 		device, devErr := models.GetMFADevice(u.Id)
+		// 		if devErr != nil || !device.Enabled {
+		// 			http.Redirect(w, r, "/mfa/enroll", http.StatusFound)
+		// 		} else {
+		// 			http.Redirect(w, r, "/mfa/verify", http.StatusFound)
+		// 		}
+		// 		return
+		// 	}
+		// }
+		// Establish full session
 		session.Values["id"] = u.Id
+		session.Values["mfa_verified"] = true
 		session.Save(r, w)
-		as.nextOrIndex(w, r)
+		as.nextOrIndex(w, r, &u)
 	}
 }
 
@@ -471,13 +736,394 @@ func (as *AdminServer) ResetPassword(w http.ResponseWriter, r *http.Request) {
 		//
 		// The solution to this is to revamp the empty page to be more useful,
 		// like a wizard or something.
-		as.nextOrIndex(w, r)
+		as.nextOrIndex(w, r, &u)
 	}
+}
+
+// isDeviceRemembered checks whether the current request carries a valid
+// "remember device" cookie whose fingerprint hash matches a DB record.
+func (as *AdminServer) isDeviceRemembered(r *http.Request, userID int64) bool {
+	cookie, err := r.Cookie("device_fp")
+	if err != nil {
+		return false
+	}
+	fp, err := models.FindDeviceFingerprint(userID, cookie.Value)
+	if err != nil {
+		return false
+	}
+	return fp.ID > 0
+}
+
+// mfaLoginParams is the minimal template data for pre-login MFA pages.
+type mfaLoginParams struct {
+	Title   string
+	Token   string
+	Flashes []interface{}
+}
+
+// OIDCLogin redirects the browser to the Keycloak authorisation endpoint.
+// When OIDC is disabled it falls back to the native /login page.
+func (as *AdminServer) OIDCLogin(w http.ResponseWriter, r *http.Request) {
+	if as.oidcClient == nil {
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
+	session := ctx.Get(r, "session").(*sessions.Session)
+	state := auth.GenerateSecureKey(16)
+	nonce := auth.GenerateSecureKey(16)
+	session.Values["oidc_state"] = state
+	session.Values["oidc_nonce"] = nonce
+	session.Save(r, w)
+	http.Redirect(w, r, as.oidcClient.AuthCodeURL(state, nonce), http.StatusFound)
+}
+
+// OIDCCallback handles the Keycloak redirect after the user authenticates.
+// It validates the state, exchanges the code, and establishes a full session.
+func (as *AdminServer) OIDCCallback(w http.ResponseWriter, r *http.Request) {
+	if as.oidcClient == nil {
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
+	session := ctx.Get(r, "session").(*sessions.Session)
+
+	// Validate state to prevent CSRF on the OIDC callback.
+	expectedState, _ := session.Values["oidc_state"].(string)
+	if r.URL.Query().Get("state") != expectedState || expectedState == "" {
+		http.Error(w, "Invalid OIDC state", http.StatusBadRequest)
+		return
+	}
+	expectedNonce, _ := session.Values["oidc_nonce"].(string)
+	delete(session.Values, "oidc_state")
+	delete(session.Values, "oidc_nonce")
+
+	claims, err := as.oidcClient.Exchange(r.Context(), r.URL.Query().Get("code"), expectedNonce)
+	if err != nil {
+		log.Errorf("OIDC callback exchange error: %v", err)
+		http.Error(w, "Authentication failed", http.StatusUnauthorized)
+		return
+	}
+
+	// Find or create the local user record, keyed by email.
+	u, err := models.GetUserByEmail(claims.Email)
+	if err != nil {
+		// Auto-provision the user with the role from OIDC claims.
+		roleSlug := auth.ExtractRoleSlug(claims.Roles)
+		role, roleErr := models.GetRoleBySlug(roleSlug)
+		if roleErr != nil {
+			log.Errorf("OIDC callback: unknown role %s: %v", roleSlug, roleErr)
+			http.Error(w, "Configuration error", http.StatusInternalServerError)
+			return
+		}
+		u = models.User{
+			Username:  claims.Email,
+			Email:     claims.Email,
+			FirstName: claims.Name,
+			OrgId:     1, // Default organization
+			ApiKey:    auth.GenerateSecureKey(auth.APIKeyLength),
+			Role:      role,
+			RoleID:    role.ID,
+		}
+		if putErr := models.PutUser(&u); putErr != nil {
+			log.Errorf("OIDC callback: failed to create user: %v", putErr)
+			http.Error(w, "Internal error", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	// Keycloak enforced TOTP before issuing the token, so we can grant MFA credit.
+	session.Values["id"] = u.Id
+	session.Values["mfa_verified"] = true
+	session.Save(r, w)
+	as.nextOrIndex(w, r, &u)
+}
+
+// OIDCLogout clears the local session and redirects to the Keycloak logout endpoint.
+func (as *AdminServer) OIDCLogout(w http.ResponseWriter, r *http.Request) {
+	session := ctx.Get(r, "session").(*sessions.Session)
+	delete(session.Values, "id")
+	delete(session.Values, "mfa_verified")
+	session.Save(r, w)
+	if as.oidcClient != nil {
+		http.Redirect(w, r, as.oidcClient.LogoutURL(), http.StatusFound)
+		return
+	}
+	http.Redirect(w, r, "/login", http.StatusFound)
+}
+
+// MFAEnroll handles the TOTP enrollment wizard.
+// GET: generates a new TOTP secret, stores it encrypted in the session, renders the QR page.
+// POST: validates the submitted 6-digit code against the session secret; on success saves
+//
+//	the MFADevice and backup codes, then redirects to /mfa/backup-codes.
+func (as *AdminServer) MFAEnroll(w http.ResponseWriter, r *http.Request) {
+	session := ctx.Get(r, "session").(*sessions.Session)
+
+	// Allow both pre-login (pending_user_id) and post-login (user in context) access.
+	var u models.User
+	if pendingID, ok := session.Values["pending_user_id"].(int64); ok && pendingID != 0 {
+		var err error
+		u, err = models.GetUser(pendingID)
+		if err != nil {
+			http.Redirect(w, r, "/login", http.StatusFound)
+			return
+		}
+	} else if ctxUser := ctx.Get(r, "user"); ctxUser != nil {
+		u = ctxUser.(models.User)
+	} else {
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
+
+	aesKey, err := auth.TOTPEncryptionKeyFromBase64(as.mfaEncKey)
+	if err != nil {
+		log.Errorf("MFA enroll: encryption key error: %v", err)
+		http.Error(w, "MFA not configured — contact your administrator", http.StatusServiceUnavailable)
+		return
+	}
+
+	switch r.Method {
+	case http.MethodGet:
+		accountName := u.Email
+		if accountName == "" {
+			accountName = u.Username
+		}
+		secret, qrURI, genErr := auth.GenerateTOTPSecret(accountName)
+		if genErr != nil {
+			log.Errorf("MFA enroll: failed to generate secret: %v", genErr)
+			http.Error(w, "Internal error", http.StatusInternalServerError)
+			return
+		}
+		encrypted, encErr := auth.EncryptTOTPSecret(secret, aesKey)
+		if encErr != nil {
+			log.Errorf("MFA enroll: encryption failed: %v", encErr)
+			http.Error(w, "Internal error", http.StatusInternalServerError)
+			return
+		}
+		session.Values["mfa_enroll_secret"] = encrypted
+		session.Save(r, w)
+		templates := template.New("template").Funcs(templateFuncs)
+		_, parseErr := templates.ParseFiles("templates/mfa_enroll.html", "templates/flashes.html")
+		if parseErr != nil {
+			log.Error(parseErr)
+		}
+		locale := i18n.DetectLocale("", "", r.Header.Get("Accept-Language"))
+		params := struct {
+			Title   string
+			Token   string
+			QRCode  string
+			Flashes []interface{}
+			Locale  string
+		}{
+			Title:   "Enable Two-Factor Authentication",
+			Token:   csrf.Token(r),
+			QRCode:  qrURI,
+			Flashes: session.Flashes(),
+			Locale:  locale,
+		}
+		session.Save(r, w)
+		template.Must(templates, parseErr).ExecuteTemplate(w, "base", params)
+
+	case http.MethodPost:
+		encryptedSecret, ok := session.Values["mfa_enroll_secret"].(string)
+		if !ok || encryptedSecret == "" {
+			http.Redirect(w, r, "/mfa/enroll", http.StatusFound)
+			return
+		}
+		code := r.FormValue("code")
+		if !auth.ValidateTOTP(encryptedSecret, code, aesKey) {
+			Flash(w, r, "danger", "Invalid code — please try again")
+			http.Redirect(w, r, "/mfa/enroll", http.StatusFound)
+			return
+		}
+		// Save the device record.
+		device := &models.MFADevice{
+			UserID:     u.Id,
+			TOTPSecret: encryptedSecret,
+		}
+		if saveErr := models.CreateOrUpdateMFADevice(device); saveErr != nil {
+			log.Errorf("MFA enroll: save device failed: %v", saveErr)
+			http.Error(w, "Internal error", http.StatusInternalServerError)
+			return
+		}
+		if enableErr := models.EnableMFADevice(u.Id); enableErr != nil {
+			log.Errorf("MFA enroll: enable device failed: %v", enableErr)
+		}
+		// Generate and store backup codes.
+		plain, hashed, codeErr := auth.GenerateBackupCodes(auth.BackupCodeLength)
+		if codeErr != nil {
+			log.Errorf("MFA enroll: backup code generation failed: %v", codeErr)
+		} else {
+			_ = models.SaveMFABackupCodes(u.Id, hashed)
+			session.Values["new_backup_codes"] = plain
+		}
+		delete(session.Values, "mfa_enroll_secret")
+		// Promote the pending session to a full session after successful enrollment.
+		if _, isPending := session.Values["pending_user_id"]; isPending {
+			delete(session.Values, "pending_user_id")
+			session.Values["id"] = u.Id
+			session.Values["mfa_verified"] = true
+		}
+		session.Save(r, w)
+		http.Redirect(w, r, "/mfa/backup-codes", http.StatusFound)
+	}
+}
+
+// MFAVerify handles the TOTP challenge during login (before the full session is set).
+// GET: renders the TOTP input page.
+// POST: validates the code, promotes the pending session to a full session on success.
+func (as *AdminServer) MFAVerify(w http.ResponseWriter, r *http.Request) {
+	session := ctx.Get(r, "session").(*sessions.Session)
+
+	// Require a pending user from the login flow.
+	pendingID, ok := session.Values["pending_user_id"].(int64)
+	if !ok || pendingID == 0 {
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
+	u, err := models.GetUser(pendingID)
+	if err != nil {
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
+
+	locale := i18n.DetectLocale("", "", r.Header.Get("Accept-Language"))
+	params := struct {
+		Title   string
+		Token   string
+		Flashes []interface{}
+		Locale  string
+	}{Title: "Two-Factor Verification", Token: csrf.Token(r), Locale: locale}
+
+	switch r.Method {
+	case http.MethodGet:
+		params.Flashes = session.Flashes()
+		session.Save(r, w)
+		templates := template.New("template").Funcs(templateFuncs)
+		_, parseErr := templates.ParseFiles("templates/mfa_verify.html", "templates/flashes.html")
+		if parseErr != nil {
+			log.Error(parseErr)
+		}
+		template.Must(templates, parseErr).ExecuteTemplate(w, "base", params)
+
+	case http.MethodPost:
+		// Lockout check.
+		failCount, _ := models.CountRecentMFAFailures(u.Id, time.Now().Add(-auth.MFALockoutDuration))
+		if failCount >= auth.MFAMaxAttempts {
+			_ = models.RecordMFAAttempt(u.Id, false, r.RemoteAddr)
+			Flash(w, r, "danger", "Account temporarily locked due to too many failed attempts. Please try again in 15 minutes.")
+			http.Redirect(w, r, "/mfa/verify", http.StatusFound)
+			return
+		}
+
+		code := r.FormValue("code")
+		aesKey, keyErr := auth.TOTPEncryptionKeyFromBase64(as.mfaEncKey)
+		if keyErr != nil {
+			http.Error(w, "MFA not configured", http.StatusServiceUnavailable)
+			return
+		}
+		device, devErr := models.GetMFADevice(u.Id)
+		if devErr != nil {
+			http.Redirect(w, r, "/login", http.StatusFound)
+			return
+		}
+
+		verified := auth.ValidateTOTP(device.TOTPSecret, code, aesKey)
+
+		// If TOTP fails, try backup codes.
+		if !verified {
+			backupCodes, _ := models.GetUnusedBackupCodes(u.Id)
+			for _, bc := range backupCodes {
+				if auth.ValidateBackupCode(code, bc.CodeHash) {
+					_ = models.MarkBackupCodeUsed(bc.ID)
+					verified = true
+					break
+				}
+			}
+		}
+
+		_ = models.RecordMFAAttempt(u.Id, verified, r.RemoteAddr)
+
+		if !verified {
+			Flash(w, r, "danger", "Invalid code — please try again")
+			http.Redirect(w, r, "/mfa/verify", http.StatusFound)
+			return
+		}
+
+		// Promote the session.
+		delete(session.Values, "pending_user_id")
+		session.Values["id"] = u.Id
+		session.Values["mfa_verified"] = true
+
+		// Handle "remember this device for 30 days".
+		if r.FormValue("remember_device") == "1" {
+			rawFP := auth.RawDeviceFingerprint(r.Header.Get("User-Agent"), r.Header.Get("Accept-Language"))
+			fpHash, fpErr := auth.DeviceFingerprintHash(rawFP)
+			if fpErr == nil {
+				expires := time.Now().Add(auth.DeviceRememberDuration)
+				_ = models.CreateDeviceFingerprint(&models.DeviceFingerprint{
+					UserID:          u.Id,
+					FingerprintHash: fpHash,
+					ExpiresAt:       expires,
+				})
+				http.SetCookie(w, &http.Cookie{
+					Name:     "device_fp",
+					Value:    rawFP,
+					Expires:  expires,
+					HttpOnly: true,
+					SameSite: http.SameSiteLaxMode,
+				})
+			}
+		}
+
+		session.Save(r, w)
+		as.nextOrIndex(w, r, &u)
+	}
+}
+
+// MFABackupCodes renders the one-time display of newly generated backup codes.
+// After the first view the codes are cleared from the session and cannot be retrieved again.
+func (as *AdminServer) MFABackupCodes(w http.ResponseWriter, r *http.Request) {
+	session := ctx.Get(r, "session").(*sessions.Session)
+	rawCodes, hasCodes := session.Values["new_backup_codes"].([]string)
+
+	locale := i18n.DetectLocale("", "", r.Header.Get("Accept-Language"))
+	params := struct {
+		Title       string
+		Token       string
+		BackupCodes []string
+		Flashes     []interface{}
+		Locale      string
+	}{
+		Title:   "Your Backup Codes",
+		Token:   csrf.Token(r),
+		Flashes: session.Flashes(),
+		Locale:  locale,
+	}
+
+	if hasCodes && len(rawCodes) > 0 {
+		params.BackupCodes = rawCodes
+		delete(session.Values, "new_backup_codes")
+	}
+	session.Save(r, w)
+
+	templates := template.New("template").Funcs(templateFuncs)
+	_, parseErr := templates.ParseFiles("templates/mfa_backup_codes.html", "templates/flashes.html")
+	if parseErr != nil {
+		log.Error(parseErr)
+	}
+	template.Must(templates, parseErr).ExecuteTemplate(w, "base", params)
+}
+
+// templateFuncs returns the template.FuncMap used by all page templates.
+var templateFuncs = template.FuncMap{
+	"T": func(locale, key string) string {
+		return i18n.T(locale, key)
+	},
 }
 
 // TODO: Make this execute the template, too
 func getTemplate(w http.ResponseWriter, tmpl string) *template.Template {
-	templates := template.New("template")
+	templates := template.New("template").Funcs(templateFuncs)
 	_, err := templates.ParseFiles("templates/base.html", "templates/nav.html", "templates/"+tmpl+".html", "templates/flashes.html")
 	if err != nil {
 		log.Error(err)

@@ -104,6 +104,9 @@ func (w *DefaultWorker) processCampaigns(t time.Time) error {
 func (w *DefaultWorker) Start() {
 	log.Info("Background Worker Started Successfully - Waiting for Campaigns")
 	go w.mailer.Start(context.Background())
+	go StartBRSWorker()
+	go StartAutopilotWorker()
+	go StartGamificationWorker()
 	for t := range time.Tick(1 * time.Minute) {
 		err := w.processCampaigns(t)
 		if err != nil {

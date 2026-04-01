@@ -1,0 +1,106 @@
+{{define "body"}}
+<div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+    <h1 class="page-header">
+        Feedback Pages
+    </h1>
+    <p class="text-muted">Feedback pages are educational interstitials shown to recipients when they click a simulated phishing link.</p>
+    <div id="flashes" class="row"></div>
+    <div class="row">
+        <button type="button" class="btn btn-primary" onclick="edit(-1)" data-toggle="modal" data-backdrop="static"
+            data-target="#modal"><i class="fa fa-plus"></i> New Feedback Page</button>
+    </div>
+    &nbsp;
+    <div id="loading">
+        <i class="fa fa-spinner fa-spin fa-4x"></i>
+    </div>
+    <div id="emptyMessage" class="row" style="display:none;">
+        <div class="alert alert-info">
+            No feedback pages created yet. Let's create one!
+        </div>
+    </div>
+    <div class="row">
+        <table id="feedbackPagesTable" class="table" style="display:none;">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Language</th>
+                    <th>Last Modified Date</th>
+                    <th class="col-md-2 no-sort"></th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+</div>
+<!-- Modal -->
+<div class="modal fade" id="modal" tabindex="-1" role="dialog" aria-labelledby="modalLabel">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close" onclick="dismiss()"><span
+                        aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title" id="modalLabel">New Feedback Page</h4>
+            </div>
+            <div class="modal-body">
+                <div class="row" id="modal.flashes"></div>
+                <label class="control-label" for="name">Name:</label>
+                <div class="form-group">
+                    <input type="text" class="form-control" placeholder="Feedback page name" id="name" autofocus />
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="control-label" for="language">Language:</label>
+                        <div class="form-group">
+                            <select class="form-control" id="language">
+                                <option value="en">English</option>
+                                <option value="nl">Nederlands</option>
+                                <option value="fr">Français</option>
+                                <option value="de">Deutsch</option>
+                                <option value="es">Español</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="control-label" for="redirect_delay">Auto-redirect delay (seconds):</label>
+                        <div class="form-group">
+                            <input type="number" class="form-control" id="redirect_delay" value="10" min="0" max="300" />
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <button class="btn btn-info btn-sm" onclick="loadDefault()"><i class="fa fa-magic"></i> Load Default Template</button>
+                </div>
+                <ul class="nav nav-tabs" role="tablist">
+                    <li class="active" role="html"><a href="#html" aria-controls="html" role="tab" data-toggle="tab">HTML</a></li>
+                    <li role="preview"><a href="#preview" aria-controls="preview" role="tab" data-toggle="tab">Preview</a></li>
+                </ul>
+                <div class="tab-content">
+                    <div role="tabpanel" class="tab-pane active" id="html">
+                        <textarea id="html_editor"></textarea>
+                    </div>
+                    <div role="tabpanel" class="tab-pane" id="preview">
+                        <iframe id="preview_iframe" style="width:100%; height:500px; border:1px solid #ddd;"></iframe>
+                    </div>
+                </div>
+                <div id="redirect_url">
+                    <label class="control-label" for="redirect_url_input">Redirect to (after delay): <i class="fa fa-question-circle"
+                            data-toggle="tooltip" data-placement="right" title="Optionally redirect the user to another URL after the feedback page is shown."></i></label>
+                    <div class="form-group">
+                        <input id="redirect_url_input" class="form-control" placeholder="https://example.com (optional)" />
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" data-dismiss="modal" class="btn btn-default" onclick="dismiss()">Cancel</button>
+                <button type="button" class="btn btn-primary" id="modalSubmit">Save Feedback Page</button>
+            </div>
+        </div>
+    </div>
+</div>
+{{end}}
+{{define "scripts"}}
+<script src="/js/src/vendor/ckeditor/ckeditor.js"></script>
+<script src="/js/src/vendor/ckeditor/adapters/jquery.js"></script>
+<script src="/js/dist/app/feedback_pages.min.js"></script>
+{{end}}

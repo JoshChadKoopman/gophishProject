@@ -1,0 +1,120 @@
+{{define "body"}}
+<div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+    <div class="page-header">
+        <h1>
+            {{T .Locale "threat_alerts.title"}}
+            {{if .ModifyObjects}}
+            <button class="btn btn-primary pull-right" id="createAlertBtn">
+                <i class="fa fa-plus"></i> {{T .Locale "threat_alerts.new_alert"}}
+            </button>
+            {{end}}
+        </h1>
+    </div>
+    <div id="flashes" class="row"></div>
+
+    <!-- Severity Filter -->
+    <div class="btn-group" style="margin-bottom:15px;" id="severityFilter">
+        <button class="btn btn-default active" data-severity="all">{{T .Locale "common.all"}}</button>
+        <button class="btn btn-info" data-severity="info"><i class="fa fa-info-circle"></i> Info</button>
+        <button class="btn btn-warning" data-severity="warning"><i class="fa fa-exclamation-triangle"></i> Warning</button>
+        <button class="btn btn-danger" data-severity="critical"><i class="fa fa-bolt"></i> Critical</button>
+    </div>
+
+    <!-- Alert Cards -->
+    <div id="alertsList"></div>
+
+    <!-- Empty State -->
+    <div id="alertsEmpty" style="display:none; text-align:center; padding:40px 0; color:#999;">
+        <i class="fa fa-shield fa-3x"></i>
+        <h3>{{T .Locale "threat_alerts.no_alerts"}}</h3>
+    </div>
+</div>
+
+<!-- Create/Edit Alert Modal -->
+<div class="modal fade" id="alertModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                <h4 class="modal-title" id="alertModalTitle">{{T .Locale "threat_alerts.new_alert"}}</h4>
+            </div>
+            <div class="modal-body">
+                <div id="modal.flashes"></div>
+                <div class="form-group">
+                    <label>{{T .Locale "threat_alerts.alert_title"}}</label>
+                    <input type="text" class="form-control" id="alertTitle" required>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>{{T .Locale "threat_alerts.severity"}}</label>
+                            <select class="form-control" id="alertSeverity">
+                                <option value="info">Info</option>
+                                <option value="warning">Warning</option>
+                                <option value="critical">Critical</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>{{T .Locale "threat_alerts.publish"}}</label>
+                            <div>
+                                <label class="checkbox-inline">
+                                    <input type="checkbox" id="alertPublished"> {{T .Locale "threat_alerts.publish_immediately"}}
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>{{T .Locale "threat_alerts.body"}}</label>
+                    <textarea class="form-control" id="alertBody" rows="6" required></textarea>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>{{T .Locale "threat_alerts.target_roles"}}</label>
+                            <input type="text" class="form-control" id="alertTargetRoles" placeholder="e.g. learner, campaign_manager">
+                            <p class="help-block">{{T .Locale "threat_alerts.target_help"}}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>{{T .Locale "threat_alerts.target_departments"}}</label>
+                            <input type="text" class="form-control" id="alertTargetDepts" placeholder="e.g. IT, Finance">
+                            <p class="help-block">{{T .Locale "threat_alerts.target_help"}}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">{{T .Locale "common.cancel"}}</button>
+                <button type="button" class="btn btn-primary" id="saveAlertBtn">{{T .Locale "common.save"}}</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Alert Detail Modal -->
+<div class="modal fade" id="alertDetailModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                <h4 class="modal-title" id="detailTitle"></h4>
+            </div>
+            <div class="modal-body">
+                <div id="detailMeta" style="margin-bottom:15px;"></div>
+                <div id="detailBody"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">{{T .Locale "common.close"}}</button>
+            </div>
+        </div>
+    </div>
+</div>
+{{end}}
+
+{{define "scripts"}}
+<script src="/js/dist/app/threat_alerts.min.js"></script>
+{{end}}

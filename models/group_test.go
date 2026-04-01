@@ -56,7 +56,7 @@ func (s *ModelsSuite) TestGetGroups(c *check.C) {
 	})
 
 	// Get groups and test result.
-	groups, err := GetGroups(1)
+	groups, err := GetGroups(testScope(1))
 	c.Assert(err, check.Equals, nil)
 	c.Assert(len(groups), check.Equals, 2)
 	c.Assert(len(groups[0].Targets), check.Equals, 1)
@@ -68,7 +68,7 @@ func (s *ModelsSuite) TestGetGroups(c *check.C) {
 }
 
 func (s *ModelsSuite) TestGetGroupsNoGroups(c *check.C) {
-	groups, err := GetGroups(1)
+	groups, err := GetGroups(testScope(1))
 	c.Assert(err, check.Equals, nil)
 	c.Assert(len(groups), check.Equals, 0)
 }
@@ -87,7 +87,7 @@ func (s *ModelsSuite) TestGetGroup(c *check.C) {
 	c.Assert(PostGroup(originalGroup), check.Equals, nil)
 
 	// Get group and test result.
-	group, err := GetGroup(originalGroup.Id, 1)
+	group, err := GetGroup(originalGroup.Id, testScope(1))
 	c.Assert(err, check.Equals, nil)
 	c.Assert(len(group.Targets), check.Equals, 1)
 	c.Assert(group.Name, check.Equals, "Test Group")
@@ -95,7 +95,7 @@ func (s *ModelsSuite) TestGetGroup(c *check.C) {
 }
 
 func (s *ModelsSuite) TestGetGroupNoGroups(c *check.C) {
-	_, err := GetGroup(1, 1)
+	_, err := GetGroup(1, testScope(1))
 	c.Assert(err, check.Equals, gorm.ErrRecordNotFound)
 }
 
@@ -112,7 +112,7 @@ func (s *ModelsSuite) TestGetGroupByName(c *check.C) {
 	})
 
 	// Get group and test result.
-	group, err := GetGroupByName("Test Group", 1)
+	group, err := GetGroupByName("Test Group", testScope(1))
 	c.Assert(err, check.Equals, nil)
 	c.Assert(len(group.Targets), check.Equals, 1)
 	c.Assert(group.Name, check.Equals, "Test Group")
@@ -120,7 +120,7 @@ func (s *ModelsSuite) TestGetGroupByName(c *check.C) {
 }
 
 func (s *ModelsSuite) TestGetGroupByNameNoGroups(c *check.C) {
-	_, err := GetGroupByName("Test Group", 1)
+	_, err := GetGroupByName("Test Group", testScope(1))
 	c.Assert(err, check.Equals, gorm.ErrRecordNotFound)
 }
 

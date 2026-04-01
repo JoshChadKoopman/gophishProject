@@ -100,7 +100,7 @@ func TestRequirePermission(t *testing.T) {
 	}
 
 	for role, expected := range permissionTests {
-		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req := httptest.NewRequest(http.MethodGet, "/api/test", nil)
 		response := httptest.NewRecorder()
 		// Test that with the requested permission, the request succeeds
 		role, err := models.GetRoleBySlug(role)
@@ -196,7 +196,7 @@ func TestPasswordResetRequired(t *testing.T) {
 
 func TestApplySecurityHeaders(t *testing.T) {
 	expected := map[string]string{
-		"Content-Security-Policy": "frame-ancestors 'none';",
+		"Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none';",
 		"X-Frame-Options":         "DENY",
 	}
 	req := httptest.NewRequest(http.MethodGet, "/", nil)

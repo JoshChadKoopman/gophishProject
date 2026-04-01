@@ -155,7 +155,8 @@ func (m *MailLog) CacheCampaign(campaign *Campaign) error {
 }
 
 func (m *MailLog) GetSmtpFrom() (string, error) {
-	c, err := GetCampaign(m.CampaignId, m.UserId)
+	// Mail processing is internal — use superadmin scope to bypass org filtering
+	c, err := GetCampaign(m.CampaignId, OrgScope{IsSuperAdmin: true})
 	if err != nil {
 		return "", err
 	}

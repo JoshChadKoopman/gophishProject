@@ -14,8 +14,12 @@ import (
 	"github.com/gophish/gophish/models"
 )
 
+func ctrlTestScope(uid int64) models.OrgScope {
+	return models.OrgScope{OrgId: 0, UserId: uid, IsSuperAdmin: true}
+}
+
 func getFirstCampaign(t *testing.T) models.Campaign {
-	campaigns, err := models.GetCampaigns(1)
+	campaigns, err := models.GetCampaigns(ctrlTestScope(1))
 	if err != nil {
 		t.Fatalf("error getting first campaign from database: %v", err)
 	}
@@ -278,7 +282,7 @@ func TestCompletedCampaignClick(t *testing.T) {
 		t.Fatalf("unexpected result status received. expected %s got %s", models.EventOpened, result.Status)
 	}
 
-	models.CompleteCampaign(campaign.Id, 1)
+	models.CompleteCampaign(campaign.Id, ctrlTestScope(1))
 	openEmail404(t, ctx, result.RId)
 	clickLink404(t, ctx, result.RId)
 
@@ -374,9 +378,9 @@ func TestRedirectTemplating(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error posting new page: %v", err)
 	}
-	smtp, _ := models.GetSMTP(1, 1)
-	template, _ := models.GetTemplate(1, 1)
-	group, _ := models.GetGroup(1, 1)
+	smtp, _ := models.GetSMTP(1, ctrlTestScope(1))
+	template, _ := models.GetTemplate(1, ctrlTestScope(1))
+	group, _ := models.GetGroup(1, ctrlTestScope(1))
 
 	campaign := models.Campaign{Name: "Redirect campaign"}
 	campaign.UserId = 1
@@ -384,7 +388,7 @@ func TestRedirectTemplating(t *testing.T) {
 	campaign.Page = p
 	campaign.SMTP = smtp
 	campaign.Groups = []models.Group{group}
-	err = models.PostCampaign(&campaign, campaign.UserId)
+	err = models.PostCampaign(&campaign, ctrlTestScope(campaign.UserId))
 	if err != nil {
 		t.Fatalf("error creating campaign: %v", err)
 	}

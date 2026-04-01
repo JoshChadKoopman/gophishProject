@@ -1,5 +1,14 @@
 let users = []
 
+const roleDescriptions = {
+    superadmin: "Super Admin — Nivoxis staff. Full platform access across all tenants: users, campaigns, training, system settings.",
+    org_admin: "Org Admin — Client HR admin. Manages their organisation's campaigns, users, and training. Requires MFA.",
+    campaign_manager: "Campaign Manager — Can create and launch phishing campaigns and view results.",
+    trainer: "Trainer — Can upload and manage training presentations. Cannot access phishing campaign tools.",
+    learner: "Learner — End user. Completes assigned training and views their own results only.",
+    auditor: "Auditor — Read-only access to reports and audit logs. Cannot create or modify any objects."
+}
+
 // Save attempts to POST or PUT to /users/
 const save = (id) => {
     // Validate that the passwords match
@@ -7,9 +16,24 @@ const save = (id) => {
         modalError("Passwords must match.")
         return
     }
+    // Validate required fields
+    var firstName = $("#first_name").val().trim()
+    var lastName = $("#last_name").val().trim()
+    var emailVal = $("#email").val().trim()
+    var positionVal = $("#position").val().trim()
+
+    if (!firstName) { modalError("First name is required."); return }
+    if (!lastName) { modalError("Last name / surname is required."); return }
+    if (!emailVal) { modalError("Email is required."); return }
+    if (!positionVal) { modalError("Position is required."); return }
+
     let user = {
-        username: $("#username").val(),
+        username: emailVal,
         password: $("#password").val(),
+        first_name: firstName,
+        last_name: lastName,
+        email: emailVal,
+        position: positionVal,
         role: $("#role").val(),
         password_change_required: $("#force_password_change_checkbox").prop('checked'),
         account_locked: $("#account_locked_checkbox").prop('checked')
@@ -21,7 +45,7 @@ const save = (id) => {
         user.id = id
         api.userId.put(user)
             .success((data) => {
-                successFlash("User " + escapeHtml(user.username) + " updated successfully!")
+                successFlash("User " + escapeHtml(user.first_name + " " + user.last_name) + " updated successfully!")
                 load()
                 dismiss()
                 $("#modal").modal('hide')
@@ -34,7 +58,7 @@ const save = (id) => {
         // to /user
         api.users.post(user)
             .success((data) => {
-                successFlash("User " + escapeHtml(user.username) + " registered successfully!")
+                successFlash("User " + escapeHtml(user.first_name + " " + user.last_name) + " registered successfully!")
                 load()
                 dismiss()
                 $("#modal").modal('hide')
@@ -46,7 +70,10 @@ const save = (id) => {
 }
 
 const dismiss = () => {
-    $("#username").val("")
+    $("#first_name").val("")
+    $("#last_name").val("")
+    $("#email").val("")
+    $("#position").val("")
     $("#password").val("")
     $("#confirm_password").val("")
     $("#role").val("")
@@ -56,27 +83,26 @@ const dismiss = () => {
 }
 
 const edit = (id) => {
-    $("#username").attr("disabled", false);
+    populateRoleDropdown();
     $("#modalSubmit").unbind('click').click(() => {
         save(id)
     })
-    $("#role").select2()
     if (id == -1) {
         $("#userModalLabel").text("New User")
-        $("#role").val("user")
+        $("#role").val("reader")
         $("#role").trigger("change")
     } else {
         $("#userModalLabel").text("Edit User")
         api.userId.get(id)
             .success((user) => {
-                $("#username").val(user.username)
+                $("#first_name").val(user.first_name || '')
+                $("#last_name").val(user.last_name || '')
+                $("#email").val(user.email || '')
+                $("#position").val(user.position || '')
                 $("#role").val(user.role.slug)
                 $("#role").trigger("change")
                 $("#force_password_change_checkbox").prop('checked', user.password_change_required)
                 $("#account_locked_checkbox").prop('checked', user.account_locked)
-                if (user.username == "admin") {
-                    $("#username").attr("disabled", true);
-                }
             })
             .error(function () {
                 errorFlash("Error fetching user")
@@ -84,22 +110,51 @@ const edit = (id) => {
     }
 }
 
+const populateRoleDropdown = () => {
+    api.roles.get()
+        .success((roles) => {
+            var $select = $("#role");
+            var currentVal = $select.val();
+            $select.empty();
+            $.each(roles, (i, role) => {
+                $select.append($('<option>', {
+                    value: role.slug,
+                    text: role.name
+                }));
+            });
+            if (currentVal) {
+                $select.val(currentVal);
+            }
+            $select.trigger("change");
+        })
+        .error(() => {
+            // Fallback: hardcode roles
+            var $select = $("#role");
+            $select.empty();
+            $select.append('<option value="admin">Admin</option>');
+            $select.append('<option value="user">User</option>');
+            $select.append('<option value="contributor">Contributor</option>');
+            $select.append('<option value="reader">Reader</option>');
+        })
+}
+
 const deleteUser = (id) => {
     var user = users.find(x => x.id == id)
     if (!user) {
         return
     }
-    if (user.username == "admin") {
+    var displayName = (user.first_name || '') + (user.last_name ? ' ' + user.last_name : '') + ' (' + (user.email || '') + ')'
+    if (user.role && user.role.slug === "superadmin" && user.email === "admin") {
         Swal.fire({
             title: "Unable to Delete User",
-            text: "The user account " + escapeHtml(user.username) + " cannot be deleted.",
+            text: "The admin account cannot be deleted.",
             type: "info"
         });
         return
     }
     Swal.fire({
         title: "Are you sure?",
-        text: "This will delete the account for " + escapeHtml(user.username) + " as well as all of the objects they have created.\n\nThis can't be undone!",
+        text: "This will delete the account for " + escapeHtml(displayName) + " as well as all of the objects they have created.\n\nThis can't be undone!",
         type: "warning",
         animation: false,
         showCancelButton: true,
@@ -125,7 +180,7 @@ const deleteUser = (id) => {
         if (result.value){
             Swal.fire(
                 'User Deleted!',
-                "The user account for " + escapeHtml(user.username) + " and all associated objects have been deleted!",
+                "The user account for " + escapeHtml(displayName) + " and all associated objects have been deleted!",
                 'success'
             );
         }
@@ -140,9 +195,10 @@ const impersonate = (id) => {
     if (!user) {
         return
     }
+    var displayName = escapeHtml((user.first_name || '') + (user.last_name ? ' ' + user.last_name : '') + ' (' + (user.email || '') + ')')
     Swal.fire({
         title: "Are you sure?",
-        html: "You will be logged out of your account and logged in as <strong>" + escapeHtml(user.username) + "</strong>",
+        html: "You will be logged out of your account and logged in as <strong>" + displayName + "</strong>",
         type: "warning",
         animation: false,
         showCancelButton: true,
@@ -155,7 +211,7 @@ const impersonate = (id) => {
 
          fetch('/impersonate', {
                 method: 'post',
-                body: "username=" + user.username + "&csrf_token=" + encodeURIComponent(csrf_token),
+                body: "username=" + user.email + "&csrf_token=" + encodeURIComponent(csrf_token),
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                   },
@@ -163,7 +219,7 @@ const impersonate = (id) => {
                 if (response.status == 200) {
                     Swal.fire({
                         title: "Success!",
-                        html: "Successfully changed to user <strong>" + escapeHtml(user.username) + "</strong>.",
+                        html: "Successfully changed to user <strong>" + displayName + "</strong>.",
                         type: "success",
                         showCancelButton: false,
                         confirmButtonText: "Home",
@@ -176,7 +232,7 @@ const impersonate = (id) => {
                     Swal.fire({
                         title: "Error!",
                         type: "error",
-                        html: "Failed to change to user <strong>" + escapeHtml(user.username) + "</strong>.",
+                        html: "Failed to change to user <strong>" + displayName + "</strong>.",
                         showCancelButton: false,
                     })
                 }
@@ -201,15 +257,32 @@ const load = () => {
                 }]
             });
             userTable.clear();
-            userRows = []
+            let userRows = []
             $.each(users, (i, user) => {
-                lastlogin = ""
+                let lastlogin = ""
                 if (user.last_login != "0001-01-01T00:00:00Z") {
                     lastlogin = moment(user.last_login).format('MMMM Do YYYY, h:mm:ss a')
                 }
+                var roleBadge = "";
+                if (user.role.slug === "superadmin") {
+                    roleBadge = " <span class='label label-danger'>Super Admin</span>";
+                } else if (user.role.slug === "org_admin") {
+                    roleBadge = " <span class='label label-warning'>Org Admin</span>";
+                } else if (user.role.slug === "campaign_manager") {
+                    roleBadge = " <span class='label label-warning'>Campaign Mgr</span>";
+                } else if (user.role.slug === "trainer") {
+                    roleBadge = " <span class='label label-default'>Trainer</span>";
+                } else if (user.role.slug === "auditor") {
+                    roleBadge = " <span class='label label-info'>Auditor</span>";
+                } else {
+                    roleBadge = " <span class='label label-default'>Learner</span>";
+                }
+                var fullName = (user.first_name || '') + (user.last_name ? ' ' + user.last_name : '')
                 userRows.push([
-                    escapeHtml(user.username),
-                    escapeHtml(user.role.name),
+                    escapeHtml(fullName),
+                    escapeHtml(user.email || ''),
+                    escapeHtml(user.position || ''),
+                    escapeHtml(user.role.name) + roleBadge,
                     lastlogin,
                     "<div class='pull-right'>\
                     <button class='btn btn-warning impersonate_button' data-user-id='" + user.id + "'>\
@@ -236,20 +309,11 @@ $(document).ready(function () {
     $("#modal").on("hide.bs.modal", function () {
         dismiss();
     });
-    // Select2 Defaults
-    $.fn.select2.defaults.set("width", "100%");
-    $.fn.select2.defaults.set("dropdownParent", $("#role-select"));
-    $.fn.select2.defaults.set("theme", "bootstrap");
-    $.fn.select2.defaults.set("sorter", function (data) {
-        return data.sort(function (a, b) {
-            if (a.text.toLowerCase() > b.text.toLowerCase()) {
-                return 1;
-            }
-            if (a.text.toLowerCase() < b.text.toLowerCase()) {
-                return -1;
-            }
-            return 0;
-        });
+    // Update role description when role changes
+    $("#role").on("change", function () {
+        var selectedRole = $(this).val();
+        var desc = roleDescriptions[selectedRole] || "Select a role to see its permissions.";
+        $("#role-desc-text").html("<small class='text-muted'>" + desc + "</small>");
     })
     $("#new_button").on("click", function () {
         edit(-1)

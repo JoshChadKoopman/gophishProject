@@ -1,0 +1,96 @@
+{{define "body"}}
+<div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+    <h1 class="page-header">
+        <i class="fa fa-shield"></i> Audit Log
+    </h1>
+    <div id="flashes" class="row"></div>
+
+    <!-- Filter bar -->
+    <div class="well well-sm" style="margin-bottom:20px;">
+        <div class="row">
+            <div class="col-md-3">
+                <label class="control-label" style="font-size:12px;">Action</label>
+                <select class="form-control input-sm" id="filterAction">
+                    <option value="">All Actions</option>
+                    <option value="role_change">Role Change</option>
+                    <option value="user_created">User Created</option>
+                    <option value="user_deleted">User Deleted</option>
+                    <option value="user_locked">User Locked</option>
+                    <option value="user_unlocked">User Unlocked</option>
+                    <option value="login_success">Login Success</option>
+                    <option value="login_failed">Login Failed</option>
+                    <option value="mfa_enrolled">MFA Enrolled</option>
+                    <option value="mfa_verified">MFA Verified</option>
+                    <option value="mfa_failed">MFA Failed</option>
+                    <option value="mfa_lockout">MFA Lockout</option>
+                    <option value="training_assigned">Training Assigned</option>
+                    <option value="training_auto_assigned">Training Auto-Assigned</option>
+                    <option value="training_completed">Training Completed</option>
+                    <option value="certificate_issued">Certificate Issued</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="control-label" style="font-size:12px;">Actor</label>
+                <input type="text" class="form-control input-sm" id="filterActor" placeholder="Search by username..." />
+            </div>
+            <div class="col-md-2">
+                <label class="control-label" style="font-size:12px;">From</label>
+                <input type="text" class="form-control input-sm" id="filterDateFrom" placeholder="Start date" />
+            </div>
+            <div class="col-md-2">
+                <label class="control-label" style="font-size:12px;">To</label>
+                <input type="text" class="form-control input-sm" id="filterDateTo" placeholder="End date" />
+            </div>
+            <div class="col-md-2">
+                <label class="control-label" style="font-size:12px;">&nbsp;</label>
+                <button class="btn btn-primary btn-sm btn-block" id="applyFilters">
+                    <i class="fa fa-filter"></i> Apply
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="auditLoading" style="text-align:center; padding:40px;">
+        <i class="fa fa-spinner fa-spin fa-4x"></i>
+    </div>
+
+    <div id="auditEmpty" style="display:none; text-align:center; padding:40px;">
+        <i class="fa fa-shield fa-4x" style="color:#ccc; margin-bottom:15px;"></i>
+        <h3>No audit log entries found</h3>
+        <p>Audit events will appear here as they occur.</p>
+    </div>
+
+    <div id="auditContent" style="display:none;">
+        <table id="auditTable" class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Actor</th>
+                    <th>Action</th>
+                    <th>Target</th>
+                    <th>Details</th>
+                    <th>IP Address</th>
+                </tr>
+            </thead>
+            <tbody id="auditTableBody"></tbody>
+        </table>
+
+        <!-- Pagination -->
+        <div style="text-align:center;">
+            <span id="paginationInfo" style="font-size:13px; color:#888; margin-right:15px;"></span>
+            <div class="btn-group">
+                <button class="btn btn-default btn-sm" id="prevPage" disabled>
+                    <i class="fa fa-chevron-left"></i> Previous
+                </button>
+                <button class="btn btn-default btn-sm" id="nextPage">
+                    Next <i class="fa fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{{end}}
+
+{{define "scripts"}}
+<script src="/js/dist/app/audit_log.min.js"></script>
+{{end}}

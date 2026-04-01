@@ -141,3 +141,18 @@ func (limiter *PostLimiter) Limit(next http.Handler) http.HandlerFunc {
 		next.ServeHTTP(w, r)
 	})
 }
+
+// LimitAll enforces the configured rate limit for all HTTP methods.
+func (limiter *PostLimiter) LimitAll(next http.Handler) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		clientIP, _, err := net.SplitHostPort(r.RemoteAddr)
+		if err != nil {
+			clientIP = r.RemoteAddr
+		}
+		if !limiter.allow(clientIP) {
+			http.Error(w, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}

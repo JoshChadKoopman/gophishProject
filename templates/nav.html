@@ -3,43 +3,104 @@
     <div class="row">
         <div class="col-sm-3 col-md-2 sidebar">
             <ul class="nav nav-sidebar">
+                {{if .ModifyObjects}}
                 <li>
-                    <a href="/">Dashboard</a>
-                </li>
-                <li>
-                    <a href="/campaigns">Campaigns</a>
-                </li>
-                <li>
-                    <a href="/groups">Users &amp; Groups</a>
-                </li>
-                <li> <a href="/templates">Email Templates</a>
-                </li>
-                <li>
-                    <a href="/landing_pages">Landing Pages</a>
-                </li>
-                <li>
-                    <a href="/sending_profiles">Sending Profiles</a>
-                </li>
-                <li>
-                    <a href="/settings">Account Settings</span></a>
-                </li>
-                {{if .ModifySystem}}
-                <li>
-                    <a href="/users">User Management<span class="nav-badge badge pull-right">Admin</span></a>
-                </li>
-                <li>
-                    <a href="/webhooks">Webhooks<span class="nav-badge badge pull-right">Admin</span></a>
+                    <a href="/">{{T .Locale "nav.dashboard"}}</a>
                 </li>
                 {{end}}
+                {{if .ModifyObjects}}
+                <li>
+                    <a data-toggle="collapse" href="#phishingMenu" style="cursor:pointer;">
+                        <i class="fa fa-crosshairs"></i> {{T .Locale "nav.phishing"}} <span class="fa fa-chevron-down pull-right" style="font-size:10px; margin-top:4px;"></span>
+                    </a>
+                    <ul class="nav collapse in" id="phishingMenu" style="padding-left:15px;">
+                        <li>
+                            <a href="/campaigns">{{T .Locale "nav.campaigns"}}</a>
+                        </li>
+                        <li>
+                            <a href="/templates">{{T .Locale "nav.email_templates"}}</a>
+                        </li>
+                        <li>
+                            <a href="/landing_pages">{{T .Locale "nav.landing_pages"}}</a>
+                        </li>
+                        <li>
+                            <a href="/sending_profiles">{{T .Locale "nav.sending_profiles"}}</a>
+                        </li>
+                        <li>
+                            <a href="/feedback_pages">{{T .Locale "nav.feedback_pages"}}</a>
+                        </li>
+                    </ul>
+                </li>
+                <li>
+                    <a href="/groups">{{T .Locale "nav.users_groups"}}</a>
+                </li>
+                {{end}}
+                <li>
+                    <a href="/training"><i class="fa fa-graduation-cap"></i> {{T .Locale "nav.training"}}</a>
+                </li>
+                {{if .ManageTraining}}
+                <li>
+                    <a href="/my-courses"><i class="fa fa-book"></i> {{T .Locale "nav.my_courses"}}</a>
+                </li>
+                {{end}}
+                {{if or .ViewReports .ModifyObjects}}
+                <li>
+                    <a href="/reports"><i class="fa fa-bar-chart"></i> {{T .Locale "nav.reports"}}</a>
+                </li>
+                {{end}}
+                {{if .ViewReports}}
+                <li>
+                    <a href="/audit-log"><i class="fa fa-history"></i> {{T .Locale "nav.audit_log"}}</a>
+                </li>
+                {{end}}
+                {{if .ModifySystem}}
+                <li>
+                    <a href="/org-settings"><i class="fa fa-building"></i> {{T .Locale "nav.organization"}}</a>
+                </li>
+                {{end}}
+                {{if and .OrgFeatures (index .OrgFeatures "autopilot")}}
+                {{if .ModifyObjects}}
+                <li>
+                    <a href="/autopilot"><i class="fa fa-rocket"></i> {{T .Locale "nav.autopilot"}}</a>
+                </li>
+                {{end}}
+                {{end}}
+                <li>
+                    <a href="/academy"><i class="fa fa-graduation-cap"></i> {{T .Locale "nav.academy"}}</a>
+                </li>
+                {{if and .OrgFeatures (index .OrgFeatures "gamification")}}
+                <li>
+                    <a href="/leaderboard"><i class="fa fa-trophy"></i> {{T .Locale "nav.leaderboard"}}</a>
+                </li>
+                {{end}}
+                <li>
+                    <a href="/threat-alerts"><i class="fa fa-shield"></i> {{T .Locale "nav.threat_alerts"}}</a>
+                </li>
+                {{if and .OrgFeatures (index .OrgFeatures "report_button")}}
+                {{if .ModifyObjects}}
+                <li>
+                    <a href="/reported-emails"><i class="fa fa-flag"></i> {{T .Locale "nav.reported_emails"}}</a>
+                </li>
+                {{end}}
+                {{end}}
+                {{if .ModifyObjects}}
                 <li>
                     <hr>
                 </li>
                 <li>
-                    <a href="https://docs.getgophish.com/user-guide/">User Guide</a>
+                    <a data-toggle="collapse" href="#infoMenu" style="cursor:pointer;">
+                        <i class="fa fa-info-circle"></i> {{T .Locale "nav.information"}} <span class="fa fa-chevron-down pull-right" style="font-size:10px; margin-top:4px;"></span>
+                    </a>
+                    <ul class="nav collapse in" id="infoMenu" style="padding-left:15px;">
+                        <li>
+                            <a href="https://docs.getgophish.com/user-guide/">{{T .Locale "nav.user_guide"}}</a>
+                        </li>
+                        <li>
+                            <a href="https://docs.getgophish.com/api-documentation/">{{T .Locale "nav.api_docs"}}</a>
+                        </li>
+                    </ul>
                 </li>
-                <li>
-                    <a href="https://docs.getgophish.com/api-documentation/">API Documentation</a>
-                </li>
+                {{end}}
             </ul>
         </div>
     </div>

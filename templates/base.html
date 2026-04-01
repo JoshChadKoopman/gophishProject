@@ -1,25 +1,32 @@
 {{ define "base" }}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{.Locale}}">
 
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Gophish - Phishing Toolkit">
-    <meta name="author" content="Jordan Wright (http://github.com/jordan-wright)">
+    <meta name="description" content="{{T .Locale "app.description"}}">
     <link rel="shortcut icon" href="/images/favicon.ico">
 
-    <title>{{ .Title }} - Gophish</title>
+    <title>{{ .Title }} - Nivoxis</title>
 
     <link href="/css/dist/gophish.css" rel="stylesheet" type="text/css">
+    <link href='https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap' rel='stylesheet'>
     <link href='https://fonts.googleapis.com/css?family=Roboto:700,500' rel='stylesheet' type='text/css'>
     <link href='https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,300,600,700' rel='stylesheet' type='text/css'>
     <script>
         {{if .User}}
     var user = {
         api_key : {{ .User.ApiKey }},
-        username : {{ .User.Username }}
+        username : {{ .User.Username }},
+        role : "{{ .User.Role.Slug }}"
+    }
+    var permissions = {
+        modify_system: {{ .ModifySystem }},
+        modify_objects: {{ .ModifyObjects }},
+        manage_training: {{ .ManageTraining }},
+        view_reports: {{ .ViewReports }}
     }
     {{end}}
     {{if .Token}}
@@ -38,22 +45,47 @@
                     <span class="icon-bar"></span>
                     <span class="icon-bar"></span>
                 </button>
-                <img class="navbar-logo" src="/images/logo_inv_small.png" />
-                <a class="navbar-brand" href="/">&nbsp;gophish</a>
+                <img class="navbar-logo" src="/images/logo_inv_small.png" alt="Nivoxis" />
+                <a class="navbar-brand" href="/">&nbsp;Nivoxis</a>
             </div>
             <div class="navbar-collapse collapse">
                 <ul class="nav navbar-nav navbar-right">
                     <li>
+                        <div class="btn-group" id="lang-selector">
+                            <button class="btn btn-default btn-sm dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="margin-top:10px;">
+                                <i class="fa fa-globe"></i> {{.Locale}} <span class="caret"></span>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-right">
+                                {{range .Languages}}
+                                <li><a href="#" onclick="setLocale('{{.Code}}'); return false;">{{.Name}}</a></li>
+                                {{end}}
+                            </ul>
+                        </div>
+                    </li>
+                    <li>
+                        <button class="dark-mode-toggle" id="dark-mode-toggle" title="Toggle dark mode">
+                            <i class="fa fa-moon-o"></i>
+                        </button>
+                    </li>
+                    <li>
                         {{if .User}}
                         <div class="btn-group" id="navbar-dropdown">
-                            <a class="btn btn-primary" href="/settings"><i class="fa fa-user"></i> {{.User.Username}}</a>
-                            <a class="btn btn-primary dropdown-toggle" href="/logout">
-                                <i class="fa fa-sign-out"></i>
-                            </a>
+                            <button class="btn btn-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <i class="fa fa-user"></i> {{.User.Username}} <span class="caret"></span>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-right" style="min-width:180px;">
+                                <li><a href="/my-courses"><i class="fa fa-graduation-cap"></i> {{T .Locale "nav.my_courses"}}</a></li>
+                                {{if .ModifySystem}}
+                                <li><a href="/settings"><i class="fa fa-cog"></i> {{T .Locale "nav.account_settings"}}</a></li>
+                                <li><a href="/webhooks"><i class="fa fa-plug"></i> {{T .Locale "nav.webhooks"}}</a></li>
+                                {{end}}
+                                <li class="divider"></li>
+                                <li><a href="/logout"><i class="fa fa-sign-out"></i> {{T .Locale "nav.logout"}}</a></li>
+                            </ul>
                         </div>
                         {{else}}
                         <a href="/login">
-                            <button type="button" class="btn btn-primary">Login</button>
+                            <button type="button" class="btn btn-primary">{{T .Locale "login.title"}}</button>
                         </a>
                         {{end}}
                     </li>
@@ -66,7 +98,31 @@
     <!-- Placed at the end of the document so the pages load faster -->
     <script src="/js/dist/vendor.min.js"></script>
     <script src="/js/dist/app/gophish.min.js"></script>
+    <script src="/js/dist/app/i18n.min.js"></script>
     {{template "scripts" .}}
+    <script>
+    (function() {
+        var btn = document.getElementById('dark-mode-toggle');
+        var icon = btn ? btn.querySelector('i') : null;
+        function applyMode(dark) {
+            if (dark) {
+                document.body.classList.add('dark-mode');
+                if (icon) { icon.className = 'fa fa-sun-o'; }
+            } else {
+                document.body.classList.remove('dark-mode');
+                if (icon) { icon.className = 'fa fa-moon-o'; }
+            }
+        }
+        applyMode(localStorage.getItem('nivoxis-dark') === '1');
+        if (btn) {
+            btn.addEventListener('click', function() {
+                var isDark = document.body.classList.toggle('dark-mode');
+                localStorage.setItem('nivoxis-dark', isDark ? '1' : '0');
+                if (icon) { icon.className = isDark ? 'fa fa-sun-o' : 'fa fa-moon-o'; }
+            });
+        }
+    })();
+    </script>
 </body>
 
 </html>

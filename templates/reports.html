@@ -1,0 +1,203 @@
+{{define "body"}}
+<div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+    <h1 class="page-header">
+        <i class="fa fa-bar-chart"></i> Reports
+    </h1>
+    <div id="flashes" class="row"></div>
+
+    <!-- Tab navigation -->
+    <ul class="nav nav-tabs" id="reportTabs" style="margin-bottom:20px;">
+        <li class="active"><a href="#overviewTab" data-toggle="tab">Overview</a></li>
+        <li><a href="#groupsTab" data-toggle="tab">Groups</a></li>
+        <li><a href="#trainingTab" data-toggle="tab">Training</a></li>
+        <li><a href="#riskTab" data-toggle="tab">Risk Assessment</a></li>
+        <li><a href="#brsTab" data-toggle="tab">Behavioral Risk Score</a></li>
+    </ul>
+
+    <div class="tab-content">
+        <!-- Overview Tab -->
+        <div class="tab-pane active" id="overviewTab">
+            <div id="overviewLoading" style="text-align:center; padding:40px;">
+                <i class="fa fa-spinner fa-spin fa-3x"></i>
+            </div>
+            <div id="overviewContent" style="display:none;">
+                <!-- Summary cards -->
+                <div class="row" id="overviewCards"></div>
+                <!-- Donut charts -->
+                <div class="row" style="margin-top:20px;">
+                    <div class="col-md-4"><div id="overviewSentChart" style="height:250px;"></div></div>
+                    <div class="col-md-4"><div id="overviewClickedChart" style="height:250px;"></div></div>
+                    <div class="col-md-4"><div id="overviewReportedChart" style="height:250px;"></div></div>
+                </div>
+                <div style="margin-top:15px; text-align:right;">
+                    <a class="btn btn-default btn-sm" href="/api/reports/export?type=overview&format=csv">
+                        <i class="fa fa-download"></i> Export CSV
+                    </a>
+                    <a class="btn btn-default btn-sm" href="/api/reports/export?type=overview&format=pdf">
+                        <i class="fa fa-file-pdf-o"></i> Export PDF
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Groups Tab -->
+        <div class="tab-pane" id="groupsTab">
+            <div id="groupsLoading" style="text-align:center; padding:40px;">
+                <i class="fa fa-spinner fa-spin fa-3x"></i>
+            </div>
+            <div id="groupsContent" style="display:none;">
+                <div id="groupsChart" style="height:350px; margin-bottom:20px;"></div>
+                <table id="groupsTable" class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Group</th>
+                            <th>Total</th>
+                            <th>Sent</th>
+                            <th>Opened</th>
+                            <th>Clicked</th>
+                            <th>Submitted</th>
+                            <th>Reported</th>
+                            <th>Click Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody id="groupsTableBody"></tbody>
+                </table>
+                <div style="text-align:right;">
+                    <a class="btn btn-default btn-sm" href="/api/reports/export?type=groups&format=csv">
+                        <i class="fa fa-download"></i> Export CSV
+                    </a>
+                    <a class="btn btn-default btn-sm" href="/api/reports/export?type=groups&format=pdf">
+                        <i class="fa fa-file-pdf-o"></i> Export PDF
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Training Tab -->
+        <div class="tab-pane" id="trainingTab">
+            <div id="trainingLoading" style="text-align:center; padding:40px;">
+                <i class="fa fa-spinner fa-spin fa-3x"></i>
+            </div>
+            <div id="trainingContent" style="display:none;">
+                <div class="row" id="trainingCards"></div>
+                <div class="row" style="margin-top:20px;">
+                    <div class="col-md-6"><div id="trainingStatusChart" style="height:300px;"></div></div>
+                    <div class="col-md-6"><div id="trainingMetricsPanel"></div></div>
+                </div>
+                <div style="margin-top:15px; text-align:right;">
+                    <a class="btn btn-default btn-sm" href="/api/reports/export?type=training&format=csv">
+                        <i class="fa fa-download"></i> Export CSV
+                    </a>
+                    <a class="btn btn-default btn-sm" href="/api/reports/export?type=training&format=pdf">
+                        <i class="fa fa-file-pdf-o"></i> Export PDF
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Risk Assessment Tab -->
+        <div class="tab-pane" id="riskTab">
+            <div id="riskLoading" style="text-align:center; padding:40px;">
+                <i class="fa fa-spinner fa-spin fa-3x"></i>
+            </div>
+            <div id="riskContent" style="display:none;">
+                <div id="riskHistogram" style="height:300px; margin-bottom:20px;"></div>
+                <table id="riskTable" class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Email</th>
+                            <th>Name</th>
+                            <th>Emails Received</th>
+                            <th>Clicked</th>
+                            <th>Submitted</th>
+                            <th>Reported</th>
+                            <th>Risk Score</th>
+                        </tr>
+                    </thead>
+                    <tbody id="riskTableBody"></tbody>
+                </table>
+                <div style="text-align:right;">
+                    <a class="btn btn-default btn-sm" href="/api/reports/export?type=risk-scores&format=csv">
+                        <i class="fa fa-download"></i> Export CSV
+                    </a>
+                    <a class="btn btn-default btn-sm" href="/api/reports/export?type=risk-scores&format=pdf">
+                        <i class="fa fa-file-pdf-o"></i> Export PDF
+                    </a>
+                </div>
+            </div>
+        </div>
+        <!-- BRS Tab -->
+        <div class="tab-pane" id="brsTab">
+            <div id="brsLoading" style="text-align:center; padding:40px;">
+                <i class="fa fa-spinner fa-spin fa-3x"></i>
+            </div>
+            <div id="brsContent" style="display:none;">
+                <!-- Summary cards -->
+                <div class="row" id="brsCards"></div>
+                <!-- Charts row -->
+                <div class="row" style="margin-top:20px;">
+                    <div class="col-md-6">
+                        <div class="panel panel-default">
+                            <div class="panel-heading"><strong>Score Distribution</strong></div>
+                            <div class="panel-body">
+                                <div id="brsDistributionChart" style="height:300px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="panel panel-default">
+                            <div class="panel-heading"><strong>Department Comparison</strong></div>
+                            <div class="panel-body">
+                                <div id="brsDepartmentChart" style="height:300px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Leaderboard table -->
+                <div class="panel panel-default" style="margin-top:20px;">
+                    <div class="panel-heading">
+                        <strong>Leaderboard</strong> <small class="text-muted">(lowest risk first)</small>
+                        <button id="brsRecalcBtn" class="btn btn-xs btn-default pull-right" title="Recalculate BRS">
+                            <i class="fa fa-refresh"></i> Recalculate
+                        </button>
+                    </div>
+                    <div class="panel-body" style="padding:0;">
+                        <table id="brsTable" class="table table-striped table-hover" style="margin-bottom:0;">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Department</th>
+                                    <th>Simulation</th>
+                                    <th>Academy</th>
+                                    <th>Quiz</th>
+                                    <th>Trend</th>
+                                    <th>Consistency</th>
+                                    <th>Composite</th>
+                                    <th>Percentile</th>
+                                </tr>
+                            </thead>
+                            <tbody id="brsTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <!-- Benchmark -->
+                <div class="row" id="brsBenchmarkRow" style="display:none;">
+                    <div class="col-md-12">
+                        <div class="panel panel-info">
+                            <div class="panel-heading"><strong>Benchmark Comparison</strong></div>
+                            <div class="panel-body" id="brsBenchmarkContent"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{{end}}
+
+{{define "scripts"}}
+<script src="/js/dist/app/reports.min.js"></script>
+{{end}}

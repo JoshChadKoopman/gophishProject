@@ -146,7 +146,7 @@ $(document).ready(function () {
                     showCancelButton: true,
                     cancelButtonText: "Close",
                     confirmButtonText: "More Info",
-                    confirmButtonColor: "#428bca",
+                    confirmButtonColor: "#E94560",
                     allowOutsideClick: false,
                 }).then(function(result) {
                     if (result.value) {

@@ -5,12 +5,22 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"time"
+	"unicode"
 
 	"golang.org/x/crypto/bcrypt"
 )
 
+// MaxFailedLogins is the number of consecutive failed login attempts before
+// the account is temporarily locked out.
+const MaxFailedLogins = 5
+
+// LoginLockoutDuration is the window during which the account remains locked
+// after exceeding MaxFailedLogins.
+const LoginLockoutDuration = 15 * time.Minute
+
 // MinPasswordLength is the minimum number of characters required in a password
-const MinPasswordLength = 8
+const MinPasswordLength = 10
 
 // APIKeyLength is the length of Gophish API keys
 const APIKeyLength = 32
@@ -34,6 +44,15 @@ var ErrEmptyPassword = errors.New("No password provided")
 // than MinPasswordLength
 var ErrPasswordTooShort = fmt.Errorf("Password must be at least %d characters", MinPasswordLength)
 
+// ErrPasswordNoUpper is thrown when a password lacks an uppercase letter.
+var ErrPasswordNoUpper = errors.New("Password must contain at least one uppercase letter")
+
+// ErrPasswordNoLower is thrown when a password lacks a lowercase letter.
+var ErrPasswordNoLower = errors.New("Password must contain at least one lowercase letter")
+
+// ErrPasswordNoDigit is thrown when a password lacks a digit.
+var ErrPasswordNoDigit = errors.New("Password must contain at least one digit")
+
 // GenerateSecureKey returns the hex representation of key generated from n
 // random bytes
 func GenerateSecureKey(n int) string {
@@ -53,18 +72,34 @@ func GeneratePasswordHash(password string) (string, error) {
 }
 
 // CheckPasswordPolicy ensures the provided password is valid according to our
-// password policy.
-//
-// The current password policy is simply a minimum of 8 characters, though this
-// may change in the future (see #1538).
+// password policy: minimum length plus at least one uppercase letter, one
+// lowercase letter, and one digit.
 func CheckPasswordPolicy(password string) error {
 	switch {
-	// Admittedly, empty passwords are a subset of too short passwords, but it
-	// helps to provide a more specific error message
 	case password == "":
 		return ErrEmptyPassword
 	case len(password) < MinPasswordLength:
 		return ErrPasswordTooShort
+	}
+	var hasUpper, hasLower, hasDigit bool
+	for _, c := range password {
+		switch {
+		case unicode.IsUpper(c):
+			hasUpper = true
+		case unicode.IsLower(c):
+			hasLower = true
+		case unicode.IsDigit(c):
+			hasDigit = true
+		}
+	}
+	if !hasUpper {
+		return ErrPasswordNoUpper
+	}
+	if !hasLower {
+		return ErrPasswordNoLower
+	}
+	if !hasDigit {
+		return ErrPasswordNoDigit
 	}
 	return nil
 }

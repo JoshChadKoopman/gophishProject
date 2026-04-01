@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"net/mail"
 
-	ctx "github.com/gophish/gophish/context"
 	log "github.com/gophish/gophish/logger"
 	"github.com/gophish/gophish/models"
 	"github.com/jinzhu/gorm"
@@ -15,9 +14,10 @@ import (
 // SendTestEmail sends a test email using the template name
 // and Target given.
 func (as *Server) SendTestEmail(w http.ResponseWriter, r *http.Request) {
+	scope := getOrgScope(r)
 	s := &models.EmailRequest{
 		ErrorChan: make(chan error),
-		UserId:    ctx.Get(r, "user_id").(int64),
+		UserId:    scope.UserId,
 	}
 	if r.Method != "POST" {
 		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusBadRequest)
@@ -34,20 +34,20 @@ func (as *Server) SendTestEmail(w http.ResponseWriter, r *http.Request) {
 	// If a Template is not specified use a default
 	if s.Template.Name == "" {
 		//default message body
-		text := "It works!\n\nThis is an email letting you know that your gophish\nconfiguration was successful.\n" +
+		text := "It works!\n\nThis is an email letting you know that your Nivoxis\nconfiguration was successful.\n" +
 			"Here are the details:\n\nWho you sent from: {{.From}}\n\nWho you sent to: \n" +
 			"{{if .FirstName}} First Name: {{.FirstName}}\n{{end}}" +
 			"{{if .LastName}} Last Name: {{.LastName}}\n{{end}}" +
 			"{{if .Position}} Position: {{.Position}}\n{{end}}" +
 			"\nNow go send some phish!"
 		t := models.Template{
-			Subject: "Default Email from Gophish",
+			Subject: "Default Test Email from Nivoxis",
 			Text:    text,
 		}
 		s.Template = t
 	} else {
 		// Get the Template requested by name
-		s.Template, err = models.GetTemplateByName(s.Template.Name, s.UserId)
+		s.Template, err = models.GetTemplateByName(s.Template.Name, scope)
 		if err == gorm.ErrRecordNotFound {
 			log.WithFields(logrus.Fields{
 				"template": s.Template.Name,
@@ -66,7 +66,7 @@ func (as *Server) SendTestEmail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if s.Page.Name != "" {
-		s.Page, err = models.GetPageByName(s.Page.Name, s.UserId)
+		s.Page, err = models.GetPageByName(s.Page.Name, scope)
 		if err == gorm.ErrRecordNotFound {
 			log.WithFields(logrus.Fields{
 				"page": s.Page.Name,
@@ -84,7 +84,7 @@ func (as *Server) SendTestEmail(w http.ResponseWriter, r *http.Request) {
 	// If a complete sending profile is provided use it
 	if err := s.SMTP.Validate(); err != nil {
 		// Otherwise get the SMTP requested by name
-		smtp, lookupErr := models.GetSMTPByName(s.SMTP.Name, s.UserId)
+		smtp, lookupErr := models.GetSMTPByName(s.SMTP.Name, scope)
 		// If the Sending Profile doesn't exist, let's err on the side
 		// of caution and assume that the validation failure was more important.
 		if lookupErr != nil {

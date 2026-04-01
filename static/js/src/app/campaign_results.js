@@ -132,7 +132,7 @@ function deleteCampaign() {
         animation: false,
         showCancelButton: true,
         confirmButtonText: "Delete Campaign",
-        confirmButtonColor: "#428bca",
+        confirmButtonColor: "#E94560",
         reverseButtons: true,
         allowOutsideClick: false,
         showLoaderOnConfirm: true,
@@ -165,12 +165,12 @@ function deleteCampaign() {
 function completeCampaign() {
     Swal.fire({
         title: "Are you sure?",
-        text: "Gophish will stop processing events for this campaign",
+        text: "No more events will be processed for this campaign",
         type: "warning",
         animation: false,
         showCancelButton: true,
         confirmButtonText: "Complete Campaign",
-        confirmButtonColor: "#428bca",
+        confirmButtonColor: "#E94560",
         reverseButtons: true,
         allowOutsideClick: false,
         showLoaderOnConfirm: true,
@@ -726,7 +726,7 @@ function load() {
         .success(function (c) {
             campaign = c
             if (campaign) {
-                $("title").text(c.name + " - Gophish")
+                $("title").text(c.name + " - Nivoxis")
                 $("#loading").hide()
                 $("#campaignResults").show()
                 // Set the title
@@ -926,7 +926,7 @@ function report_mail(rid, cid) {
         animation: false,
         showCancelButton: true,
         confirmButtonText: "Continue",
-        confirmButtonColor: "#428bca",
+        confirmButtonColor: "#E94560",
         reverseButtons: true,
         allowOutsideClick: false,
         showLoaderOnConfirm: true

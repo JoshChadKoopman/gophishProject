@@ -9,6 +9,10 @@
     <div class="row">
         <button type="button" class="btn btn-primary" onclick="edit(-1)" data-toggle="modal" data-backdrop="static"
             data-target="#modal"><i class="fa fa-plus"></i> New Template</button>
+        {{if index .OrgFeatures "ai_templates"}}
+        <button type="button" class="btn btn-success" data-toggle="modal" data-backdrop="static"
+            data-target="#aiGenerateModal"><i class="fa fa-magic"></i> Generate with AI</button>
+        {{end}}
     </div>
     &nbsp;
     <div id="loading">
@@ -131,6 +135,85 @@
             <div class="modal-footer">
                 <button type="button" data-dismiss="modal" class="btn btn-default">Cancel</button>
                 <button type="button" class="btn btn-primary" id="modalSubmit" onclick="importEmail()">Import</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- AI Generate Modal -->
+<div class="modal fade" id="aiGenerateModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title"><i class="fa fa-magic"></i> Generate Template with AI</h4>
+            </div>
+            <div class="modal-body">
+                <div class="row" id="aiFlashes"></div>
+                <label class="control-label" for="ai-prompt">Describe the phishing scenario:</label>
+                <div class="form-group">
+                    <textarea rows="3" id="ai-prompt" class="form-control" placeholder="e.g. Password reset notification from IT department, invoice from a vendor, shared document from a colleague..."></textarea>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="control-label" for="ai-difficulty">Difficulty Level:</label>
+                        <select id="ai-difficulty" class="form-control">
+                            <option value="1">1 - Easy (obvious red flags)</option>
+                            <option value="2" selected>2 - Medium (some tells)</option>
+                            <option value="3">3 - Hard (professional)</option>
+                            <option value="4">4 - Sophisticated (expert)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="control-label" for="ai-language">Language:</label>
+                        <select id="ai-language" class="form-control">
+                            <option value="en" selected>English</option>
+                            <option value="nl">Dutch</option>
+                            <option value="fr">French</option>
+                            <option value="de">German</option>
+                            <option value="es">Spanish</option>
+                        </select>
+                    </div>
+                </div>
+                <br>
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="control-label" for="ai-target-role">Target Role (optional):</label>
+                        <input type="text" id="ai-target-role" class="form-control" placeholder="e.g. Software Engineer">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="control-label" for="ai-target-dept">Target Department (optional):</label>
+                        <input type="text" id="ai-target-dept" class="form-control" placeholder="e.g. Finance">
+                    </div>
+                </div>
+                <br>
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="control-label" for="ai-company">Company Name (optional):</label>
+                        <input type="text" id="ai-company" class="form-control" placeholder="e.g. Acme Corp">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="control-label" for="ai-sender">Impersonated Sender (optional):</label>
+                        <input type="text" id="ai-sender" class="form-control" placeholder="e.g. John Smith, IT Support">
+                    </div>
+                </div>
+                <br>
+                <div class="form-group">
+                    <label class="control-label" for="ai-template-name">Template Name:</label>
+                    <input type="text" id="ai-template-name" class="form-control" placeholder="Leave blank for auto-generated name">
+                </div>
+                <div id="aiGenerating" style="display:none; text-align:center; padding:20px;">
+                    <i class="fa fa-spinner fa-spin fa-2x"></i>
+                    <p class="text-muted" style="margin-top:10px;">Generating template... This may take a moment.</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" data-dismiss="modal" class="btn btn-default">Cancel</button>
+                <button type="button" class="btn btn-primary" id="aiGenerateAndEdit" title="Generate and open in editor">
+                    <i class="fa fa-pencil"></i> Generate &amp; Edit
+                </button>
+                <button type="button" class="btn btn-success" id="aiGenerateAndSave" title="Generate and save directly">
+                    <i class="fa fa-magic"></i> Generate &amp; Save
+                </button>
             </div>
         </div>
     </div>

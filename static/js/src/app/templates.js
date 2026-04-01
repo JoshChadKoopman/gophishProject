@@ -87,7 +87,7 @@ var deleteTemplate = function (idx) {
         animation: false,
         showCancelButton: true,
         confirmButtonText: "Delete " + escapeHtml(templates[idx].name),
-        confirmButtonColor: "#428bca",
+        confirmButtonColor: "#E94560",
         reverseButtons: true,
         allowOutsideClick: false,
         preConfirm: function () {
@@ -417,5 +417,95 @@ $(document).ready(function () {
         }
     });
     load()
+
+    // --- AI Template Generation ---
+    function getAIParams() {
+        return {
+            prompt: $("#ai-prompt").val(),
+            difficulty_level: parseInt($("#ai-difficulty").val()),
+            language: $("#ai-language").val(),
+            target_role: $("#ai-target-role").val(),
+            target_department: $("#ai-target-dept").val(),
+            company_name: $("#ai-company").val(),
+            sender_name: $("#ai-sender").val()
+        }
+    }
+
+    function aiSetLoading(loading) {
+        if (loading) {
+            $("#aiGenerating").show();
+            $("#aiGenerateAndEdit, #aiGenerateAndSave").prop("disabled", true);
+        } else {
+            $("#aiGenerating").hide();
+            $("#aiGenerateAndEdit, #aiGenerateAndSave").prop("disabled", false);
+        }
+    }
+
+    function aiError(msg) {
+        $("#aiFlashes").html('<div class="alert alert-danger" style="text-align:center"><i class="fa fa-exclamation-circle"></i> ' + escapeHtml(msg) + '</div>');
+    }
+
+    // Generate & Edit: generate via AI, then populate the template editor modal
+    $("#aiGenerateAndEdit").on("click", function () {
+        var params = getAIParams();
+        if (!params.prompt) { aiError("Please describe the phishing scenario."); return; }
+        $("#aiFlashes").empty();
+        aiSetLoading(true);
+        api.ai.generateTemplate(params)
+            .success(function (data) {
+                aiSetLoading(false);
+                $("#aiGenerateModal").modal("hide");
+                // Open the template editor with generated content
+                edit(-1);
+                $("#name").val($("#ai-template-name").val() || "AI Generated - " + moment().format("YYYY-MM-DD HH:mm"));
+                $("#subject").val(data.subject);
+                $("#text_editor").val(data.text);
+                $("#html_editor").val(data.html);
+                if (data.html && CKEDITOR.instances["html_editor"]) {
+                    CKEDITOR.instances["html_editor"].setData(data.html);
+                    $('.nav-tabs a[href="#html"]').click();
+                }
+                successFlash("AI template generated successfully. Review and save when ready.");
+            })
+            .error(function (data) {
+                aiSetLoading(false);
+                var msg = (data.responseJSON && data.responseJSON.message) || "AI generation failed.";
+                aiError(msg);
+            });
+    });
+
+    // Generate & Save: generate via AI and save directly as a template
+    $("#aiGenerateAndSave").on("click", function () {
+        var params = getAIParams();
+        if (!params.prompt) { aiError("Please describe the phishing scenario."); return; }
+        $("#aiFlashes").empty();
+        aiSetLoading(true);
+        params.save_as_template = true;
+        params.template_name = $("#ai-template-name").val();
+        api.ai.generateTemplate(params)
+            .success(function (data) {
+                aiSetLoading(false);
+                $("#aiGenerateModal").modal("hide");
+                successFlash("AI template '" + escapeHtml(data.template.name) + "' generated and saved!");
+                load();
+            })
+            .error(function (data) {
+                aiSetLoading(false);
+                var msg = (data.responseJSON && data.responseJSON.message) || "AI generation failed.";
+                aiError(msg);
+            });
+    });
+
+    // Clear AI modal on close
+    $("#aiGenerateModal").on("hidden.bs.modal", function () {
+        $("#aiFlashes").empty();
+        $("#ai-prompt").val("");
+        $("#ai-template-name").val("");
+        $("#ai-target-role").val("");
+        $("#ai-target-dept").val("");
+        $("#ai-company").val("");
+        $("#ai-sender").val("");
+        aiSetLoading(false);
+    });
 
 })

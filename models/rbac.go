@@ -26,13 +26,27 @@ requested permission.
 */
 
 const (
-	// RoleAdmin is used for Gophish system administrators. Users with this
-	// role have the ability to manage all objects within Gophish, as well as
-	// system-level configuration, such as users and URLs.
-	RoleAdmin = "admin"
-	// RoleUser is used for standard Gophish users. Users with this role can
-	// create, manage, and view Gophish objects and campaigns.
-	RoleUser = "user"
+	// Nivoxis platform roles
+
+	// RoleSuperAdmin is for Nivoxis staff with full platform access across all tenants.
+	RoleSuperAdmin = "superadmin"
+	// RoleOrgAdmin is for client HR admins who manage their org's campaigns and users.
+	RoleOrgAdmin = "org_admin"
+	// RoleCampaignManager can create and launch phishing campaigns and view results.
+	RoleCampaignManager = "campaign_manager"
+	// RoleTrainer can assign and manage training modules only.
+	RoleTrainer = "trainer"
+	// RoleLearner is an end user who completes training and views their own results.
+	RoleLearner = "learner"
+	// RoleAuditor has read-only access to reports and audit logs.
+	RoleAuditor = "auditor"
+
+	// Legacy aliases — resolve to Nivoxis slugs so existing call sites compile
+	// correctly after the DB migration renames the old slugs.
+	RoleAdmin       = RoleSuperAdmin      // was "admin"
+	RoleUser        = RoleCampaignManager // was "user"
+	RoleContributor = RoleTrainer         // was "contributor"
+	RoleReader      = RoleLearner         // was "reader"
 
 	// PermissionViewObjects determines if a role can view standard Gophish
 	// objects such as campaigns, groups, landing pages, etc.
@@ -43,6 +57,12 @@ const (
 	// PermissionModifySystem determines if a role can manage system-level
 	// configuration.
 	PermissionModifySystem = "modify_system"
+	// PermissionManageTraining determines if a role can create, edit, and
+	// delete training modules and presentations.
+	PermissionManageTraining = "manage_training"
+	// PermissionViewReports determines if a role has read-only access to
+	// reports and audit logs.
+	PermissionViewReports = "view_reports"
 )
 
 // Role represents a user role within Gophish. Each user has a single role
@@ -69,6 +89,13 @@ func GetRoleBySlug(slug string) (Role, error) {
 	role := Role{}
 	err := db.Where("slug=?", slug).First(&role).Error
 	return role, err
+}
+
+// GetRoles returns all available roles.
+func GetRoles() ([]Role, error) {
+	roles := []Role{}
+	err := db.Find(&roles).Error
+	return roles, err
 }
 
 // HasPermission checks to see if the user has a role with the requested

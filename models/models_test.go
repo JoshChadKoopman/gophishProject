@@ -92,15 +92,20 @@ func (s *ModelsSuite) createCampaignDependencies(ch *check.C, optional ...string
 	return c
 }
 
+// testScope returns an OrgScope suitable for tests (org 0, user 1, superadmin).
+func testScope(uid int64) OrgScope {
+	return OrgScope{OrgId: 0, UserId: uid, IsSuperAdmin: true}
+}
+
 func (s *ModelsSuite) createCampaign(ch *check.C) Campaign {
 	c := s.createCampaignDependencies(ch)
 	// Setup and "launch" our campaign
-	ch.Assert(PostCampaign(&c, c.UserId), check.Equals, nil)
+	ch.Assert(PostCampaign(&c, testScope(c.UserId)), check.Equals, nil)
 
 	// For comparing the dates, we need to fetch the campaign again. This is
 	// to solve an issue where the campaign object right now has time down to
 	// the microsecond, while in MySQL it's rounded down to the second.
-	c, _ = GetCampaign(c.Id, c.UserId)
+	c, _ = GetCampaign(c.Id, testScope(c.UserId))
 	return c
 }
 

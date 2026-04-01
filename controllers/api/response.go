@@ -15,6 +15,7 @@ func JSONResponse(w http.ResponseWriter, d interface{}, c int) {
 	if err != nil {
 		http.Error(w, "Error creating JSON response", http.StatusInternalServerError)
 		log.Error(err)
+		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(c)

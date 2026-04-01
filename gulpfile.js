@@ -63,7 +63,16 @@ scripts = function () {
             app_directory + 'gophish.js',
             app_directory + 'users.js',
             app_directory + 'webhooks.js',
-            app_directory + 'passwords.js'
+            app_directory + 'passwords.js',
+            app_directory + 'training.js',
+            app_directory + 'reports.js',
+            app_directory + 'audit_log.js',
+            app_directory + 'autopilot.js',
+            app_directory + 'academy.js',
+            app_directory + 'gamification.js',
+            app_directory + 'i18n.js',
+            app_directory + 'reported_emails.js',
+            app_directory + 'threat_alerts.js'
         ])
         .pipe(rename({
             suffix: '.min'
@@ -78,6 +87,7 @@ styles = function () {
     return gulp.src([
             css_directory + 'bootstrap.min.css',
             css_directory + 'main.css',
+            css_directory + 'nivoxis.css',
             css_directory + 'dashboard.css',
             css_directory + 'flat-ui.css',
             css_directory + 'dataTables.bootstrap.css',
