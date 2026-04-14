@@ -1,0 +1,305 @@
+{{define "body"}}
+<div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+    <h1 class="page-header">
+        <i class="fa fa-sliders"></i> {{.Title}}
+    </h1>
+    <div id="flashes" class="row"></div>
+
+    <div id="loading">
+        <i class="fa fa-spinner fa-spin fa-4x"></i>
+    </div>
+
+    <div id="difficultyContent" style="display:none;">
+        <!-- My Difficulty Profile -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <h3 class="panel-title"><i class="fa fa-user"></i> My Training Difficulty</h3>
+                    </div>
+                    <div class="panel-body">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <p style="font-size:16px;">
+                                    Current Mode: <span id="modeBadge" class="label label-default">Loading...</span>
+                                </p>
+                                <p style="font-size:24px; font-weight:bold;">
+                                    Effective Level: <span id="effectiveLevel">-</span>
+                                    <small id="effectiveLabel" style="color:#888;"></small>
+                                </p>
+                                <p id="adaptiveInfo" style="color:#888;">
+                                    AI Recommendation: Level <span id="adaptiveLevel">-</span>
+                                    (<span id="adaptiveLabel"></span>)
+                                </p>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <h4>Switch Mode</h4>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <button id="btnAdaptive" class="btn btn-info btn-block" style="display:none;">
+                                    <i class="fa fa-magic"></i> Use Adaptive (AI)
+                                </button>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="input-group" id="manualGroup">
+                                    <select id="manualLevel" class="form-control">
+                                        <option value="1">1 — Easy (Fundamentals)</option>
+                                        <option value="2">2 — Medium (Intermediate)</option>
+                                        <option value="3">3 — Hard (Advanced)</option>
+                                        <option value="4">4 — Sophisticated (Expert)</option>
+                                    </select>
+                                    <span class="input-group-btn">
+                                        <button id="btnManual" class="btn btn-warning">
+                                            <i class="fa fa-hand-pointer-o"></i> Set Manual
+                                        </button>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Metrics -->
+            <div class="col-md-6">
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <h3 class="panel-title"><i class="fa fa-bar-chart"></i> Performance Metrics</h3>
+                    </div>
+                    <div class="panel-body">
+                        <table class="table table-condensed">
+                            <tbody>
+                                <tr>
+                                    <td><strong>BRS Composite Score</strong></td>
+                                    <td><span id="brsScore">-</span>/100</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Overall Click Rate</strong></td>
+                                    <td><span id="clickRate">-</span>%</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Trend</strong></td>
+                                    <td><span id="trendDirection" class="label label-default">-</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Total Simulations</strong></td>
+                                    <td><span id="totalSims">-</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Difficulty Level Visualization -->
+        <div class="row">
+            <div class="col-md-12">
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <h3 class="panel-title"><i class="fa fa-signal"></i> Difficulty Levels</h3>
+                    </div>
+                    <div class="panel-body">
+                        <div class="row text-center">
+                            <div class="col-md-3">
+                                <div id="level1" class="difficulty-card" data-level="1">
+                                    <div class="difficulty-icon" style="color:#cd7f32;"><i class="fa fa-shield fa-3x"></i></div>
+                                    <h4>Level 1 — Easy</h4>
+                                    <p class="text-muted">Fundamentals / Bronze</p>
+                                    <p><small>Basic phishing awareness, password hygiene, simple social engineering scenarios</small></p>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div id="level2" class="difficulty-card" data-level="2">
+                                    <div class="difficulty-icon" style="color:#c0c0c0;"><i class="fa fa-shield fa-3x"></i></div>
+                                    <h4>Level 2 — Medium</h4>
+                                    <p class="text-muted">Intermediate / Silver</p>
+                                    <p><small>Spear phishing, pretexting, credential harvesting with realistic lures</small></p>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div id="level3" class="difficulty-card" data-level="3">
+                                    <div class="difficulty-icon" style="color:#ffd700;"><i class="fa fa-shield fa-3x"></i></div>
+                                    <h4>Level 3 — Hard</h4>
+                                    <p class="text-muted">Advanced / Gold</p>
+                                    <p><small>BEC, multi-stage attacks, QR code phishing, subtle indicators</small></p>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div id="level4" class="difficulty-card" data-level="4">
+                                    <div class="difficulty-icon" style="color:#e5e4e2;"><i class="fa fa-shield fa-3x"></i></div>
+                                    <h4>Level 4 — Expert</h4>
+                                    <p class="text-muted">Sophisticated / Platinum</p>
+                                    <p><small>APT-style campaigns, deepfake voice/video, zero-day scenario simulations</small></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Adjustment History -->
+        <div class="row">
+            <div class="col-md-12">
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <h3 class="panel-title"><i class="fa fa-history"></i> Adjustment History</h3>
+                    </div>
+                    <div class="panel-body">
+                        <table id="historyTable" class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Previous</th>
+                                    <th>New</th>
+                                    <th>Source</th>
+                                    <th>Reason</th>
+                                    <th>BRS</th>
+                                    <th>Click Rate</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyBody">
+                            </tbody>
+                        </table>
+                        <p id="noHistory" style="color:#888; display:none;">No difficulty adjustments recorded yet.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.difficulty-card {
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    padding: 20px 15px;
+    margin-bottom: 15px;
+    transition: all 0.3s ease;
+    cursor: default;
+}
+.difficulty-card.active {
+    border-color: #337ab7;
+    background-color: #f0f7ff;
+    box-shadow: 0 0 10px rgba(51,122,183,0.3);
+}
+.difficulty-card .difficulty-icon {
+    margin-bottom: 10px;
+}
+</style>
+
+<script>
+$(document).ready(function() {
+    loadMyProfile();
+
+    $("#btnAdaptive").click(function() {
+        api.put("/api/difficulty/my-clear", {})
+            .success(function(profile) {
+                renderProfile(profile);
+                flash("Switched to adaptive mode. AI will adjust your difficulty over time.", "success");
+            })
+            .error(function(e) { flash(e.responseJSON.message, "danger"); });
+    });
+
+    $("#btnManual").click(function() {
+        var level = parseInt($("#manualLevel").val());
+        api.put("/api/difficulty/my-set", {"level": level})
+            .success(function(profile) {
+                renderProfile(profile);
+                flash("Manual difficulty set to level " + level + ".", "success");
+            })
+            .error(function(e) { flash(e.responseJSON.message, "danger"); });
+    });
+});
+
+function loadMyProfile() {
+    api.get("/api/difficulty/my-profile")
+        .success(function(profile) {
+            renderProfile(profile);
+            $("#loading").hide();
+            $("#difficultyContent").show();
+        })
+        .error(function() {
+            $("#loading").hide();
+            flash("Could not load difficulty profile.", "danger");
+        });
+}
+
+function renderProfile(profile) {
+    // Mode badge
+    if (profile.mode === "manual") {
+        $("#modeBadge").text("Manual").removeClass("label-info").addClass("label-warning");
+        $("#btnAdaptive").show();
+    } else {
+        $("#modeBadge").text("Adaptive (AI)").removeClass("label-warning").addClass("label-info");
+        $("#btnAdaptive").hide();
+    }
+
+    // Levels
+    $("#effectiveLevel").text(profile.effective_level);
+    $("#effectiveLabel").text(profile.effective_label);
+    $("#adaptiveLevel").text(profile.adaptive_level);
+    $("#adaptiveLabel").text(profile.adaptive_label);
+
+    // Set the dropdown to current manual level
+    if (profile.manual_level > 0) {
+        $("#manualLevel").val(profile.manual_level);
+    }
+
+    // Metrics
+    $("#brsScore").text(profile.brs_composite.toFixed(1));
+    $("#clickRate").text((profile.overall_click_rate * 100).toFixed(1));
+    $("#totalSims").text(profile.total_simulations);
+
+    var trendClass = "label-default";
+    if (profile.trend_direction === "improving") trendClass = "label-success";
+    else if (profile.trend_direction === "declining") trendClass = "label-danger";
+    $("#trendDirection").text(profile.trend_direction).attr("class", "label " + trendClass);
+
+    // Highlight active level card
+    $(".difficulty-card").removeClass("active");
+    $("#level" + profile.effective_level).addClass("active");
+
+    // Render history
+    renderHistory(profile.recent_adjustments);
+}
+
+function renderHistory(adjustments) {
+    var $body = $("#historyBody");
+    $body.empty();
+    if (!adjustments || adjustments.length === 0) {
+        $("#noHistory").show();
+        return;
+    }
+    $("#noHistory").hide();
+    adjustments.forEach(function(a) {
+        var date = moment(a.created_date).format("YYYY-MM-DD HH:mm");
+        var sourceClass = a.source === "adaptive" ? "label-info" : "label-warning";
+        $body.append(
+            "<tr>" +
+            "<td>" + date + "</td>" +
+            "<td>" + a.previous_level + "</td>" +
+            "<td>" + a.new_level + "</td>" +
+            "<td><span class='label " + sourceClass + "'>" + a.source + "</span></td>" +
+            "<td>" + a.reason + "</td>" +
+            "<td>" + a.brs_at_change.toFixed(1) + "</td>" +
+            "<td>" + (a.click_rate_at_change * 100).toFixed(1) + "%</td>" +
+            "</tr>"
+        );
+    });
+}
+
+function flash(message, type) {
+    $("#flashes").empty();
+    $("#flashes").append(
+        '<div class="col-md-12"><div class="alert alert-' + type + '">' +
+        '<i class="fa fa-' + (type === 'success' ? 'check' : 'exclamation') + '-circle"></i> ' +
+        message + '</div></div>'
+    );
+}
+</script>
+{{end}}

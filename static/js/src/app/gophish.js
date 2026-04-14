@@ -240,6 +240,84 @@ var api = {
             return query("/smtp/" + id, "DELETE", {}, false)
         }
     },
+    // SMSProviders contains the endpoints for /sms
+    SMSProviders: {
+        get: function () {
+            return query("/sms/", "GET", {}, false)
+        },
+        post: function (sp) {
+            return query("/sms/", "POST", sp, false)
+        }
+    },
+    // SMSProviderId contains the endpoints for /sms/:id
+    SMSProviderId: {
+        get: function (id) {
+            return query("/sms/" + id, "GET", {}, false)
+        },
+        put: function (sp) {
+            return query("/sms/" + sp.id, "PUT", sp, false)
+        },
+        delete: function (id) {
+            return query("/sms/" + id, "DELETE", {}, false)
+        }
+    },
+    // TemplateLibrary contains the endpoints for /template-library
+    TemplateLibrary: {
+        get: function (category, difficulty) {
+            var params = []
+            if (category) params.push("category=" + encodeURIComponent(category))
+            if (difficulty) params.push("difficulty=" + difficulty)
+            var qs = params.length ? "?" + params.join("&") : ""
+            return query("/template-library/" + qs, "GET", {}, false)
+        },
+        categories: function () {
+            return query("/template-library/categories", "GET", {}, false)
+        },
+        import: function (slug, name) {
+            var data = {}
+            if (name) data.name = name
+            return query("/template-library/" + slug + "/import", "POST", data, false)
+        }
+    },
+    // Compliance contains endpoints for /compliance
+    Compliance: {
+        frameworks: function () {
+            return query("/compliance/frameworks", "GET", {}, false)
+        },
+        orgFrameworks: function () {
+            return query("/compliance/org-frameworks", "GET", {}, false)
+        },
+        enableFramework: function (frameworkId) {
+            return query("/compliance/org-frameworks", "POST", { framework_id: frameworkId }, false)
+        },
+        disableFramework: function (frameworkId) {
+            return query("/compliance/org-frameworks/" + frameworkId + "/disable", "POST", {}, false)
+        },
+        dashboard: function () {
+            return query("/compliance/dashboard", "GET", {}, false)
+        },
+        frameworkDetail: function (id) {
+            return query("/compliance/frameworks/" + id + "/detail", "GET", {}, false)
+        },
+        assess: function (frameworkId) {
+            return query("/compliance/frameworks/" + frameworkId + "/assess", "POST", {}, false)
+        },
+        manualAssess: function (controlId, data) {
+            return query("/compliance/controls/" + controlId + "/assess", "POST", data, false)
+        }
+    },
+    // PowerBI contains endpoints for /powerbi
+    PowerBI: {
+        feed: function (dataset, params) {
+            var qs = "?dataset=" + encodeURIComponent(dataset)
+            if (params) {
+                for (var k in params) {
+                    qs += "&" + k + "=" + encodeURIComponent(params[k])
+                }
+            }
+            return query("/powerbi/" + qs, "GET", {}, false)
+        }
+    },
     // IMAP containts the endpoints for /imap/
     IMAP: {
         get: function() {
@@ -375,6 +453,27 @@ var api = {
             return query("/training/my-certificates", "GET", {}, true)
         }
     },
+    // Real-time dashboard endpoints
+    dashboard: {
+        metrics: function (window) {
+            return query("/dashboard/metrics?window=" + (window || "30d"), "GET", {}, true)
+        },
+        sparkline: function (metric, window) {
+            return query("/dashboard/sparkline?metric=" + metric + "&window=" + (window || "7d"), "GET", {}, true)
+        },
+        preference: function () {
+            return query("/dashboard/preference", "GET", {}, true)
+        },
+        setPreference: function (timeWindow) {
+            return query("/dashboard/preference", "PUT", { time_window: timeWindow }, true)
+        },
+        liveCounts: function () {
+            return query("/dashboard/live-counts", "GET", {}, true)
+        },
+        wsStatus: function () {
+            return query("/dashboard/ws-status", "GET", {}, true)
+        }
+    },
     // Report endpoints
     reports: {
         overview: function () {
@@ -412,6 +511,30 @@ var api = {
         },
         recalculate: function () {
             return query("/reports/brs/recalculate", "POST", {}, true)
+        }
+    },
+    // Board-ready report endpoints
+    boardReports: {
+        get: function () {
+            return query("/board-reports/", "GET", {}, true)
+        },
+        getOne: function (id) {
+            return query("/board-reports/" + id, "GET", {}, true)
+        },
+        create: function (data) {
+            return query("/board-reports/", "POST", data, false)
+        },
+        update: function (id, data) {
+            return query("/board-reports/" + id, "PUT", data, false)
+        },
+        remove: function (id) {
+            return query("/board-reports/" + id, "DELETE", {}, false)
+        },
+        generate: function (data) {
+            return query("/board-reports/generate", "POST", data, false)
+        },
+        exportUrl: function (id, format) {
+            return "/api/board-reports/" + id + "/export?format=" + (format || "pdf")
         }
     },
     // Audit log endpoint
@@ -576,6 +699,53 @@ var api = {
             return query("/report-button/regenerate-key", "POST", {}, false)
         }
     },
+    // Content Library endpoints
+    contentLibrary: {
+        browse: function (category, difficulty) {
+            var url = "/training/content-library";
+            var params = [];
+            if (category) params.push("category=" + encodeURIComponent(category));
+            if (difficulty) params.push("difficulty=" + encodeURIComponent(difficulty));
+            if (params.length > 0) url += "?" + params.join("&");
+            return query(url, "GET", {}, true)
+        },
+        detail: function (slug) {
+            return query("/training/content-library/detail?slug=" + encodeURIComponent(slug), "GET", {}, true)
+        },
+        categories: function () {
+            return query("/training/content-library/categories", "GET", {}, true)
+        },
+        seedAll: function () {
+            return query("/training/content-library/seed", "POST", {}, false)
+        },
+        seedSingle: function (slug) {
+            return query("/training/content-library/seed-single", "POST", { slug: slug }, false)
+        }
+    },
+    // Training satisfaction / analytics endpoints
+    trainingSatisfaction: {
+        rate: function (presentationId, rating, feedback) {
+            return query("/training/" + presentationId + "/rate", "POST", { rating: rating, feedback: feedback || "" }, false)
+        },
+        stats: function () {
+            return query("/training/satisfaction", "GET", {}, true)
+        },
+        analytics: function () {
+            return query("/training/analytics", "GET", {}, true)
+        }
+    },
+    // Configurable praise / feedback messages
+    praiseMessages: {
+        get: function () {
+            return query("/training/praise-messages", "GET", {}, true)
+        },
+        put: function (messages) {
+            return query("/training/praise-messages", "PUT", messages, false)
+        },
+        reset: function () {
+            return query("/training/praise-messages/reset", "DELETE", {}, false)
+        }
+    },
     // Reported emails endpoints
     reportedEmails: {
         get: function () {
@@ -583,6 +753,87 @@ var api = {
         },
         classify: function (id, data) {
             return query("/reported-emails/" + id + "/classify", "PUT", data, false)
+        }
+    },
+    // Training (alias for remediation path course selection)
+    training: {
+        get: function () {
+            return query("/training/", "GET", {}, true)
+        }
+    },
+    // Remediation path endpoints
+    remediation: {
+        get: function () {
+            return query("/remediation/paths", "GET", {}, true)
+        },
+        getOne: function (id) {
+            return query("/remediation/paths/" + id, "GET", {}, true)
+        },
+        create: function (data) {
+            return query("/remediation/paths", "POST", data, false)
+        },
+        cancel: function (id) {
+            return query("/remediation/paths/" + id, "DELETE", {}, false)
+        },
+        myPaths: function () {
+            return query("/remediation/my-paths", "GET", {}, true)
+        },
+        completeStep: function (pathId, data) {
+            return query("/remediation/paths/" + pathId + "/complete-step", "POST", data, false)
+        },
+        evaluate: function () {
+            return query("/remediation/evaluate", "POST", {}, false)
+        },
+        summary: function () {
+            return query("/remediation/summary", "GET", {}, true)
+        },
+        markExpired: function () {
+            return query("/remediation/mark-expired", "POST", {}, false)
+        }
+    },
+    // Cyber Hygiene endpoints
+    hygiene: {
+        devices: {
+            get: function () {
+                return query("/hygiene/devices/", "GET", {}, true)
+            },
+            getOne: function (id) {
+                return query("/hygiene/devices/" + id, "GET", {}, true)
+            },
+            create: function (data) {
+                return query("/hygiene/devices/", "POST", data, false)
+            },
+            update: function (id, data) {
+                return query("/hygiene/devices/" + id, "PUT", data, false)
+            },
+            remove: function (id) {
+                return query("/hygiene/devices/" + id, "DELETE", {}, false)
+            },
+            upsertCheck: function (deviceId, data) {
+                return query("/hygiene/devices/" + deviceId + "/checks", "POST", data, false)
+            }
+        },
+        techStack: {
+            get: function () {
+                return query("/hygiene/tech-stack", "GET", {}, true)
+            },
+            save: function (data) {
+                return query("/hygiene/tech-stack", "POST", data, false)
+            }
+        },
+        personalizedChecks: function () {
+            return query("/hygiene/personalized-checks", "GET", {}, true)
+        },
+        admin: {
+            devices: function () {
+                return query("/hygiene/admin/devices", "GET", {}, true)
+            },
+            devicesEnriched: function () {
+                return query("/hygiene/admin/devices-enriched", "GET", {}, true)
+            },
+            summary: function () {
+                return query("/hygiene/admin/summary", "GET", {}, true)
+            }
         }
     },
     // Threat alerts endpoints
@@ -604,6 +855,132 @@ var api = {
         },
         unreadCount: function () {
             return query("/threat-alerts/unread-count", "GET", {}, true)
+        }
+    },
+    // Email Security: Inbox Monitor
+    inboxMonitor: {
+        getConfig: function () {
+            return query("/inbox-monitor/config", "GET", {}, true)
+        },
+        saveConfig: function (data) {
+            return query("/inbox-monitor/config", "PUT", data, false)
+        },
+        getResults: function (limit) {
+            var url = "/inbox-monitor/results";
+            if (limit) url += "?limit=" + limit;
+            return query(url, "GET", {}, true)
+        },
+        getResult: function (id) {
+            return query("/inbox-monitor/results/" + id, "GET", {}, true)
+        },
+        getSummary: function () {
+            return query("/inbox-monitor/summary", "GET", {}, true)
+        }
+    },
+    // Email Security: BEC Detection
+    bec: {
+        getProfiles: function () {
+            return query("/bec/profiles", "GET", {}, true)
+        },
+        createProfile: function (data) {
+            return query("/bec/profiles", "POST", data, false)
+        },
+        updateProfile: function (id, data) {
+            return query("/bec/profiles/" + id, "PUT", data, false)
+        },
+        deleteProfile: function (id) {
+            return query("/bec/profiles/" + id, "DELETE", {}, false)
+        },
+        getDetections: function () {
+            return query("/bec/detections", "GET", {}, true)
+        },
+        resolveDetection: function (id, data) {
+            return query("/bec/detections/" + id + "/resolve", "PUT", data, false)
+        },
+        getSummary: function () {
+            return query("/bec/summary", "GET", {}, true)
+        },
+        analyze: function (data) {
+            return query("/bec/analyze", "POST", data, false)
+        }
+    },
+    // Email Security: Graymail Classification
+    graymail: {
+        getRules: function () {
+            return query("/graymail/rules", "GET", {}, true)
+        },
+        createRule: function (data) {
+            return query("/graymail/rules", "POST", data, false)
+        },
+        updateRule: function (id, data) {
+            return query("/graymail/rules/" + id, "PUT", data, false)
+        },
+        deleteRule: function (id) {
+            return query("/graymail/rules/" + id, "DELETE", {}, false)
+        },
+        getClassifications: function (limit) {
+            var url = "/graymail/classifications";
+            if (limit) url += "?limit=" + limit;
+            return query(url, "GET", {}, true)
+        },
+        getSummary: function () {
+            return query("/graymail/summary", "GET", {}, true)
+        },
+        analyze: function (data) {
+            return query("/graymail/analyze", "POST", data, false)
+        }
+    },
+    // Email Security: Remediation Actions
+    remediationActions: {
+        get: function () {
+            return query("/remediation-actions/", "GET", {}, true)
+        },
+        create: function (data) {
+            return query("/remediation-actions/create", "POST", data, false)
+        },
+        approve: function (id) {
+            return query("/remediation-actions/" + id + "/approve", "PUT", {}, false)
+        },
+        reject: function (id, data) {
+            return query("/remediation-actions/" + id + "/reject", "PUT", data, false)
+        },
+        getSummary: function () {
+            return query("/remediation-actions/summary", "GET", {}, true)
+        }
+    },
+    // Email Security: Phishing Tickets
+    phishingTickets: {
+        get: function (status) {
+            var url = "/phishing-tickets/";
+            if (status && status !== "all") url += "?status=" + encodeURIComponent(status);
+            return query(url, "GET", {}, true)
+        },
+        getOne: function (id) {
+            return query("/phishing-tickets/" + id, "GET", {}, true)
+        },
+        resolve: function (id, data) {
+            return query("/phishing-tickets/" + id + "/resolve", "PUT", data, false)
+        },
+        escalate: function (id, data) {
+            return query("/phishing-tickets/" + id + "/escalate", "PUT", data, false)
+        },
+        getSummary: function () {
+            return query("/phishing-tickets/summary", "GET", {}, true)
+        },
+        getAutoRules: function () {
+            return query("/phishing-tickets/auto-rules", "GET", {}, true)
+        },
+        createAutoRule: function (data) {
+            return query("/phishing-tickets/auto-rules", "POST", data, false)
+        },
+        deleteAutoRule: function (id) {
+            return query("/phishing-tickets/auto-rules/" + id, "DELETE", {}, false)
+        }
+    },
+    // Email Security: Unified Dashboard
+    emailSecurity: {
+        getDashboard: function () {
+            return query("/email-security/dashboard", "GET", {}, true)
         }
     }
 }

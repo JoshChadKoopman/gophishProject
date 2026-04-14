@@ -3,7 +3,7 @@ package i18n
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -12,7 +12,13 @@ import (
 )
 
 // SupportedLanguages lists all available locale codes.
-var SupportedLanguages = []string{"en", "nl", "fr", "de", "es"}
+var SupportedLanguages = []string{
+	"en", "nl", "fr", "de", "es",
+	"it", "pt", "ja", "ko", "zh",
+	"ar", "hi", "ru", "pl", "sv",
+	"da", "fi", "no", "cs", "ro",
+	"hu", "tr", "uk", "th", "vi",
+}
 
 // DefaultLocale is the fallback locale when no match is found.
 const DefaultLocale = "en"
@@ -29,7 +35,7 @@ func LoadTranslations(localesDir string) error {
 
 	for _, lang := range SupportedLanguages {
 		path := filepath.Join(localesDir, lang+".json")
-		data, err := ioutil.ReadFile(path)
+		data, err := os.ReadFile(path)
 		if err != nil {
 			log.Warnf("i18n: could not load locale file %s: %v", path, err)
 			continue
@@ -144,6 +150,26 @@ func GetLanguages() []LanguageInfo {
 		"fr": "Français",
 		"de": "Deutsch",
 		"es": "Español",
+		"it": "Italiano",
+		"pt": "Português",
+		"ja": "日本語",
+		"ko": "한국어",
+		"zh": "中文",
+		"ar": "العربية",
+		"hi": "हिन्दी",
+		"ru": "Русский",
+		"pl": "Polski",
+		"sv": "Svenska",
+		"da": "Dansk",
+		"fi": "Suomi",
+		"no": "Norsk",
+		"cs": "Čeština",
+		"ro": "Română",
+		"hu": "Magyar",
+		"tr": "Türkçe",
+		"uk": "Українська",
+		"th": "ไทย",
+		"vi": "Tiếng Việt",
 	}
 	var langs []LanguageInfo
 	for _, code := range SupportedLanguages {

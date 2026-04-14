@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/mail"
+	"time"
 
 	log "github.com/gophish/gophish/logger"
 	"github.com/gophish/gophish/models"
@@ -20,7 +21,7 @@ func (as *Server) SendTestEmail(w http.ResponseWriter, r *http.Request) {
 		UserId:    scope.UserId,
 	}
 	if r.Method != "POST" {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusBadRequest)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusBadRequest)
 		return
 	}
 	err := json.NewDecoder(r.Body).Decode(s)
@@ -131,4 +132,15 @@ func (as *Server) SendTestEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	JSONResponse(w, models.Response{Success: true, Message: "Email Sent"}, http.StatusOK)
+}
+
+// parseDate attempts to parse an ISO-8601 date string. If the string is empty
+// or invalid, it returns Now + defaultDays days.
+func parseDate(dateStr string, defaultDays int) time.Time {
+	if dateStr != "" {
+		if t, err := time.Parse("2006-01-02", dateStr); err == nil {
+			return t
+		}
+	}
+	return time.Now().UTC().AddDate(0, 0, defaultDays)
 }

@@ -1,0 +1,359 @@
+{{define "body"}}
+<div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+    <div class="page-header">
+        <h1>
+            <i class="fa fa-line-chart"></i> ROI Reporting
+            <div class="btn-group pull-right">
+                <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">
+                    <i class="fa fa-download"></i> Export <span class="caret"></span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-right">
+                    <li><a href="#" id="exportPdf"><i class="fa fa-file-pdf-o"></i> PDF Report</a></li>
+                    <li><a href="#" id="exportXlsx"><i class="fa fa-file-excel-o"></i> Excel (XLSX)</a></li>
+                    <li><a href="#" id="exportCsv"><i class="fa fa-file-text-o"></i> CSV</a></li>
+                </ul>
+            </div>
+        </h1>
+    </div>
+    <div id="flashes" class="row"></div>
+
+    <!-- Period & Config -->
+    <div class="row" style="margin-bottom:20px;">
+        <div class="col-md-8">
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <h3 class="panel-title"><i class="fa fa-calendar"></i> Reporting Period</h3>
+                </div>
+                <div class="panel-body">
+                    <form class="form-inline" id="roiPeriodForm">
+                        <div class="form-group" style="margin-right:15px;">
+                            <label>From</label>
+                            <input type="date" class="form-control" id="roiStart" />
+                        </div>
+                        <div class="form-group" style="margin-right:15px;">
+                            <label>To</label>
+                            <input type="date" class="form-control" id="roiEnd" />
+                        </div>
+                        <button class="btn btn-primary" type="submit">
+                            <i class="fa fa-refresh"></i> Generate Report
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="panel panel-info">
+                <div class="panel-heading">
+                    <h3 class="panel-title"><i class="fa fa-cog"></i> Cost Assumptions
+                        <button class="btn btn-xs btn-default pull-right" id="editConfigBtn"><i class="fa fa-pencil"></i></button>
+                    </h3>
+                </div>
+                <div class="panel-body" id="configSummary">
+                    <p class="text-muted"><i class="fa fa-spinner fa-spin"></i> Loading...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ROI Score Card -->
+    <div id="roiContent" style="display:none;">
+        <div class="row" style="margin-bottom:20px;">
+            <div class="col-md-3">
+                <div class="panel panel-success text-center">
+                    <div class="panel-body">
+                        <h2 id="roiPct" style="margin:5px 0;color:#27ae60;">—</h2>
+                        <p style="color:#888;margin:0;font-size:13px;">Return on Investment</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="panel panel-primary text-center">
+                    <div class="panel-body">
+                        <h2 id="costAvoidance" style="margin:5px 0;color:#2980b9;">—</h2>
+                        <p style="color:#888;margin:0;font-size:13px;">Cost Avoidance</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="panel panel-warning text-center">
+                    <div class="panel-body">
+                        <h2 id="riskReduction" style="margin:5px 0;color:#e67e22;">—</h2>
+                        <p style="color:#888;margin:0;font-size:13px;">Risk Reduction</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="panel panel-default text-center">
+                    <div class="panel-body">
+                        <h2 id="incidentsAvoided" style="margin:5px 0;">—</h2>
+                        <p style="color:#888;margin:0;font-size:13px;">Incidents Avoided</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Sections -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="panel panel-default">
+                    <div class="panel-heading"><h3 class="panel-title"><i class="fa fa-envelope"></i> Phishing ROI</h3></div>
+                    <div class="panel-body" id="phishingROI"></div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="panel panel-default">
+                    <div class="panel-heading"><h3 class="panel-title"><i class="fa fa-graduation-cap"></i> Training ROI</h3></div>
+                    <div class="panel-body" id="trainingROI"></div>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="panel panel-default">
+                    <div class="panel-heading"><h3 class="panel-title"><i class="fa fa-medkit"></i> Remediation ROI</h3></div>
+                    <div class="panel-body" id="remediationROI"></div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="panel panel-default">
+                    <div class="panel-heading"><h3 class="panel-title"><i class="fa fa-shield"></i> Hygiene & Compliance</h3></div>
+                    <div class="panel-body" id="hygieneCompROI"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Key Findings -->
+        <div class="panel panel-success">
+            <div class="panel-heading"><h3 class="panel-title"><i class="fa fa-lightbulb-o"></i> Key Findings</h3></div>
+            <div class="panel-body">
+                <ol id="keyFindings"></ol>
+            </div>
+        </div>
+
+        <!-- Recommendations -->
+        <div class="panel panel-warning">
+            <div class="panel-heading"><h3 class="panel-title"><i class="fa fa-exclamation-triangle"></i> Recommendations</h3></div>
+            <div class="panel-body">
+                <ol id="roiRecommendations"></ol>
+            </div>
+        </div>
+    </div>
+
+    <div id="roiLoading" style="text-align:center; padding:40px; display:none;">
+        <i class="fa fa-spinner fa-spin fa-3x"></i>
+        <p class="text-muted" style="margin-top:10px;">Generating ROI analysis...</p>
+    </div>
+</div>
+
+<!-- Config Edit Modal -->
+<div class="modal fade" id="configModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title"><i class="fa fa-cog"></i> ROI Cost Assumptions</h4>
+            </div>
+            <div class="modal-body">
+                <form id="configForm">
+                    <div class="form-group">
+                        <label>Annual Programme Cost ($)</label>
+                        <input type="number" class="form-control" id="cfgProgramCost" step="1000" />
+                    </div>
+                    <div class="form-group">
+                        <label>Average Breach Cost ($)</label>
+                        <input type="number" class="form-control" id="cfgBreachCost" step="10000" />
+                    </div>
+                    <div class="form-group">
+                        <label>Average Incident Cost ($)</label>
+                        <input type="number" class="form-control" id="cfgIncidentCost" step="100" />
+                    </div>
+                    <div class="form-group">
+                        <label>Employee Count</label>
+                        <input type="number" class="form-control" id="cfgEmployeeCount" />
+                    </div>
+                    <div class="form-group">
+                        <label>Average Employee Salary ($/hr)</label>
+                        <input type="number" class="form-control" id="cfgSalaryHr" step="5" />
+                    </div>
+                    <div class="form-group">
+                        <label>Currency</label>
+                        <select class="form-control" id="cfgCurrency">
+                            <option value="USD">USD ($)</option>
+                            <option value="EUR">EUR (€)</option>
+                            <option value="GBP">GBP (£)</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveConfigBtn"><i class="fa fa-save"></i> Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(function(){
+    // Set default dates (last 12 months)
+    var end = new Date(), start = new Date();
+    start.setFullYear(start.getFullYear()-1);
+    $('#roiStart').val(start.toISOString().split('T')[0]);
+    $('#roiEnd').val(end.toISOString().split('T')[0]);
+
+    loadConfig();
+
+    // Generate report
+    $('#roiPeriodForm').on('submit', function(e){
+        e.preventDefault();
+        generateROI();
+    });
+
+    // Auto-generate on page load
+    generateROI();
+
+    // Config modal
+    $('#editConfigBtn').on('click', function(){
+        api.APIRequest('GET', '/api/roi/config').done(function(cfg){
+            $('#cfgProgramCost').val(cfg.program_cost);
+            $('#cfgBreachCost').val(cfg.avg_breach_cost);
+            $('#cfgIncidentCost').val(cfg.avg_incident_cost);
+            $('#cfgEmployeeCount').val(cfg.employee_count);
+            $('#cfgSalaryHr').val(cfg.avg_salary_hr);
+            $('#cfgCurrency').val(cfg.currency||'USD');
+            $('#configModal').modal('show');
+        });
+    });
+
+    $('#saveConfigBtn').on('click', function(){
+        var cfg = {
+            program_cost: parseFloat($('#cfgProgramCost').val())||0,
+            avg_breach_cost: parseFloat($('#cfgBreachCost').val())||0,
+            avg_incident_cost: parseFloat($('#cfgIncidentCost').val())||0,
+            employee_count: parseInt($('#cfgEmployeeCount').val())||0,
+            avg_salary_hr: parseFloat($('#cfgSalaryHr').val())||0,
+            currency: $('#cfgCurrency').val()
+        };
+        api.APIRequest('PUT', '/api/roi/config', JSON.stringify(cfg)).done(function(){
+            $('#configModal').modal('hide');
+            loadConfig();
+            generateROI();
+        });
+    });
+
+    // Export handlers
+    $('#exportPdf').on('click', function(e){
+        e.preventDefault();
+        window.location = '/api/roi/export?format=pdf&start='+$('#roiStart').val()+'&end='+$('#roiEnd').val();
+    });
+    $('#exportXlsx').on('click', function(e){
+        e.preventDefault();
+        window.location = '/api/roi/export?format=xlsx&start='+$('#roiStart').val()+'&end='+$('#roiEnd').val();
+    });
+    $('#exportCsv').on('click', function(e){
+        e.preventDefault();
+        window.location = '/api/roi/export?format=csv&start='+$('#roiStart').val()+'&end='+$('#roiEnd').val();
+    });
+});
+
+function loadConfig(){
+    api.APIRequest('GET', '/api/roi/config').done(function(cfg){
+        var sym = cfg.currency==='EUR'?'€':cfg.currency==='GBP'?'£':'$';
+        $('#configSummary').html(
+            '<table class="table table-condensed" style="margin:0;font-size:12px;">' +
+            '<tr><td>Programme Cost</td><td><strong>'+sym+Number(cfg.program_cost).toLocaleString()+'</strong></td></tr>' +
+            '<tr><td>Breach Cost</td><td>'+sym+Number(cfg.avg_breach_cost).toLocaleString()+'</td></tr>' +
+            '<tr><td>Incident Cost</td><td>'+sym+Number(cfg.avg_incident_cost).toLocaleString()+'</td></tr>' +
+            '<tr><td>Employees</td><td>'+cfg.employee_count+'</td></tr>' +
+            '</table>'
+        );
+    });
+}
+
+function generateROI(){
+    $('#roiContent').hide();
+    $('#roiLoading').show();
+    var payload = JSON.stringify({
+        period_start: $('#roiStart').val(),
+        period_end: $('#roiEnd').val()
+    });
+    api.APIRequest('POST', '/api/roi/generate', payload).done(function(rpt){
+        $('#roiLoading').hide();
+        $('#roiContent').show();
+
+        var m = rpt.metrics;
+        $('#roiPct').text(m.roi_percentage.toFixed(0)+'%');
+        $('#costAvoidance').text('$'+Number(m.cost_avoidance.toFixed(0)).toLocaleString());
+        $('#riskReduction').text(m.overall_risk_reduction.toFixed(1)+'%');
+        $('#incidentsAvoided').text(m.est_incidents_avoided);
+
+        // Phishing section
+        var ph = rpt.phishing;
+        $('#phishingROI').html(metricTable([
+            ['Simulations Run', ph.total_simulations],
+            ['Click Rate (before)', ph.previous_click_rate.toFixed(1)+'%'],
+            ['Click Rate (now)', ph.current_click_rate.toFixed(1)+'%'],
+            ['Click Rate Reduction', ph.click_rate_reduction.toFixed(1)+' pp'],
+            ['Report Rate Improvement', ph.report_rate_increase.toFixed(1)+' pp'],
+            ['Incidents Avoided', ph.incidents_avoided],
+            ['Cost Avoided', '$'+Number(ph.cost_avoided.toFixed(0)).toLocaleString()]
+        ]));
+
+        // Training section
+        var tr = rpt.training;
+        $('#trainingROI').html(metricTable([
+            ['Total Courses', tr.total_courses],
+            ['Completion Rate', tr.completion_rate.toFixed(1)+'%'],
+            ['Avg Quiz Score', tr.avg_quiz_score.toFixed(1)+'%'],
+            ['Certificates Issued', tr.certificates_issued],
+            ['Productivity Saved', tr.productivity_saved_hrs.toFixed(0)+' hrs']
+        ]));
+
+        // Remediation section
+        var rm = rpt.remediation;
+        $('#remediationROI').html(metricTable([
+            ['Paths Created', rm.paths_created],
+            ['Paths Completed', rm.paths_completed],
+            ['Completion Rate', rm.completion_rate.toFixed(1)+'%'],
+            ['Risk Reduction', rm.risk_reduction_pct.toFixed(1)+'%']
+        ]));
+
+        // Hygiene & Compliance
+        var hy = rpt.hygiene, co = rpt.compliance;
+        $('#hygieneCompROI').html(
+            '<h5 style="margin-top:0;"><strong>Cyber Hygiene</strong></h5>' +
+            metricTable([
+                ['Devices Managed', hy.devices_managed],
+                ['Avg Score', hy.avg_hygiene_score.toFixed(1)+'%'],
+                ['Fully Compliant', hy.fully_compliant_pct.toFixed(1)+'%']
+            ]) +
+            '<h5><strong>Compliance</strong></h5>' +
+            metricTable([
+                ['Frameworks', co.frameworks_covered],
+                ['Overall Score', co.overall_score.toFixed(1)+'%'],
+                ['Audit Readiness', co.audit_readiness_pct.toFixed(1)+'%'],
+                ['Penalty Risk Avoided', '$'+Number(co.penalty_risk_avoided.toFixed(0)).toLocaleString()]
+            ])
+        );
+
+        // Findings & Recommendations
+        var findHtml = '';
+        (rpt.key_findings||[]).forEach(function(f){ findHtml += '<li>'+escapeHtml(f)+'</li>'; });
+        $('#keyFindings').html(findHtml);
+
+        var recHtml = '';
+        (rpt.recommendations||[]).forEach(function(r){ recHtml += '<li>'+escapeHtml(r)+'</li>'; });
+        $('#roiRecommendations').html(recHtml);
+    }).fail(function(){
+        $('#roiLoading').hide();
+        errorFlash('Error generating ROI report');
+    });
+}
+
+function metricTable(rows){
+    var h = '<table class="table table-condensed table-striped" style="margin:0;">';
+    rows.forEach(function(r){ h+='<tr><td>'+r[0]+'</td><td style="text-align:right;"><strong>'+r[1]+'</strong></td></tr>'; });
+    return h+'</table>';
+}
+</script>
+{{end}}

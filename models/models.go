@@ -6,7 +6,6 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"time"
 
@@ -46,26 +45,26 @@ const InitialAdminPassword = "GOPHISH_INITIAL_ADMIN_PASSWORD"
 const InitialAdminApiToken = "GOPHISH_INITIAL_ADMIN_API_TOKEN"
 
 const (
-	CampaignInProgress string = "In progress"
-	CampaignQueued     string = "Queued"
-	CampaignCreated    string = "Created"
-	CampaignEmailsSent string = "Emails Sent"
-	CampaignComplete   string = "Completed"
-	EventSent          string = "Email Sent"
-	EventSendingError  string = "Error Sending Email"
-	EventOpened        string = "Email Opened"
-	EventClicked       string = "Clicked Link"
-	EventDataSubmit    string = "Submitted Data"
-	EventReported         string = "Email Reported"
-	EventFeedbackViewed   string = "Feedback Viewed"
-	EventProxyRequest  string = "Proxied request"
-	StatusSuccess      string = "Success"
-	StatusQueued       string = "Queued"
-	StatusSending      string = "Sending"
-	StatusUnknown      string = "Unknown"
-	StatusScheduled    string = "Scheduled"
-	StatusRetry        string = "Retrying"
-	Error              string = "Error"
+	CampaignInProgress  string = "In progress"
+	CampaignQueued      string = "Queued"
+	CampaignCreated     string = "Created"
+	CampaignEmailsSent  string = "Emails Sent"
+	CampaignComplete    string = "Completed"
+	EventSent           string = "Email Sent"
+	EventSendingError   string = "Error Sending Email"
+	EventOpened         string = "Email Opened"
+	EventClicked        string = "Clicked Link"
+	EventDataSubmit     string = "Submitted Data"
+	EventReported       string = "Email Reported"
+	EventFeedbackViewed string = "Feedback Viewed"
+	EventProxyRequest   string = "Proxied request"
+	StatusSuccess       string = "Success"
+	StatusQueued        string = "Queued"
+	StatusSending       string = "Sending"
+	StatusUnknown       string = "Unknown"
+	StatusScheduled     string = "Scheduled"
+	StatusRetry         string = "Retrying"
+	Error               string = "Error"
 )
 
 // Flash is used to hold flash information for use in templates.
@@ -81,10 +80,13 @@ type Response struct {
 	Data    interface{} `json:"data"`
 }
 
-// Copy of auth.GenerateSecureKey to prevent cyclic import with auth library
+// Copy of auth.GenerateSecureKey to prevent cyclic import with auth library.
+// Panics if the system CSPRNG is unavailable.
 func generateSecureKey() string {
 	k := make([]byte, 32)
-	io.ReadFull(rand.Reader, k)
+	if _, err := io.ReadFull(rand.Reader, k); err != nil {
+		panic("models: crypto/rand is unavailable: " + err.Error())
+	}
 	return fmt.Sprintf("%x", k)
 }
 
@@ -138,73 +140,80 @@ func createTemporaryPassword(u *User) error {
 // Once the database is up-to-date, we create an admin user (if needed) that
 // has a randomly generated API key and password.
 func Setup(c *config.Config) error {
-	// Setup the package-scoped config
 	conf = c
-	// Setup the goose configuration
 	migrateConf := &goose.DBConf{
 		MigrationsDir: conf.MigrationsPath,
 		Env:           "production",
 		Driver:        chooseDBDriver(conf.DBName, conf.DBPath),
 	}
-	// Get the latest possible migration
 	latest, err := goose.GetMostRecentDBVersion(migrateConf.MigrationsDir)
 	if err != nil {
 		log.Error(err)
 		return err
 	}
-
-	// Register certificates for tls encrypted db connections
-	if conf.DBSSLCaPath != "" {
-		switch conf.DBName {
-		case "mysql":
-			rootCertPool := x509.NewCertPool()
-			pem, err := ioutil.ReadFile(conf.DBSSLCaPath)
-			if err != nil {
-				log.Error(err)
-				return err
-			}
-			if ok := rootCertPool.AppendCertsFromPEM(pem); !ok {
-				log.Error("Failed to append PEM.")
-				return err
-			}
-			mysql.RegisterTLSConfig("ssl_ca", &tls.Config{
-				RootCAs: rootCertPool,
-			})
-			// Default database is sqlite3, which supports no tls, as connection
-			// is file based
-		default:
-		}
+	if err := registerTLSIfNeeded(); err != nil {
+		return err
 	}
+	if err := openDatabaseConnection(); err != nil {
+		return err
+	}
+	if err := goose.RunMigrationsOnDb(migrateConf, migrateConf.MigrationsDir, latest, db.DB()); err != nil {
+		log.Error(err)
+		return err
+	}
+	// Load template library from JSON files (falls back to built-in templates)
+	LoadTemplateLibrary()
+	// Seed built-in templates into the DB-backed library
+	if err := SeedBuiltinTemplates(); err != nil {
+		log.Warn("template library DB seed: ", err)
+	}
+	return ensureAdminUser()
+}
 
-	// Open our database connection
-	i := 0
-	for {
+// registerTLSIfNeeded registers TLS certificates for encrypted DB connections.
+func registerTLSIfNeeded() error {
+	if conf.DBSSLCaPath == "" || conf.DBName != "mysql" {
+		return nil
+	}
+	rootCertPool := x509.NewCertPool()
+	pem, err := os.ReadFile(conf.DBSSLCaPath)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	if ok := rootCertPool.AppendCertsFromPEM(pem); !ok {
+		log.Error("Failed to append PEM.")
+		return err
+	}
+	mysql.RegisterTLSConfig("ssl_ca", &tls.Config{
+		RootCAs: rootCertPool,
+	})
+	return nil
+}
+
+// openDatabaseConnection opens the gorm database connection with retries.
+func openDatabaseConnection() error {
+	var err error
+	for i := 0; ; i++ {
 		db, err = gorm.Open(conf.DBName, conf.DBPath)
 		if err == nil {
 			break
 		}
-		if err != nil && i >= MaxDatabaseConnectionAttempts {
+		if i >= MaxDatabaseConnectionAttempts {
 			log.Error(err)
 			return err
 		}
-		i += 1
 		log.Warn("waiting for database to be up...")
 		time.Sleep(5 * time.Second)
 	}
 	db.LogMode(false)
 	db.SetLogger(log.Logger)
 	db.DB().SetMaxOpenConns(1)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-	// Migrate up to the latest version
-	err = goose.RunMigrationsOnDb(migrateConf, migrateConf.MigrationsDir, latest, db.DB())
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-	// Create the admin user if it doesn't exist
+	return nil
+}
+
+// ensureAdminUser creates an admin user if none exists and handles temporary passwords.
+func ensureAdminUser() error {
 	var userCount int64
 	var adminUser User
 	db.Model(&User{}).Count(&userCount)
@@ -214,36 +223,23 @@ func Setup(c *config.Config) error {
 		return err
 	}
 	if userCount == 0 {
-		adminUser := User{
+		adminUser = User{
 			Username:               DefaultAdminUsername,
 			OrgId:                  1,
 			Role:                   adminRole,
 			RoleID:                 adminRole.ID,
 			PasswordChangeRequired: true,
 		}
-
 		if envToken := os.Getenv(InitialAdminApiToken); envToken != "" {
 			adminUser.ApiKey = envToken
 		} else {
 			adminUser.ApiKey = auth.GenerateSecureKey(auth.APIKeyLength)
 		}
-
-		err = db.Save(&adminUser).Error
-		if err != nil {
+		if err := db.Save(&adminUser).Error; err != nil {
 			log.Error(err)
 			return err
 		}
 	}
-	// If this is the first time the user is installing Gophish, then we will
-	// generate a temporary password for the admin user.
-	//
-	// We do this here instead of in the block above where the admin is created
-	// since there's the chance the user executes Gophish and has some kind of
-	// error, then tries restarting it. If they didn't grab the password out of
-	// the logs, then they would have lost it.
-	//
-	// By doing the temporary password here, we will regenerate that temporary
-	// password until the user is able to reset the admin password.
 	if adminUser.Username == "" {
 		adminUser, err = GetUserByUsername(DefaultAdminUsername)
 		if err != nil {
@@ -252,8 +248,7 @@ func Setup(c *config.Config) error {
 		}
 	}
 	if adminUser.PasswordChangeRequired {
-		err = createTemporaryPassword(&adminUser)
-		if err != nil {
+		if err := createTemporaryPassword(&adminUser); err != nil {
 			log.Error(err)
 			return err
 		}

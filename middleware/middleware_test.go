@@ -11,6 +11,13 @@ import (
 	"github.com/gophish/gophish/models"
 )
 
+// Shared test constants for middleware tests.
+const (
+	mwFmtIncorrectStatus = "incorrect status code received. expected %d got %d"
+	mwContentTypeHeader  = "Content-Type"
+	mwContentTypeJSON    = "application/json"
+)
+
 var successHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("success"))
 })
@@ -83,7 +90,7 @@ func TestEnforceViewOnly(t *testing.T) {
 			EnforceViewOnly(successHandler).ServeHTTP(response, req)
 			got := response.Code
 			if got != expected {
-				t.Fatalf("incorrect status code received. expected %d got %d", expected, got)
+				t.Fatalf(mwFmtIncorrectStatus, expected, got)
 			}
 		}
 	}
@@ -114,7 +121,7 @@ func TestRequirePermission(t *testing.T) {
 		handler.ServeHTTP(response, req)
 		got := response.Code
 		if got != expected {
-			t.Fatalf("incorrect status code received. expected %d got %d", expected, got)
+			t.Fatalf(mwFmtIncorrectStatus, expected, got)
 		}
 	}
 }
@@ -122,14 +129,14 @@ func TestRequirePermission(t *testing.T) {
 func TestRequireAPIKey(t *testing.T) {
 	setupTest(t)
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(mwContentTypeHeader, mwContentTypeJSON)
 	response := httptest.NewRecorder()
 	// Test that making a request without an API key is denied
 	RequireAPIKey(successHandler).ServeHTTP(response, req)
 	expected := http.StatusUnauthorized
 	got := response.Code
 	if got != expected {
-		t.Fatalf("incorrect status code received. expected %d got %d", expected, got)
+		t.Fatalf(mwFmtIncorrectStatus, expected, got)
 	}
 }
 
@@ -151,13 +158,13 @@ func TestInvalidAPIKey(t *testing.T) {
 	query := req.URL.Query()
 	query.Set("api_key", "bogus-api-key")
 	req.URL.RawQuery = query.Encode()
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(mwContentTypeHeader, mwContentTypeJSON)
 	response := httptest.NewRecorder()
 	RequireAPIKey(successHandler).ServeHTTP(response, req)
 	expected := http.StatusUnauthorized
 	got := response.Code
 	if got != expected {
-		t.Fatalf("incorrect status code received. expected %d got %d", expected, got)
+		t.Fatalf(mwFmtIncorrectStatus, expected, got)
 	}
 }
 
@@ -165,13 +172,13 @@ func TestBearerToken(t *testing.T) {
 	testCtx := setupTest(t)
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", testCtx.apiKey))
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(mwContentTypeHeader, mwContentTypeJSON)
 	response := httptest.NewRecorder()
 	RequireAPIKey(successHandler).ServeHTTP(response, req)
 	expected := http.StatusOK
 	got := response.Code
 	if got != expected {
-		t.Fatalf("incorrect status code received. expected %d got %d", expected, got)
+		t.Fatalf(mwFmtIncorrectStatus, expected, got)
 	}
 }
 
@@ -185,7 +192,7 @@ func TestPasswordResetRequired(t *testing.T) {
 	gotStatus := response.Code
 	expectedStatus := http.StatusTemporaryRedirect
 	if gotStatus != expectedStatus {
-		t.Fatalf("incorrect status code received. expected %d got %d", expectedStatus, gotStatus)
+		t.Fatalf(mwFmtIncorrectStatus, expectedStatus, gotStatus)
 	}
 	expectedLocation := "/reset_password?next=%2F"
 	gotLocation := response.Header().Get("Location")

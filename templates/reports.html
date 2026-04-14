@@ -8,11 +8,35 @@
     <!-- Tab navigation -->
     <ul class="nav nav-tabs" id="reportTabs" style="margin-bottom:20px;">
         <li class="active"><a href="#overviewTab" data-toggle="tab">Overview</a></li>
+        <li><a href="#trendTab" data-toggle="tab">Trend</a></li>
         <li><a href="#groupsTab" data-toggle="tab">Groups</a></li>
         <li><a href="#trainingTab" data-toggle="tab">Training</a></li>
         <li><a href="#riskTab" data-toggle="tab">Risk Assessment</a></li>
         <li><a href="#brsTab" data-toggle="tab">Behavioral Risk Score</a></li>
     </ul>
+
+    <!-- Export all formats dropdown -->
+    <div class="pull-right" style="margin-top:-55px;">
+        <div class="btn-group">
+            <button type="button" class="btn btn-sm btn-default dropdown-toggle" data-toggle="dropdown">
+                <i class="fa fa-download"></i> Export All <span class="caret"></span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-right">
+                <li><a href="/api/reports/export?type=overview&format=csv"><i class="fa fa-file-text-o"></i> Overview CSV</a></li>
+                <li><a href="/api/reports/export?type=overview&format=xlsx"><i class="fa fa-file-excel-o"></i> Overview XLSX</a></li>
+                <li><a href="/api/reports/export?type=overview&format=pdf"><i class="fa fa-file-pdf-o"></i> Overview PDF</a></li>
+                <li class="divider"></li>
+                <li><a href="/api/reports/export?type=risk-scores&format=xlsx"><i class="fa fa-file-excel-o"></i> Risk Scores XLSX</a></li>
+                <li><a href="/api/reports/export?type=training&format=xlsx"><i class="fa fa-file-excel-o"></i> Training XLSX</a></li>
+                <li><a href="/api/reports/export?type=groups&format=xlsx"><i class="fa fa-file-excel-o"></i> Groups XLSX</a></li>
+                <li><a href="/api/reports/export?type=brs&format=xlsx"><i class="fa fa-file-excel-o"></i> BRS XLSX</a></li>
+                <li><a href="/api/reports/export?type=results&format=xlsx"><i class="fa fa-file-excel-o"></i> Raw Results XLSX</a></li>
+                <li class="divider"></li>
+                <li><a href="/api/reports/export?type=compliance&format=xlsx"><i class="fa fa-file-excel-o"></i> Compliance XLSX</a></li>
+                <li><a href="/api/reports/export?type=compliance&format=pdf"><i class="fa fa-file-pdf-o"></i> Compliance PDF</a></li>
+            </ul>
+        </div>
+    </div>
 
     <div class="tab-content">
         <!-- Overview Tab -->
@@ -33,10 +57,38 @@
                     <a class="btn btn-default btn-sm" href="/api/reports/export?type=overview&format=csv">
                         <i class="fa fa-download"></i> Export CSV
                     </a>
+                    <a class="btn btn-default btn-sm" href="/api/reports/export?type=overview&format=xlsx">
+                        <i class="fa fa-file-excel-o"></i> Export XLSX
+                    </a>
                     <a class="btn btn-default btn-sm" href="/api/reports/export?type=overview&format=pdf">
                         <i class="fa fa-file-pdf-o"></i> Export PDF
                     </a>
                 </div>
+            </div>
+        </div>
+
+        <!-- Trend Tab -->
+        <div class="tab-pane" id="trendTab">
+            <div id="trendLoading" style="text-align:center; padding:40px;">
+                <i class="fa fa-spinner fa-spin fa-3x"></i>
+            </div>
+            <div id="trendContent" style="display:none;">
+                <div class="row" style="margin-bottom:15px;">
+                    <div class="col-md-4">
+                        <label for="trendDays">Time Period:</label>
+                        <select id="trendDays" class="form-control input-sm">
+                            <option value="7">Last 7 days</option>
+                            <option value="14">Last 14 days</option>
+                            <option value="30" selected>Last 30 days</option>
+                            <option value="60">Last 60 days</option>
+                            <option value="90">Last 90 days</option>
+                            <option value="180">Last 6 months</option>
+                            <option value="365">Last year</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="trendChart" style="height:400px;"></div>
+                <div id="trendSummary" class="row" style="margin-top:20px;"></div>
             </div>
         </div>
 
@@ -66,6 +118,9 @@
                     <a class="btn btn-default btn-sm" href="/api/reports/export?type=groups&format=csv">
                         <i class="fa fa-download"></i> Export CSV
                     </a>
+                    <a class="btn btn-default btn-sm" href="/api/reports/export?type=groups&format=xlsx">
+                        <i class="fa fa-file-excel-o"></i> Export XLSX
+                    </a>
                     <a class="btn btn-default btn-sm" href="/api/reports/export?type=groups&format=pdf">
                         <i class="fa fa-file-pdf-o"></i> Export PDF
                     </a>
@@ -81,12 +136,15 @@
             <div id="trainingContent" style="display:none;">
                 <div class="row" id="trainingCards"></div>
                 <div class="row" style="margin-top:20px;">
-                    <div class="col-md-6"><div id="trainingStatusChart" style="height:300px;"></div></div>
-                    <div class="col-md-6"><div id="trainingMetricsPanel"></div></div>
+                    <div class="col-md-5"><div id="trainingStatusChart" style="height:300px;"></div></div>
+                    <div class="col-md-7"><div id="trainingMetricsPanel"></div></div>
                 </div>
                 <div style="margin-top:15px; text-align:right;">
                     <a class="btn btn-default btn-sm" href="/api/reports/export?type=training&format=csv">
                         <i class="fa fa-download"></i> Export CSV
+                    </a>
+                    <a class="btn btn-default btn-sm" href="/api/reports/export?type=training&format=xlsx">
+                        <i class="fa fa-file-excel-o"></i> Export XLSX
                     </a>
                     <a class="btn btn-default btn-sm" href="/api/reports/export?type=training&format=pdf">
                         <i class="fa fa-file-pdf-o"></i> Export PDF
@@ -119,6 +177,9 @@
                 <div style="text-align:right;">
                     <a class="btn btn-default btn-sm" href="/api/reports/export?type=risk-scores&format=csv">
                         <i class="fa fa-download"></i> Export CSV
+                    </a>
+                    <a class="btn btn-default btn-sm" href="/api/reports/export?type=risk-scores&format=xlsx">
+                        <i class="fa fa-file-excel-o"></i> Export XLSX
                     </a>
                     <a class="btn btn-default btn-sm" href="/api/reports/export?type=risk-scores&format=pdf">
                         <i class="fa fa-file-pdf-o"></i> Export PDF

@@ -61,7 +61,13 @@ func (r *Result) HandleEmailSent() error {
 	r.SendDate = event.Time
 	r.Status = EventSent
 	r.ModifiedDate = event.Time
-	return db.Save(r).Error
+	err = db.Save(r).Error
+	if err == nil {
+		PublishResultEvent(r.CampaignId, WSEventEmailSent, map[string]interface{}{
+			"campaign_id": r.CampaignId, "email": r.Email, "rid": r.RId,
+		})
+	}
+	return err
 }
 
 // HandleEmailError updates a Result to indicate that there was an error when
@@ -103,7 +109,13 @@ func (r *Result) HandleEmailOpened(details EventDetails) error {
 	}
 	r.Status = EventOpened
 	r.ModifiedDate = event.Time
-	return db.Save(r).Error
+	err = db.Save(r).Error
+	if err == nil {
+		PublishResultEvent(r.CampaignId, WSEventEmailOpened, map[string]interface{}{
+			"campaign_id": r.CampaignId, "email": r.Email, "rid": r.RId,
+		})
+	}
+	return err
 }
 
 // HandleClickedLink updates a Result in the case where the recipient clicked
@@ -124,6 +136,9 @@ func (r *Result) HandleClickedLink(details EventDetails) error {
 	if err != nil {
 		return err
 	}
+	PublishResultEvent(r.CampaignId, WSEventLinkClicked, map[string]interface{}{
+		"campaign_id": r.CampaignId, "email": r.Email, "rid": r.RId,
+	})
 	// Auto-assign training course on click if campaign has one configured
 	go autoAssignTrainingOnClick(r.CampaignId, r.Email)
 	return nil
@@ -157,7 +172,13 @@ func (r *Result) HandleFormSubmit(details EventDetails) error {
 	}
 	r.Status = EventDataSubmit
 	r.ModifiedDate = event.Time
-	return db.Save(r).Error
+	err = db.Save(r).Error
+	if err == nil {
+		PublishResultEvent(r.CampaignId, WSEventDataSubmitted, map[string]interface{}{
+			"campaign_id": r.CampaignId, "email": r.Email, "rid": r.RId,
+		})
+	}
+	return err
 }
 
 // HandleFeedbackViewed records an event when the recipient views the
@@ -176,7 +197,13 @@ func (r *Result) HandleEmailReport(details EventDetails) error {
 	}
 	r.Reported = true
 	r.ModifiedDate = event.Time
-	return db.Save(r).Error
+	err = db.Save(r).Error
+	if err == nil {
+		PublishResultEvent(r.CampaignId, WSEventEmailReported, map[string]interface{}{
+			"campaign_id": r.CampaignId, "email": r.Email, "rid": r.RId,
+		})
+	}
+	return err
 }
 
 // UpdateGeo updates the latitude and longitude of the result in

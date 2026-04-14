@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -46,6 +45,12 @@ var allowedThumbnailTypes = map[string]bool{
 // maxUploadSize is the maximum allowed file size (50MB)
 const maxUploadSize = 50 << 20
 
+// Shared string constants to avoid S1192 duplicate literal warnings.
+const (
+	headerContentType   = "Content-Type"
+	errTrainingNotFound = "Training presentation not found"
+)
+
 // TrainingPresentations handles listing and creating training presentations
 func (as *Server) TrainingPresentations(w http.ResponseWriter, r *http.Request) {
 	switch {
@@ -59,129 +64,140 @@ func (as *Server) TrainingPresentations(w http.ResponseWriter, r *http.Request) 
 		JSONResponse(w, tps, http.StatusOK)
 
 	case r.Method == "POST":
-		// Only admins can upload training presentations
-		user := ctx.Get(r, "user").(models.User)
-		hasAdmin, _ := user.HasPermission(models.PermissionManageTraining)
-		if !hasAdmin {
-			JSONResponse(w, models.Response{Success: false, Message: "Only administrators can upload training presentations"}, http.StatusForbidden)
-			return
-		}
-
-		// Parse multipart form with max size
-		err := r.ParseMultipartForm(maxUploadSize)
-		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: "File too large. Maximum size is 50MB."}, http.StatusBadRequest)
-			return
-		}
-
-		name := r.FormValue("name")
-		description := r.FormValue("description")
-
-		file, header, err := r.FormFile("file")
-		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: "File is required"}, http.StatusBadRequest)
-			return
-		}
-		defer file.Close()
-
-		// Validate file type
-		contentType := header.Header.Get("Content-Type")
-		if !allowedTrainingTypes[contentType] {
-			JSONResponse(w, models.Response{Success: false, Message: "File type not allowed. Please upload PDF, PowerPoint, ODP, or video files."}, http.StatusBadRequest)
-			return
-		}
-
-		// Ensure upload directory exists
-		if err := os.MkdirAll(trainingUploadDir, 0755); err != nil {
-			log.Error(err)
-			JSONResponse(w, models.Response{Success: false, Message: "Error creating upload directory"}, http.StatusInternalServerError)
-			return
-		}
-
-		// Generate a unique filename to avoid collisions
-		ext := filepath.Ext(header.Filename)
-		safeBaseName := strings.TrimSuffix(header.Filename, ext)
-		// Replace any path separators or dangerous characters
-		safeBaseName = strings.Map(func(r rune) rune {
-			if r == '/' || r == '\\' || r == '\x00' {
-				return '_'
-			}
-			return r
-		}, safeBaseName)
-		uniqueName := fmt.Sprintf("%d_%s%s", time.Now().UnixNano(), safeBaseName, ext)
-		filePath := filepath.Join(trainingUploadDir, uniqueName)
-
-		// Create the destination file
-		dst, err := os.Create(filePath)
-		if err != nil {
-			log.Error(err)
-			JSONResponse(w, models.Response{Success: false, Message: "Error saving file"}, http.StatusInternalServerError)
-			return
-		}
-		defer dst.Close()
-
-		// Copy the uploaded file
-		written, err := io.Copy(dst, file)
-		if err != nil {
-			log.Error(err)
-			os.Remove(filePath)
-			JSONResponse(w, models.Response{Success: false, Message: "Error saving file"}, http.StatusInternalServerError)
-			return
-		}
-
-		// Get the uploading user (already checked above for admin)
-		tp := models.TrainingPresentation{
-			OrgId:        user.OrgId,
-			Name:         name,
-			Description:  description,
-			FileName:     header.Filename,
-			FilePath:     filePath,
-			FileSize:     written,
-			ContentType:  contentType,
-			YouTubeURL:   r.FormValue("youtube_url"),
-			ContentPages: r.FormValue("content_pages"),
-			UploadedBy:   user.Id,
-		}
-
-		// Handle optional thumbnail upload
-		thumbFile, thumbHeader, thumbErr := r.FormFile("thumbnail")
-		if thumbErr == nil {
-			defer thumbFile.Close()
-			thumbContentType := thumbHeader.Header.Get("Content-Type")
-			if !allowedThumbnailTypes[thumbContentType] {
-				os.Remove(filePath)
-				JSONResponse(w, models.Response{Success: false, Message: "Thumbnail must be an image (JPEG, PNG, GIF, or WebP)."}, http.StatusBadRequest)
-				return
-			}
-			thumbExt := filepath.Ext(thumbHeader.Filename)
-			thumbUnique := fmt.Sprintf("thumb_%d%s", time.Now().UnixNano(), thumbExt)
-			thumbPath := filepath.Join(trainingUploadDir, thumbUnique)
-			thumbDst, err := os.Create(thumbPath)
-			if err != nil {
-				log.Error(err)
-				os.Remove(filePath)
-				JSONResponse(w, models.Response{Success: false, Message: "Error saving thumbnail"}, http.StatusInternalServerError)
-				return
-			}
-			defer thumbDst.Close()
-			if _, err := io.Copy(thumbDst, thumbFile); err != nil {
-				log.Error(err)
-				os.Remove(filePath)
-				os.Remove(thumbPath)
-				JSONResponse(w, models.Response{Success: false, Message: "Error saving thumbnail"}, http.StatusInternalServerError)
-				return
-			}
-			tp.ThumbnailPath = thumbPath
-		}
-
-		err = models.PostTrainingPresentation(&tp)
-		if err != nil {
-			os.Remove(filePath)
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusBadRequest)
-			return
-		}
-		JSONResponse(w, tp, http.StatusCreated)
+		as.handleTrainingUpload(w, r)
 	}
+}
+
+// handleTrainingUpload processes the POST side of TrainingPresentations (file upload).
+func (as *Server) handleTrainingUpload(w http.ResponseWriter, r *http.Request) {
+	user := ctx.Get(r, "user").(models.User)
+	hasAdmin, _ := user.HasPermission(models.PermissionManageTraining)
+	if !hasAdmin {
+		JSONResponse(w, models.Response{Success: false, Message: "Only administrators can upload training presentations"}, http.StatusForbidden)
+		return
+	}
+
+	err := r.ParseMultipartForm(maxUploadSize)
+	if err != nil {
+		JSONResponse(w, models.Response{Success: false, Message: "File too large. Maximum size is 50MB."}, http.StatusBadRequest)
+		return
+	}
+
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		JSONResponse(w, models.Response{Success: false, Message: "File is required"}, http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	contentType := header.Header.Get(headerContentType)
+	if !allowedTrainingTypes[contentType] {
+		JSONResponse(w, models.Response{Success: false, Message: "File type not allowed. Please upload PDF, PowerPoint, ODP, or video files."}, http.StatusBadRequest)
+		return
+	}
+
+	if err := os.MkdirAll(trainingUploadDir, 0755); err != nil {
+		log.Error(err)
+		JSONResponse(w, models.Response{Success: false, Message: "Error creating upload directory"}, http.StatusInternalServerError)
+		return
+	}
+
+	filePath, written, err := saveUploadedFile(file, header.Filename)
+	if err != nil {
+		log.Error(err)
+		JSONResponse(w, models.Response{Success: false, Message: "Error saving file"}, http.StatusInternalServerError)
+		return
+	}
+
+	tp := models.TrainingPresentation{
+		OrgId:        user.OrgId,
+		Name:         r.FormValue("name"),
+		Description:  r.FormValue("description"),
+		FileName:     header.Filename,
+		FilePath:     filePath,
+		FileSize:     written,
+		ContentType:  contentType,
+		YouTubeURL:   r.FormValue("youtube_url"),
+		ContentPages: r.FormValue("content_pages"),
+		UploadedBy:   user.Id,
+	}
+
+	if thumbPath, ok := saveThumbnail(r, filePath, w); ok {
+		tp.ThumbnailPath = thumbPath
+	} else if thumbPath == "error" {
+		return // saveThumbnail already wrote the error response
+	}
+
+	err = models.PostTrainingPresentation(&tp)
+	if err != nil {
+		os.Remove(filePath)
+		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusBadRequest)
+		return
+	}
+	JSONResponse(w, tp, http.StatusCreated)
+}
+
+// saveUploadedFile writes a multipart file to disk with a unique name and returns the path and bytes written.
+func saveUploadedFile(file io.Reader, originalName string) (string, int64, error) {
+	ext := filepath.Ext(originalName)
+	safeBaseName := strings.TrimSuffix(originalName, ext)
+	safeBaseName = strings.Map(func(r rune) rune {
+		if r == '/' || r == '\\' || r == '\x00' {
+			return '_'
+		}
+		return r
+	}, safeBaseName)
+	uniqueName := fmt.Sprintf("%d_%s%s", time.Now().UnixNano(), safeBaseName, ext)
+	filePath := filepath.Join(trainingUploadDir, uniqueName)
+
+	dst, err := os.Create(filePath)
+	if err != nil {
+		return "", 0, err
+	}
+	defer dst.Close()
+
+	written, err := io.Copy(dst, file)
+	if err != nil {
+		os.Remove(filePath)
+		return "", 0, err
+	}
+	return filePath, written, nil
+}
+
+// saveThumbnail handles the optional thumbnail upload. Returns ("", true) if no
+// thumbnail was provided, (path, true) on success, or ("error", false) if an error
+// response was already written.
+func saveThumbnail(r *http.Request, mainFilePath string, w http.ResponseWriter) (string, bool) {
+	thumbFile, thumbHeader, thumbErr := r.FormFile("thumbnail")
+	if thumbErr != nil {
+		return "", true // No thumbnail provided
+	}
+	defer thumbFile.Close()
+	thumbContentType := thumbHeader.Header.Get(headerContentType)
+	if !allowedThumbnailTypes[thumbContentType] {
+		os.Remove(mainFilePath)
+		JSONResponse(w, models.Response{Success: false, Message: "Thumbnail must be an image (JPEG, PNG, GIF, or WebP)."}, http.StatusBadRequest)
+		return "error", false
+	}
+	thumbExt := filepath.Ext(thumbHeader.Filename)
+	thumbUnique := fmt.Sprintf("thumb_%d%s", time.Now().UnixNano(), thumbExt)
+	thumbPath := filepath.Join(trainingUploadDir, thumbUnique)
+	thumbDst, err := os.Create(thumbPath)
+	if err != nil {
+		log.Error(err)
+		os.Remove(mainFilePath)
+		JSONResponse(w, models.Response{Success: false, Message: "Error saving thumbnail"}, http.StatusInternalServerError)
+		return "error", false
+	}
+	defer thumbDst.Close()
+	if _, err := io.Copy(thumbDst, thumbFile); err != nil {
+		log.Error(err)
+		os.Remove(mainFilePath)
+		os.Remove(thumbPath)
+		JSONResponse(w, models.Response{Success: false, Message: "Error saving thumbnail"}, http.StatusInternalServerError)
+		return "error", false
+	}
+	return thumbPath, true
 }
 
 // TrainingPresentation handles getting, updating, and deleting a single training presentation
@@ -190,67 +206,66 @@ func (as *Server) TrainingPresentation(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.ParseInt(vars["id"], 0, 64)
 	tp, err := models.GetTrainingPresentation(id, getOrgScope(r))
 	if err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: "Training presentation not found"}, http.StatusNotFound)
+		JSONResponse(w, models.Response{Success: false, Message: errTrainingNotFound}, http.StatusNotFound)
 		return
 	}
 	switch {
 	case r.Method == "GET":
 		JSONResponse(w, tp, http.StatusOK)
-
 	case r.Method == "DELETE":
-		// Only admins can delete
-		user := ctx.Get(r, "user").(models.User)
-		hasAdmin, _ := user.HasPermission(models.PermissionManageTraining)
-		if !hasAdmin {
-			JSONResponse(w, models.Response{Success: false, Message: "Only administrators can delete training presentations"}, http.StatusForbidden)
-			return
-		}
-		// Remove the file from disk
-		if tp.FilePath != "" {
-			os.Remove(tp.FilePath)
-		}
-		// Remove thumbnail from disk
-		if tp.ThumbnailPath != "" {
-			os.Remove(tp.ThumbnailPath)
-		}
-		err = models.DeleteTrainingPresentation(id)
-		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
-			return
-		}
-		log.Infof("Deleted training presentation with id: %d", id)
-		JSONResponse(w, models.Response{Success: true, Message: "Training presentation deleted successfully!"}, http.StatusOK)
-
+		as.handleTrainingDelete(w, r, tp, id)
 	case r.Method == "PUT":
-		// Only admins can update
-		user := ctx.Get(r, "user").(models.User)
-		hasAdmin, _ := user.HasPermission(models.PermissionManageTraining)
-		if !hasAdmin {
-			JSONResponse(w, models.Response{Success: false, Message: "Only administrators can modify training presentations"}, http.StatusForbidden)
-			return
-		}
-		updateData := struct {
-			Name         string `json:"name"`
-			Description  string `json:"description"`
-			YouTubeURL   string `json:"youtube_url"`
-			ContentPages string `json:"content_pages"`
-		}{}
-		err = json.NewDecoder(r.Body).Decode(&updateData)
-		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusBadRequest)
-			return
-		}
-		tp.Name = updateData.Name
-		tp.Description = updateData.Description
-		tp.YouTubeURL = updateData.YouTubeURL
-		tp.ContentPages = updateData.ContentPages
-		err = models.PutTrainingPresentation(&tp)
-		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusBadRequest)
-			return
-		}
-		JSONResponse(w, tp, http.StatusOK)
+		as.handleTrainingUpdate(w, r, tp)
 	}
+}
+
+func (as *Server) handleTrainingDelete(w http.ResponseWriter, r *http.Request, tp models.TrainingPresentation, id int64) {
+	user := ctx.Get(r, "user").(models.User)
+	hasAdmin, _ := user.HasPermission(models.PermissionManageTraining)
+	if !hasAdmin {
+		JSONResponse(w, models.Response{Success: false, Message: "Only administrators can delete training presentations"}, http.StatusForbidden)
+		return
+	}
+	if tp.FilePath != "" {
+		os.Remove(tp.FilePath)
+	}
+	if tp.ThumbnailPath != "" {
+		os.Remove(tp.ThumbnailPath)
+	}
+	if err := models.DeleteTrainingPresentation(id); err != nil {
+		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+	log.Infof("Deleted training presentation with id: %d", id)
+	JSONResponse(w, models.Response{Success: true, Message: "Training presentation deleted successfully!"}, http.StatusOK)
+}
+
+func (as *Server) handleTrainingUpdate(w http.ResponseWriter, r *http.Request, tp models.TrainingPresentation) {
+	user := ctx.Get(r, "user").(models.User)
+	hasAdmin, _ := user.HasPermission(models.PermissionManageTraining)
+	if !hasAdmin {
+		JSONResponse(w, models.Response{Success: false, Message: "Only administrators can modify training presentations"}, http.StatusForbidden)
+		return
+	}
+	updateData := struct {
+		Name         string `json:"name"`
+		Description  string `json:"description"`
+		YouTubeURL   string `json:"youtube_url"`
+		ContentPages string `json:"content_pages"`
+	}{}
+	if err := json.NewDecoder(r.Body).Decode(&updateData); err != nil {
+		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusBadRequest)
+		return
+	}
+	tp.Name = updateData.Name
+	tp.Description = updateData.Description
+	tp.YouTubeURL = updateData.YouTubeURL
+	tp.ContentPages = updateData.ContentPages
+	if err := models.PutTrainingPresentation(&tp); err != nil {
+		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusBadRequest)
+		return
+	}
+	JSONResponse(w, tp, http.StatusOK)
 }
 
 // TrainingPresentationDownload handles serving the file for download/viewing
@@ -259,7 +274,7 @@ func (as *Server) TrainingPresentationDownload(w http.ResponseWriter, r *http.Re
 	id, _ := strconv.ParseInt(vars["id"], 0, 64)
 	tp, err := models.GetTrainingPresentation(id, getOrgScope(r))
 	if err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: "Training presentation not found"}, http.StatusNotFound)
+		JSONResponse(w, models.Response{Success: false, Message: errTrainingNotFound}, http.StatusNotFound)
 		return
 	}
 
@@ -269,7 +284,7 @@ func (as *Server) TrainingPresentationDownload(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	w.Header().Set("Content-Type", tp.ContentType)
+	w.Header().Set(headerContentType, tp.ContentType)
 	w.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=\"%s\"", tp.FileName))
 	http.ServeFile(w, r, tp.FilePath)
 }
@@ -280,7 +295,7 @@ func (as *Server) TrainingPresentationThumbnail(w http.ResponseWriter, r *http.R
 	id, _ := strconv.ParseInt(vars["id"], 0, 64)
 	tp, err := models.GetTrainingPresentation(id, getOrgScope(r))
 	if err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: "Training presentation not found"}, http.StatusNotFound)
+		JSONResponse(w, models.Response{Success: false, Message: errTrainingNotFound}, http.StatusNotFound)
 		return
 	}
 
@@ -318,7 +333,7 @@ func countPDFPages(filePath string) (int, error) {
 		return 0, err
 	}
 	defer f.Close()
-	data, err := ioutil.ReadAll(f)
+	data, err := io.ReadAll(f)
 	if err != nil {
 		return 0, err
 	}
@@ -377,82 +392,94 @@ func extractSlideNumber(name string) int {
 func extractSlideText(r *zip.ReadCloser, slidePath string) string {
 	for _, f := range r.File {
 		if f.Name == slidePath {
-			rc, err := f.Open()
-			if err != nil {
-				return ""
-			}
-			defer rc.Close()
-			data, err := ioutil.ReadAll(rc)
-			if err != nil {
-				return ""
-			}
-			// Simple extraction: find all <a:t>...</a:t> text runs
-			re := regexp.MustCompile(`<a:t[^>]*>([^<]+)</a:t>`)
-			matches := re.FindAllSubmatch(data, -1)
-			var parts []string
-			for _, m := range matches {
-				txt := strings.TrimSpace(string(m[1]))
-				if txt != "" {
-					parts = append(parts, txt)
-				}
-			}
-			return strings.Join(parts, "\n")
+			return readSlideXMLText(f)
 		}
 	}
 	return ""
 }
 
+// readSlideXMLText reads a single zip file entry and extracts <a:t> text runs.
+func readSlideXMLText(f *zip.File) string {
+	rc, err := f.Open()
+	if err != nil {
+		return ""
+	}
+	defer rc.Close()
+	data, err := io.ReadAll(rc)
+	if err != nil {
+		return ""
+	}
+	re := regexp.MustCompile(`<a:t[^>]*>([^<]+)</a:t>`)
+	matches := re.FindAllSubmatch(data, -1)
+	var parts []string
+	for _, m := range matches {
+		txt := strings.TrimSpace(string(m[1]))
+		if txt != "" {
+			parts = append(parts, txt)
+		}
+	}
+	return strings.Join(parts, "\n")
+}
+
 // extractSlidesFromFile builds extracted pages from a file on disk
 func extractSlidesFromFile(filePath, contentType string) ([]extractedPage, error) {
-	var pages []extractedPage
-
 	if strings.Contains(contentType, "pdf") {
-		count, err := countPDFPages(filePath)
-		if err != nil {
-			return nil, fmt.Errorf("could not read PDF: %v", err)
-		}
-		for i := 1; i <= count; i++ {
-			pages = append(pages, extractedPage{
-				Title: fmt.Sprintf("Slide %d", i),
-				Body:  fmt.Sprintf("Content from slide %d of the PDF presentation.", i),
-			})
-		}
-	} else if strings.Contains(contentType, "presentation") || strings.Contains(contentType, "powerpoint") {
-		r, err := zip.OpenReader(filePath)
-		if err != nil {
-			return nil, fmt.Errorf("could not open PPTX: %v", err)
-		}
-		defer r.Close()
-
-		_, slideNames, err := countPPTXSlides(filePath)
-		if err != nil {
-			return nil, fmt.Errorf("could not count slides: %v", err)
-		}
-		if len(slideNames) == 0 {
-			return nil, fmt.Errorf("no slides found in the presentation")
-		}
-		for i, sn := range slideNames {
-			text := extractSlideText(r, sn)
-			body := text
-			if body == "" {
-				body = fmt.Sprintf("Content from slide %d.", i+1)
-			}
-			pages = append(pages, extractedPage{
-				Title: fmt.Sprintf("Slide %d", i+1),
-				Body:  body,
-			})
-		}
-	} else {
-		return nil, fmt.Errorf("auto-extract is only supported for PDF and PowerPoint files")
+		return extractPDFPages(filePath)
 	}
+	if strings.Contains(contentType, "presentation") || strings.Contains(contentType, "powerpoint") {
+		return extractPPTXPages(filePath)
+	}
+	return nil, fmt.Errorf("auto-extract is only supported for PDF and PowerPoint files")
+}
 
+func extractPDFPages(filePath string) ([]extractedPage, error) {
+	count, err := countPDFPages(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("could not read PDF: %v", err)
+	}
+	pages := make([]extractedPage, 0, count)
+	for i := 1; i <= count; i++ {
+		pages = append(pages, extractedPage{
+			Title: fmt.Sprintf("Slide %d", i),
+			Body:  fmt.Sprintf("Content from slide %d of the PDF presentation.", i),
+		})
+	}
+	return pages, nil
+}
+
+func extractPPTXPages(filePath string) ([]extractedPage, error) {
+	r, err := zip.OpenReader(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("could not open PPTX: %v", err)
+	}
+	defer r.Close()
+
+	_, slideNames, err := countPPTXSlides(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("could not count slides: %v", err)
+	}
+	if len(slideNames) == 0 {
+		return nil, fmt.Errorf("no slides found in the presentation")
+	}
+	pages := make([]extractedPage, 0, len(slideNames))
+	for i, sn := range slideNames {
+		text := extractSlideText(r, sn)
+		body := text
+		if body == "" {
+			body = fmt.Sprintf("Content from slide %d.", i+1)
+		}
+		pages = append(pages, extractedPage{
+			Title: fmt.Sprintf("Slide %d", i+1),
+			Body:  body,
+		})
+	}
 	return pages, nil
 }
 
 // TrainingExtractSlidesUpload extracts slides from an uploaded file (multipart POST)
 func (as *Server) TrainingExtractSlidesUpload(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -476,10 +503,10 @@ func (as *Server) TrainingExtractSlidesUpload(w http.ResponseWriter, r *http.Req
 	}
 	defer file.Close()
 
-	contentType := header.Header.Get("Content-Type")
+	contentType := header.Header.Get(headerContentType)
 
 	// Write to a temp file for processing
-	tmpFile, err := ioutil.TempFile("", "slide-extract-*"+filepath.Ext(header.Filename))
+	tmpFile, err := os.CreateTemp("", "slide-extract-*"+filepath.Ext(header.Filename))
 	if err != nil {
 		log.Error(err)
 		JSONResponse(w, models.Response{Success: false, Message: "Error processing file"}, http.StatusInternalServerError)
@@ -507,7 +534,7 @@ func (as *Server) TrainingExtractSlidesUpload(w http.ResponseWriter, r *http.Req
 // TrainingExtractSlidesExisting extracts slides from an already-uploaded presentation
 func (as *Server) TrainingExtractSlidesExisting(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -522,7 +549,7 @@ func (as *Server) TrainingExtractSlidesExisting(w http.ResponseWriter, r *http.R
 	id, _ := strconv.ParseInt(vars["id"], 0, 64)
 	tp, err := models.GetTrainingPresentation(id, getOrgScope(r))
 	if err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: "Training presentation not found"}, http.StatusNotFound)
+		JSONResponse(w, models.Response{Success: false, Message: errTrainingNotFound}, http.StatusNotFound)
 		return
 	}
 
@@ -561,7 +588,6 @@ func (as *Server) TrainingCourseProgress(w http.ResponseWriter, r *http.Request)
 	case r.Method == "GET":
 		cp, err := models.GetCourseProgress(user.Id, presId)
 		if err != nil {
-			// No progress record yet – return default
 			JSONResponse(w, models.CourseProgress{
 				UserId:         user.Id,
 				PresentationId: presId,
@@ -572,46 +598,58 @@ func (as *Server) TrainingCourseProgress(w http.ResponseWriter, r *http.Request)
 		JSONResponse(w, cp, http.StatusOK)
 
 	case r.Method == "PUT":
-		var updateData struct {
-			CurrentPage int    `json:"current_page"`
-			TotalPages  int    `json:"total_pages"`
-			Status      string `json:"status"`
-		}
-		err := json.NewDecoder(r.Body).Decode(&updateData)
-		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusBadRequest)
-			return
-		}
-		// Find or create progress record
-		cp, err := models.GetCourseProgress(user.Id, presId)
-		if err != nil {
-			// Create new record
-			cp = models.CourseProgress{
-				UserId:         user.Id,
-				PresentationId: presId,
-			}
-		}
-		cp.CurrentPage = updateData.CurrentPage
-		cp.TotalPages = updateData.TotalPages
-		cp.Status = updateData.Status
-		if updateData.Status == "complete" {
-			cp.CompletedDate = time.Now().UTC()
-		}
-		err = models.SaveCourseProgress(&cp)
-		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
-			return
-		}
-		// If course is complete and has no quiz, issue certificate + update assignment
-		if updateData.Status == "complete" && !models.QuizExistsForPresentation(presId) {
-			// Only issue if no certificate exists yet
-			if _, certErr := models.GetCertificateForCourse(user.Id, presId); certErr != nil {
-				models.IssueCertificate(user.Id, presId, 0)
-			}
-			models.UpdateAssignmentStatus(user.Id, presId, models.AssignmentStatusCompleted)
-		}
-		JSONResponse(w, cp, http.StatusOK)
+		as.handleCourseProgressUpdate(w, r, user, presId)
 	}
+}
+
+func (as *Server) handleCourseProgressUpdate(w http.ResponseWriter, r *http.Request, user models.User, presId int64) {
+	var updateData struct {
+		CurrentPage int    `json:"current_page"`
+		TotalPages  int    `json:"total_pages"`
+		Status      string `json:"status"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&updateData); err != nil {
+		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusBadRequest)
+		return
+	}
+
+	// Anti-skip gate: if requesting "complete", verify all pages were engaged
+	if updateData.Status == "complete" && updateData.TotalPages > 0 {
+		gate := models.ValidateCourseCompletion(user.Id, presId, updateData.TotalPages)
+		if !gate.Allowed {
+			JSONResponse(w, models.Response{
+				Success: false,
+				Message: gate.Reason,
+				Data:    gate,
+			}, http.StatusForbidden)
+			return
+		}
+	}
+
+	cp, err := models.GetCourseProgress(user.Id, presId)
+	if err != nil {
+		cp = models.CourseProgress{
+			UserId:         user.Id,
+			PresentationId: presId,
+		}
+	}
+	cp.CurrentPage = updateData.CurrentPage
+	cp.TotalPages = updateData.TotalPages
+	cp.Status = updateData.Status
+	if updateData.Status == "complete" {
+		cp.CompletedDate = time.Now().UTC()
+	}
+	if err = models.SaveCourseProgress(&cp); err != nil {
+		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+	if updateData.Status == "complete" && !models.QuizExistsForPresentation(presId) {
+		if _, certErr := models.GetCertificateForCourse(user.Id, presId); certErr != nil {
+			models.IssueCertificate(user.Id, presId, 0)
+		}
+		models.UpdateAssignmentStatus(user.Id, presId, models.AssignmentStatusCompleted)
+	}
+	JSONResponse(w, cp, http.StatusOK)
 }
 
 // TrainingMyCourses returns all presentations with progress info for the current user
@@ -626,68 +664,73 @@ func (as *Server) TrainingMyCourses(w http.ResponseWriter, r *http.Request) {
 
 	progressRecords, err := models.GetUserCourseProgress(user.Id)
 	if err != nil {
-		// If no progress records, continue with empty list
 		progressRecords = []models.CourseProgress{}
 	}
 
-	// Build a map of presentation_id -> CourseProgress
 	progressMap := make(map[int64]models.CourseProgress)
 	for _, cp := range progressRecords {
 		progressMap[cp.PresentationId] = cp
 	}
 
-	// Build response array
-	result := []CourseProgressResponse{}
+	result := make([]CourseProgressResponse, 0, len(tps))
 	for _, tp := range tps {
-		cp, exists := progressMap[tp.Id]
-		if !exists {
-			cp = models.CourseProgress{
-				UserId:         user.Id,
-				PresentationId: tp.Id,
-				Status:         "no_progress",
-			}
-		}
-
-		// Calculate progress percentage
-		pct := 0
-		if cp.Status == "complete" {
-			pct = 100
-		} else if cp.TotalPages > 0 {
-			pct = int(float64(cp.CurrentPage) / float64(cp.TotalPages) * 100)
-			if pct > 100 {
-				pct = 100
-			}
-		}
-
-		cpr := CourseProgressResponse{
-			Presentation: tp,
-			Progress:     cp,
-			ProgressPct:  pct,
-			HasQuiz:      models.QuizExistsForPresentation(tp.Id),
-		}
-
-		// Check if user passed the quiz
-		if cpr.HasQuiz {
-			quiz, qErr := models.GetQuizByPresentationId(tp.Id)
-			if qErr == nil {
-				if _, aErr := models.GetLatestPassedAttempt(user.Id, quiz.Id); aErr == nil {
-					cpr.QuizPassed = true
-				}
-			}
-		}
-
-		// Load assignment if exists
-		if assignment, aErr := models.GetAssignment(user.Id, tp.Id); aErr == nil {
-			cpr.Assignment = &assignment
-		}
-
-		// Load certificate if exists
-		if cert, cErr := models.GetCertificateForCourse(user.Id, tp.Id); cErr == nil {
-			cpr.Certificate = &cert
-		}
-
-		result = append(result, cpr)
+		result = append(result, buildCourseProgressResponse(tp, user.Id, progressMap))
 	}
 
 	JSONResponse(w, result, http.StatusOK)
+}
+
+// buildCourseProgressResponse creates a single CourseProgressResponse for a
+// presentation/user combination.
+func buildCourseProgressResponse(tp models.TrainingPresentation, userId int64, progressMap map[int64]models.CourseProgress) CourseProgressResponse {
+	cp, exists := progressMap[tp.Id]
+	if !exists {
+		cp = models.CourseProgress{
+			UserId:         userId,
+			PresentationId: tp.Id,
+			Status:         "no_progress",
+		}
+	}
+
+	pct := calcProgressPct(cp)
+
+	cpr := CourseProgressResponse{
+		Presentation: tp,
+		Progress:     cp,
+		ProgressPct:  pct,
+		HasQuiz:      models.QuizExistsForPresentation(tp.Id),
+	}
+
+	if cpr.HasQuiz {
+		quiz, qErr := models.GetQuizByPresentationId(tp.Id)
+		if qErr == nil {
+			if _, aErr := models.GetLatestPassedAttempt(userId, quiz.Id); aErr == nil {
+				cpr.QuizPassed = true
+			}
+		}
+	}
+
+	if assignment, aErr := models.GetAssignment(userId, tp.Id); aErr == nil {
+		cpr.Assignment = &assignment
+	}
+	if cert, cErr := models.GetCertificateForCourse(userId, tp.Id); cErr == nil {
+		cpr.Certificate = &cert
+	}
+
+	return cpr
+}
+
+// calcProgressPct calculates the progress percentage from a CourseProgress record.
+func calcProgressPct(cp models.CourseProgress) int {
+	if cp.Status == "complete" {
+		return 100
+	}
+	if cp.TotalPages > 0 {
+		pct := int(float64(cp.CurrentPage) / float64(cp.TotalPages) * 100)
+		if pct > 100 {
+			return 100
+		}
+		return pct
+	}
+	return 0
 }

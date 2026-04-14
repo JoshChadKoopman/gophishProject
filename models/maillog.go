@@ -174,21 +174,13 @@ func (m *MailLog) Generate(msg *gomail.Message) error {
 	if err != nil {
 		return err
 	}
-	c := m.cachedCampaign
-	if c == nil {
-		campaign, err := GetCampaignMailContext(m.CampaignId, m.UserId)
-		if err != nil {
-			return err
-		}
-		c = &campaign
-	}
-
-	f, err := mail.ParseAddress(c.Template.EnvelopeSender)
+	c, err := m.getCampaignContext()
 	if err != nil {
-		f, err = mail.ParseAddress(c.SMTP.FromAddress)
-		if err != nil {
-			return err
-		}
+		return err
+	}
+	f, err := resolveFromAddress(c)
+	if err != nil {
+		return err
 	}
 	msg.SetAddressHeader("From", f.Address, f.Name)
 
@@ -197,70 +189,131 @@ func (m *MailLog) Generate(msg *gomail.Message) error {
 		return err
 	}
 
-	// Add the transparency headers
+	if err := setMailHeaders(msg, m, c, ptx); err != nil {
+		return err
+	}
+	msg.SetHeader("To", r.FormatAddress())
+	setMailBody(msg, c, ptx)
+	for _, a := range c.Template.Attachments {
+		addAttachment(msg, a, ptx)
+	}
+	return nil
+}
+
+// getCampaignContext returns the cached campaign or loads it from the database.
+func (m *MailLog) getCampaignContext() (*Campaign, error) {
+	if m.cachedCampaign != nil {
+		return m.cachedCampaign, nil
+	}
+	campaign, err := GetCampaignMailContext(m.CampaignId, m.UserId)
+	if err != nil {
+		return nil, err
+	}
+	return &campaign, nil
+}
+
+// resolveFromAddress parses the envelope sender or falls back to SMTP FromAddress.
+func resolveFromAddress(c *Campaign) (*mail.Address, error) {
+	f, err := mail.ParseAddress(c.Template.EnvelopeSender)
+	if err != nil {
+		f, err = mail.ParseAddress(c.SMTP.FromAddress)
+	}
+	return f, err
+}
+
+// setMailHeaders adds transparency, message-id, custom, and subject headers.
+func setMailHeaders(msg *gomail.Message, m *MailLog, c *Campaign, ptx PhishingTemplateContext) error {
 	msg.SetHeader("X-Mailer", config.ServerName)
 	if conf.ContactAddress != "" {
 		msg.SetHeader("X-Gophish-Contact", conf.ContactAddress)
 	}
-
-	// Add Message-Id header as described in RFC 2822.
 	messageID, err := m.generateMessageID()
 	if err != nil {
 		return err
 	}
 	msg.SetHeader("Message-Id", messageID)
-
-	// Parse the customHeader templates
 	for _, header := range c.SMTP.Headers {
-		key, err := ExecuteTemplate(header.Key, ptx)
-		if err != nil {
-			log.Warn(err)
-		}
-
-		value, err := ExecuteTemplate(header.Value, ptx)
-		if err != nil {
-			log.Warn(err)
-		}
-
-		// Add our header immediately
+		key, _ := ExecuteTemplate(header.Key, ptx)
+		value, _ := ExecuteTemplate(header.Value, ptx)
 		msg.SetHeader(key, value)
 	}
-
-	// Parse remaining templates
-	subject, err := ExecuteTemplate(c.Template.Subject, ptx)
-
-	if err != nil {
-		log.Warn(err)
-	}
-	// don't set Subject header if the subject is empty
+	subject, _ := ExecuteTemplate(c.Template.Subject, ptx)
 	if subject != "" {
 		msg.SetHeader("Subject", subject)
 	}
+	return nil
+}
 
-	msg.SetHeader("To", r.FormatAddress())
+// setMailBody sets the plain text and/or HTML body of the email.
+func setMailBody(msg *gomail.Message, c *Campaign, ptx PhishingTemplateContext) {
 	if c.Template.Text != "" {
-		text, err := ExecuteTemplate(c.Template.Text, ptx)
-		if err != nil {
-			log.Warn(err)
-		}
+		text, _ := ExecuteTemplate(c.Template.Text, ptx)
 		msg.SetBody("text/plain", text)
 	}
 	if c.Template.HTML != "" {
-		html, err := ExecuteTemplate(c.Template.HTML, ptx)
-		if err != nil {
-			log.Warn(err)
-		}
+		html, _ := ExecuteTemplate(c.Template.HTML, ptx)
 		if c.Template.Text == "" {
 			msg.SetBody("text/html", html)
 		} else {
 			msg.AddAlternative("text/html", html)
 		}
 	}
-	// Attach the files
-	for _, a := range c.Template.Attachments {
-		addAttachment(msg, a, ptx)
-	}
+}
 
+// IsSMSCampaign returns true if the cached campaign is an SMS campaign.
+func (m *MailLog) IsSMSCampaign() bool {
+	if m.cachedCampaign != nil {
+		return m.cachedCampaign.CampaignType == CampaignTypeSMS
+	}
+	return false
+}
+
+// SendSMS sends the SMS message for this mail log entry using the campaign's
+// SMS provider. It resolves the template, sends the message, and marks the
+// entry as successful or errored.
+func (m *MailLog) SendSMS() error {
+	r, err := GetResult(m.RId)
+	if err != nil {
+		return err
+	}
+	c := m.cachedCampaign
+	if c == nil {
+		campaign, err := GetCampaignMailContext(m.CampaignId, m.UserId)
+		if err != nil {
+			return err
+		}
+		c = &campaign
+	}
+	if c.SMSProviderId == 0 {
+		return fmt.Errorf("no SMS provider configured for campaign %d", c.Id)
+	}
+	sp := c.SMSProvider
+	if sp.Id == 0 {
+		sp, err = GetSMSProviderInternal(c.SMSProviderId)
+		if err != nil {
+			return err
+		}
+	}
+	// Build the phishing template context
+	ptx, err := NewPhishingTemplateContext(c, r.BaseRecipient, r.RId)
+	if err != nil {
+		return err
+	}
+	// Use the template's Text field as the SMS body
+	body, err := ExecuteTemplate(c.Template.Text, ptx)
+	if err != nil {
+		return err
+	}
+	// Clean recipient phone number
+	phone := CleanPhone(r.BaseRecipient.Phone)
+	if !ValidatePhone(phone) {
+		return fmt.Errorf("invalid phone number for recipient %s: %s", r.Email, r.BaseRecipient.Phone)
+	}
+	// Send the SMS
+	err = sp.SendSMS(phone, body)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

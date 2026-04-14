@@ -18,7 +18,7 @@ func (as *Server) Tiers(w http.ResponseWriter, r *http.Request) {
 		}
 		JSONResponse(w, tiers, http.StatusOK)
 	default:
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 	}
 }
 
@@ -30,6 +30,6 @@ func (as *Server) OrgFeatures(w http.ResponseWriter, r *http.Request) {
 		features := models.GetOrgFeatures(user.OrgId)
 		JSONResponse(w, features, http.StatusOK)
 	default:
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 	}
 }

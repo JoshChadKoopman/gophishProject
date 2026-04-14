@@ -27,7 +27,6 @@ THE SOFTWARE.
 */
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/signal"
@@ -44,6 +43,7 @@ import (
 	"github.com/gophish/gophish/middleware"
 	"github.com/gophish/gophish/models"
 	"github.com/gophish/gophish/webhook"
+	"github.com/gophish/gophish/worker"
 )
 
 const (
@@ -62,7 +62,7 @@ var (
 func main() {
 	// Load the version
 
-	version, err := ioutil.ReadFile("./VERSION")
+	version, err := os.ReadFile("./VERSION")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -115,7 +115,46 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Create our servers
+	adminOptions := buildAdminOptions(conf)
+	adminConfig := conf.AdminConf
+	adminServer := controllers.NewAdminServer(adminConfig, adminOptions...)
+	middleware.Store.Options.Secure = adminConfig.UseTLS
+
+	phishConfig := conf.PhishConf
+	phishServer := controllers.NewPhishingServer(phishConfig)
+
+	imapMonitor := imap.NewMonitor()
+	if *mode == modeAdmin || *mode == modeAll {
+		go adminServer.Start()
+		go imapMonitor.Start()
+		// Start the inbox security background worker (AI inbox analysis,
+		// BEC detection, graymail classification, auto-remediation, ticket mgmt)
+		if conf.AI.Enabled && conf.AI.APIKey != "" {
+			go worker.StartInboxSecurityWorker(conf.AI)
+			log.Info("Inbox Security Worker enabled (AI-powered)")
+		}
+	}
+	if *mode == modePhish || *mode == modeAll {
+		go phishServer.Start()
+	}
+
+	// Handle graceful shutdown
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	<-c
+	log.Info("CTRL+C Received... Gracefully shutting down servers")
+	if *mode == modeAdmin || *mode == modeAll {
+		adminServer.Shutdown()
+		imapMonitor.Shutdown()
+	}
+	if *mode == modePhish || *mode == modeAll {
+		phishServer.Shutdown()
+	}
+
+}
+
+// buildAdminOptions creates the AdminServerOption slice based on the config.
+func buildAdminOptions(conf *config.Config) []controllers.AdminServerOption {
 	adminOptions := []controllers.AdminServerOption{}
 	if *disableMailer {
 		adminOptions = append(adminOptions, controllers.WithWorker(nil))
@@ -147,33 +186,5 @@ func main() {
 		adminOptions = append(adminOptions, controllers.WithAIConfig(conf.AI))
 	}
 
-	adminConfig := conf.AdminConf
-	adminServer := controllers.NewAdminServer(adminConfig, adminOptions...)
-	middleware.Store.Options.Secure = adminConfig.UseTLS
-
-	phishConfig := conf.PhishConf
-	phishServer := controllers.NewPhishingServer(phishConfig)
-
-	imapMonitor := imap.NewMonitor()
-	if *mode == "admin" || *mode == "all" {
-		go adminServer.Start()
-		go imapMonitor.Start()
-	}
-	if *mode == "phish" || *mode == "all" {
-		go phishServer.Start()
-	}
-
-	// Handle graceful shutdown
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	<-c
-	log.Info("CTRL+C Received... Gracefully shutting down servers")
-	if *mode == modeAdmin || *mode == modeAll {
-		adminServer.Shutdown()
-		imapMonitor.Shutdown()
-	}
-	if *mode == modePhish || *mode == modeAll {
-		phishServer.Shutdown()
-	}
-
+	return adminOptions
 }

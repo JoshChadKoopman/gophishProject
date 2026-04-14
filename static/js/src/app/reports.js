@@ -26,6 +26,74 @@ function renderPieChart(elemId, title, data, colors) {
     });
 }
 
+// ---- Trend tab ----
+function loadTrend(days) {
+    days = days || 30;
+    $("#trendLoading").show();
+    $("#trendContent").hide();
+
+    api.reports.trend(days)
+        .done(function (data) {
+            tabsLoaded['trend'] = true;
+
+            if (!data || data.length === 0) {
+                $("#trendLoading").hide();
+                $("#trendContent").show();
+                $("#trendChart").html('<p class="text-muted text-center" style="padding:60px;">No trend data available for this period.</p>');
+                return;
+            }
+
+            var dates = [], sent = [], opened = [], clicked = [], submitted = [], reported = [];
+            var totalSent = 0, totalClicked = 0, totalReported = 0;
+
+            data.forEach(function (tp) {
+                dates.push(tp.date);
+                sent.push(tp.sent || 0);
+                opened.push(tp.opened || 0);
+                clicked.push(tp.clicked || 0);
+                submitted.push(tp.submitted_data || 0);
+                reported.push(tp.reported || 0);
+                totalSent += (tp.sent || 0);
+                totalClicked += (tp.clicked || 0);
+                totalReported += (tp.reported || 0);
+            });
+
+            new Highcharts.Chart({
+                chart: { renderTo: 'trendChart', type: 'area' },
+                title: { text: 'Phishing Activity Trend (' + days + ' days)', style: { fontSize: '14px' } },
+                xAxis: { categories: dates, tickInterval: Math.max(1, Math.floor(dates.length / 10)) },
+                yAxis: { title: { text: 'Events' }, min: 0 },
+                tooltip: { shared: true },
+                plotOptions: { area: { stacking: 'normal', fillOpacity: 0.3 } },
+                credits: { enabled: false },
+                series: [
+                    { name: 'Sent', data: sent, color: '#3498db' },
+                    { name: 'Opened', data: opened, color: '#2ecc71' },
+                    { name: 'Clicked', data: clicked, color: '#e74c3c' },
+                    { name: 'Submitted', data: submitted, color: '#e67e22' },
+                    { name: 'Reported', data: reported, color: '#9b59b6' }
+                ]
+            });
+
+            // Summary stats
+            var avgClickRate = totalSent > 0 ? (totalClicked / totalSent * 100).toFixed(1) : '0.0';
+            var avgReportRate = totalSent > 0 ? (totalReported / totalSent * 100).toFixed(1) : '0.0';
+            $("#trendSummary").html(
+                renderSummaryCard('fa-paper-plane', 'Total Sent', totalSent, '#3498db') +
+                renderSummaryCard('fa-mouse-pointer', 'Total Clicked', totalClicked, '#e74c3c') +
+                renderSummaryCard('fa-flag', 'Total Reported', totalReported, '#9b59b6') +
+                renderSummaryCard('fa-line-chart', 'Avg Click Rate', avgClickRate + '%', avgClickRate > 25 ? '#e74c3c' : '#2ecc71')
+            );
+
+            $("#trendLoading").hide();
+            $("#trendContent").show();
+        })
+        .fail(function () {
+            $("#trendLoading").hide();
+            errorFlash("Failed to load trend data.");
+        });
+}
+
 // ---- Overview tab ----
 function loadOverview() {
     if (tabsLoaded['overview']) return;
@@ -128,41 +196,117 @@ function loadTraining() {
     $("#trainingLoading").show();
     $("#trainingContent").hide();
 
-    api.reports.trainingSummary()
-        .done(function (data) {
-            tabsLoaded['training'] = true;
-            var cards = renderSummaryCard('fa-graduation-cap', 'Total Courses', data.total_courses, '#9b59b6') +
-                renderSummaryCard('fa-tasks', 'Assignments', data.total_assignments, '#3498db') +
-                renderSummaryCard('fa-check-circle', 'Completed', data.completed_count, '#2ecc71') +
-                renderSummaryCard('fa-certificate', 'Certificates', data.certificates_issued, '#f39c12');
-            $("#trainingCards").html(cards);
+    // Load both legacy training summary and new analytics in parallel
+    $.when(
+        api.reports.trainingSummary(),
+        api.trainingSatisfaction ? api.trainingSatisfaction.analytics() : $.Deferred().resolve({})
+    ).done(function (summaryResp, analyticsResp) {
+        tabsLoaded['training'] = true;
+        var data = summaryResp[0] || summaryResp;
+        var analytics = analyticsResp[0] || analyticsResp || {};
 
-            // Status donut
-            renderPieChart('trainingStatusChart', 'Assignment Status', [
-                { name: 'Completed', y: data.completed_count },
-                { name: 'In Progress', y: data.in_progress_count },
-                { name: 'Not Started', y: data.not_started_count },
-                { name: 'Overdue', y: data.overdue_count }
-            ], ['#2ecc71', '#3498db', '#95a5a6', '#e74c3c']);
+        // Summary cards — enhanced with satisfaction and quiz pass rate
+        var satisfactionDisplay = analytics.satisfaction && analytics.satisfaction.average_score > 0
+            ? analytics.satisfaction.average_score.toFixed(1) + ' / 5 ⭐'
+            : 'N/A';
+        var quizPassDisplay = analytics.quiz_pass_rate > 0 ? analytics.quiz_pass_rate.toFixed(0) + '%' : 'N/A';
+        var completionRateDisplay = analytics.completion_rate > 0 ? analytics.completion_rate.toFixed(0) + '%' : (data.completion_rate || '0') + '%';
 
-            // Metrics panel
-            var panel = '<div class="panel panel-default" style="margin-top:20px;">' +
-                '<div class="panel-heading"><strong>Training Metrics</strong></div>' +
-                '<div class="panel-body">' +
-                '<p><strong>Completion Rate:</strong> ' + data.completion_rate + '%</p>' +
-                '<div class="progress"><div class="progress-bar progress-bar-success" style="width:' + data.completion_rate + '%;"></div></div>' +
-                '<p><strong>Avg Quiz Score:</strong> ' + data.avg_quiz_score + '%</p>' +
-                '<p><strong>Overdue Assignments:</strong> <span style="color:' + (data.overdue_count > 0 ? '#e74c3c' : '#2ecc71') + '; font-weight:700;">' + data.overdue_count + '</span></p>' +
-                '</div></div>';
-            $("#trainingMetricsPanel").html(panel);
+        var cards = renderSummaryCard('fa-graduation-cap', 'Total Courses', analytics.total_courses || data.total_courses, '#9b59b6') +
+            renderSummaryCard('fa-check-circle', 'Completion Rate', completionRateDisplay, '#2ecc71') +
+            renderSummaryCard('fa-question-circle', 'Quiz Pass Rate', quizPassDisplay, '#e67e22') +
+            renderSummaryCard('fa-star', 'User Satisfaction', satisfactionDisplay, '#f39c12') +
+            renderSummaryCard('fa-tasks', 'Assignments', data.total_assignments, '#3498db') +
+            renderSummaryCard('fa-certificate', 'Certificates', data.certificates_issued, '#1abc9c');
+        $("#trainingCards").html(cards);
 
-            $("#trainingLoading").hide();
-            $("#trainingContent").show();
-        })
-        .fail(function () {
-            $("#trainingLoading").hide();
-            errorFlash("Failed to load training summary.");
-        });
+        // Status donut
+        renderPieChart('trainingStatusChart', 'Assignment Status', [
+            { name: 'Completed', y: data.completed_count },
+            { name: 'In Progress', y: data.in_progress_count },
+            { name: 'Not Started', y: data.not_started_count },
+            { name: 'Overdue', y: data.overdue_count }
+        ], ['#2ecc71', '#3498db', '#95a5a6', '#e74c3c']);
+
+        // Metrics panel — enhanced with satisfaction breakdown & per-course stats
+        var panel = '<div class="panel panel-default" style="margin-top:0;">' +
+            '<div class="panel-heading"><strong><i class="fa fa-bar-chart"></i> Training Analytics</strong></div>' +
+            '<div class="panel-body">';
+
+        // Completion rate bar
+        panel += '<p><strong>Completion Rate:</strong> ' + completionRateDisplay + '</p>' +
+            '<div class="progress" style="margin-bottom:14px;"><div class="progress-bar progress-bar-success" style="width:' + (analytics.completion_rate || data.completion_rate || 0) + '%;min-width:0%;"></div></div>';
+
+        // Quiz pass rate bar
+        if (analytics.quiz_pass_rate > 0) {
+            panel += '<p><strong>Quiz Pass Rate:</strong> ' + quizPassDisplay + '</p>' +
+                '<div class="progress" style="margin-bottom:14px;"><div class="progress-bar progress-bar-warning" style="width:' + analytics.quiz_pass_rate + '%;min-width:0%;"></div></div>';
+        }
+
+        // Satisfaction breakdown
+        if (analytics.satisfaction && analytics.satisfaction.total_ratings > 0) {
+            var sat = analytics.satisfaction;
+            panel += '<hr style="margin:12px 0;"/>';
+            panel += '<p><strong><i class="fa fa-star" style="color:#f39c12;"></i> User Satisfaction</strong> — ' +
+                sat.average_score.toFixed(1) + '/5 from ' + sat.total_ratings + ' rating' + (sat.total_ratings !== 1 ? 's' : '') + '</p>';
+            var satBars = [
+                { label: '5★', count: sat.star_5_count, color: '#27ae60' },
+                { label: '4★', count: sat.star_4_count, color: '#2ecc71' },
+                { label: '3★', count: sat.star_3_count, color: '#f39c12' },
+                { label: '2★', count: sat.star_2_count, color: '#e67e22' },
+                { label: '1★', count: sat.star_1_count, color: '#e74c3c' }
+            ];
+            satBars.forEach(function (b) {
+                var pct = sat.total_ratings > 0 ? (b.count / sat.total_ratings * 100) : 0;
+                panel += '<div style="display:flex; align-items:center; gap:6px; margin-bottom:3px;">' +
+                    '<span style="width:28px; text-align:right; font-size:12px; font-weight:600;">' + b.label + '</span>' +
+                    '<div style="flex:1; background:#eee; border-radius:4px; height:12px; overflow:hidden;">' +
+                    '<div style="width:' + pct.toFixed(0) + '%; height:100%; background:' + b.color + '; border-radius:4px;"></div>' +
+                    '</div>' +
+                    '<span style="width:28px; font-size:11px; color:#888;">' + b.count + '</span>' +
+                    '</div>';
+            });
+        }
+
+        // Overdue warning
+        if (data.overdue_count > 0) {
+            panel += '<hr style="margin:12px 0;"/>';
+            panel += '<p><strong>Overdue Assignments:</strong> <span style="color:#e74c3c; font-weight:700;">' + data.overdue_count + '</span></p>';
+        }
+
+        panel += '</div></div>';
+
+        // Per-course stats table
+        if (analytics.top_courses && analytics.top_courses.length > 0) {
+            panel += '<div class="panel panel-default" style="margin-top:16px;">' +
+                '<div class="panel-heading"><strong><i class="fa fa-list"></i> Per-Course Performance</strong></div>' +
+                '<div class="panel-body" style="padding:0;">' +
+                '<table class="table table-striped table-hover" style="margin:0;">' +
+                '<thead><tr>' +
+                '<th>Course</th><th>Enrollments</th><th>Completions</th><th>Completion Rate</th><th>Avg Rating</th>' +
+                '</tr></thead><tbody>';
+            analytics.top_courses.forEach(function (c) {
+                var rateColor = c.completion_rate >= 80 ? '#27ae60' : (c.completion_rate >= 50 ? '#f39c12' : '#e74c3c');
+                var ratingDisplay = c.avg_rating > 0 ? c.avg_rating.toFixed(1) + ' ⭐' : '—';
+                panel += '<tr>' +
+                    '<td>' + escapeHtml(c.name) + '</td>' +
+                    '<td>' + c.enrollments + '</td>' +
+                    '<td>' + c.completions + '</td>' +
+                    '<td><span style="color:' + rateColor + '; font-weight:600;">' + c.completion_rate.toFixed(0) + '%</span></td>' +
+                    '<td>' + ratingDisplay + '</td>' +
+                    '</tr>';
+            });
+            panel += '</tbody></table></div></div>';
+        }
+
+        $("#trainingMetricsPanel").html(panel);
+
+        $("#trainingLoading").hide();
+        $("#trainingContent").show();
+    }).fail(function () {
+        $("#trainingLoading").hide();
+        errorFlash("Failed to load training summary.");
+    });
 }
 
 // ---- Risk Assessment tab ----
@@ -367,10 +511,17 @@ $(document).ready(function () {
     // Lazy-load other tabs on first activation
     $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
         var target = $(e.target).attr('href');
-        if (target === '#groupsTab') loadGroups();
+        if (target === '#trendTab') loadTrend($("#trendDays").val());
+        else if (target === '#groupsTab') loadGroups();
         else if (target === '#trainingTab') loadTraining();
         else if (target === '#riskTab') loadRisk();
         else if (target === '#brsTab') loadBRS();
+    });
+
+    // Trend period change
+    $("#trendDays").on("change", function () {
+        tabsLoaded['trend'] = false;
+        loadTrend($(this).val());
     });
 
     // Recalculate button

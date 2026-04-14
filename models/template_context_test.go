@@ -19,6 +19,10 @@ func (m mockTemplateContext) getBaseURL() string {
 	return m.URL
 }
 
+func (m mockTemplateContext) getOrgId() int64 {
+	return 0
+}
+
 func (s *ModelsSuite) TestNewTemplateContext(c *check.C) {
 	r := Result{
 		BaseRecipient: BaseRecipient{
@@ -41,6 +45,8 @@ func (s *ModelsSuite) TestNewTemplateContext(c *check.C) {
 		RId:           r.RId,
 	}
 	expected.Tracker = "<img alt='' style='display: none' src='" + expected.TrackingURL + "'/>"
+	expected.QRCodeURL = fmt.Sprintf("%s/qr?rid=%s", ctx.URL, r.RId)
+	expected.QRCode = generateQRCodeTag(expected.URL)
 	got, err := NewPhishingTemplateContext(ctx, r.BaseRecipient, r.RId)
 	c.Assert(err, check.Equals, nil)
 	c.Assert(got, check.DeepEquals, expected)

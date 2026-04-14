@@ -11,30 +11,39 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// CampaignTypeEmail is the default campaign type for email phishing
+const CampaignTypeEmail = "email"
+
+// CampaignTypeSMS is the campaign type for SMS phishing (smishing)
+const CampaignTypeSMS = "sms"
+
 // Campaign is a struct representing a created campaign
 type Campaign struct {
-	Id            int64     `json:"id"`
-	UserId        int64     `json:"-"`
-	OrgId         int64     `json:"-" gorm:"column:org_id"`
-	Name          string    `json:"name" sql:"not null"`
-	CreatedDate   time.Time `json:"created_date"`
-	LaunchDate    time.Time `json:"launch_date"`
-	SendByDate    time.Time `json:"send_by_date"`
-	CompletedDate time.Time `json:"completed_date"`
-	TemplateId    int64     `json:"-"`
-	Template      Template  `json:"template"`
-	PageId        int64     `json:"-"`
-	Page          Page      `json:"page"`
-	Status        string    `json:"status"`
-	Results       []Result  `json:"results,omitempty"`
-	Groups        []Group   `json:"groups,omitempty"`
-	Events        []Event   `json:"timeline,omitempty"`
-	SMTPId        int64     `json:"-"`
-	SMTP                   SMTP   `json:"smtp"`
-	URL                    string `json:"url"`
-	TrainingPresentationId int64  `json:"training_presentation_id" gorm:"column:training_presentation_id"`
-	FeedbackEnabled        bool   `json:"feedback_enabled" gorm:"column:feedback_enabled"`
-	FeedbackPageId         int64  `json:"feedback_page_id" gorm:"column:feedback_page_id"`
+	Id                     int64       `json:"id"`
+	UserId                 int64       `json:"-"`
+	OrgId                  int64       `json:"-" gorm:"column:org_id"`
+	Name                   string      `json:"name" sql:"not null"`
+	CreatedDate            time.Time   `json:"created_date"`
+	LaunchDate             time.Time   `json:"launch_date"`
+	SendByDate             time.Time   `json:"send_by_date"`
+	CompletedDate          time.Time   `json:"completed_date"`
+	TemplateId             int64       `json:"-"`
+	Template               Template    `json:"template"`
+	PageId                 int64       `json:"-"`
+	Page                   Page        `json:"page"`
+	Status                 string      `json:"status"`
+	Results                []Result    `json:"results,omitempty"`
+	Groups                 []Group     `json:"groups,omitempty"`
+	Events                 []Event     `json:"timeline,omitempty"`
+	SMTPId                 int64       `json:"-"`
+	SMTP                   SMTP        `json:"smtp"`
+	URL                    string      `json:"url"`
+	TrainingPresentationId int64       `json:"training_presentation_id" gorm:"column:training_presentation_id"`
+	FeedbackEnabled        bool        `json:"feedback_enabled" gorm:"column:feedback_enabled"`
+	FeedbackPageId         int64       `json:"feedback_page_id" gorm:"column:feedback_page_id"`
+	CampaignType           string      `json:"campaign_type" gorm:"column:campaign_type"`
+	SMSProviderId          int64       `json:"-" gorm:"column:sms_provider_id"`
+	SMSProvider            SMSProvider `json:"sms_provider" sql:"-"`
 }
 
 // CampaignResults is a struct representing the results from a campaign
@@ -133,8 +142,20 @@ var ErrInvalidSendByDate = errors.New("The launch date must be before the \"send
 // RecipientParameter is the URL parameter that points to the result ID for a recipient.
 const RecipientParameter = "rid"
 
+// Query clause constants to avoid duplicate literals (S1192).
+const (
+	campaignQueryWhereStatus     = "status=?"
+	campaignQueryWhereCampaignID = "campaign_id=?"
+	campaignQueryWhereID         = "id = ?"
+	campaignDeletedPlaceholder   = "[Deleted]"
+)
+
 // Validate checks to make sure there are no invalid fields in a submitted campaign
 func (c *Campaign) Validate() error {
+	// Default to email campaign type if not specified
+	if c.CampaignType == "" {
+		c.CampaignType = CampaignTypeEmail
+	}
 	switch {
 	case c.Name == "":
 		return ErrCampaignNameNotSpecified
@@ -142,12 +163,22 @@ func (c *Campaign) Validate() error {
 		return ErrGroupNotSpecified
 	case c.Template.Name == "":
 		return ErrTemplateNotSpecified
-	case c.Page.Name == "":
-		return ErrPageNotSpecified
-	case c.SMTP.Name == "":
-		return ErrSMTPNotSpecified
 	case !c.SendByDate.IsZero() && !c.LaunchDate.IsZero() && c.SendByDate.Before(c.LaunchDate):
 		return ErrInvalidSendByDate
+	}
+	// Type-specific validation
+	if c.CampaignType == CampaignTypeSMS {
+		if c.SMSProvider.Name == "" {
+			return errors.New("No SMS provider specified")
+		}
+		// Page and SMTP are optional for SMS campaigns
+	} else {
+		if c.Page.Name == "" {
+			return ErrPageNotSpecified
+		}
+		if c.SMTP.Name == "" {
+			return ErrSMTPNotSpecified
+		}
 	}
 	return nil
 }
@@ -155,7 +186,17 @@ func (c *Campaign) Validate() error {
 // UpdateStatus changes the campaign status appropriately
 func (c *Campaign) UpdateStatus(s string) error {
 	// This could be made simpler, but I think there's a bug in gorm
-	return db.Table("campaigns").Where("id=?", c.Id).Update("status", s).Error
+	err := db.Table("campaigns").Where("id=?", c.Id).Update("status", s).Error
+	if err == nil {
+		evtType := WSEventCampaignProgress
+		if s == CampaignComplete {
+			evtType = WSEventCampaignCompleted
+		}
+		PublishCampaignEvent(c.OrgId, evtType, map[string]interface{}{
+			"campaign_id": c.Id, "name": c.Name, "status": s,
+		})
+	}
+	return err
 }
 
 // AddEvent creates a new campaign event in the database
@@ -180,54 +221,88 @@ func AddEvent(e *Event, campaignID int64) error {
 	return db.Save(e).Error
 }
 
+// loadOrDefault queries the given table for a record by id. If the record is
+// not found it returns gorm.ErrRecordNotFound (which the caller treats as
+// "deleted"). Any other error is returned as-is.
+func loadOrDefault(table string, id int64, out interface{}) error {
+	return db.Table(table).Where("id=?", id).Find(out).Error
+}
+
 // getDetails retrieves the related attributes of the campaign
 // from the database. If the Events and the Results are not available,
 // an error is returned. Otherwise, the attribute name is set to [Deleted],
 // indicating the user deleted the attribute (template, smtp, etc.)
 func (c *Campaign) getDetails() error {
-	err := db.Model(c).Related(&c.Results).Error
-	if err != nil {
+	if err := db.Model(c).Related(&c.Results).Error; err != nil {
 		log.Warnf("%s: results not found for campaign", err)
 		return err
 	}
-	err = db.Model(c).Related(&c.Events).Error
-	if err != nil {
+	if err := db.Model(c).Related(&c.Events).Error; err != nil {
 		log.Warnf("%s: events not found for campaign", err)
 		return err
 	}
-	err = db.Table("templates").Where("id=?", c.TemplateId).Find(&c.Template).Error
-	if err != nil {
-		if err != gorm.ErrRecordNotFound {
-			return err
-		}
-		c.Template = Template{Name: "[Deleted]"}
-		log.Warnf("%s: template not found for campaign", err)
-	}
-	err = db.Where("template_id=?", c.Template.Id).Find(&c.Template.Attachments).Error
-	if err != nil && err != gorm.ErrRecordNotFound {
-		log.Warn(err)
+	if err := c.loadTemplate(); err != nil {
 		return err
 	}
-	err = db.Table("pages").Where("id=?", c.PageId).Find(&c.Page).Error
-	if err != nil {
-		if err != gorm.ErrRecordNotFound {
-			return err
-		}
-		c.Page = Page{Name: "[Deleted]"}
-		log.Warnf("%s: page not found for campaign", err)
+	if err := c.loadPage(); err != nil {
+		return err
 	}
-	err = db.Table("smtp").Where("id=?", c.SMTPId).Find(&c.SMTP).Error
-	if err != nil {
-		// Check if the SMTP was deleted
-		if err != gorm.ErrRecordNotFound {
-			return err
-		}
-		c.SMTP = SMTP{Name: "[Deleted]"}
-		log.Warnf("%s: sending profile not found for campaign", err)
+	if err := c.loadSMTP(); err != nil {
+		return err
 	}
-	err = db.Where("smtp_id=?", c.SMTP.Id).Find(&c.SMTP.Headers).Error
+	return c.loadSMSProvider()
+}
+
+func (c *Campaign) loadTemplate() error {
+	err := loadOrDefault("templates", c.TemplateId, &c.Template)
+	if err == gorm.ErrRecordNotFound {
+		c.Template = Template{Name: campaignDeletedPlaceholder}
+		log.Warnf("%s: template not found for campaign", err)
+	} else if err != nil {
+		return err
+	}
+	err = db.Where(queryWhereTemplateID, c.Template.Id).Find(&c.Template.Attachments).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		log.Warn(err)
+		return err
+	}
+	return nil
+}
+
+func (c *Campaign) loadPage() error {
+	err := loadOrDefault("pages", c.PageId, &c.Page)
+	if err == gorm.ErrRecordNotFound {
+		c.Page = Page{Name: campaignDeletedPlaceholder}
+		log.Warnf("%s: page not found for campaign", err)
+	} else if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Campaign) loadSMTP() error {
+	err := loadOrDefault("smtp", c.SMTPId, &c.SMTP)
+	if err == gorm.ErrRecordNotFound {
+		c.SMTP = SMTP{Name: campaignDeletedPlaceholder}
+		log.Warnf("%s: sending profile not found for campaign", err)
+	} else if err != nil {
+		return err
+	}
+	err = db.Where(queryWhereSMTPID, c.SMTP.Id).Find(&c.SMTP.Headers).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return err
+	}
+	return nil
+}
+
+func (c *Campaign) loadSMSProvider() error {
+	if c.CampaignType != CampaignTypeSMS || c.SMSProviderId <= 0 {
+		return nil
+	}
+	err := loadOrDefault("sms_providers", c.SMSProviderId, &c.SMSProvider)
+	if err == gorm.ErrRecordNotFound {
+		c.SMSProvider = SMSProvider{Name: campaignDeletedPlaceholder}
+		log.Warnf("%s: sms provider not found for campaign", err)
+	} else if err != nil {
 		return err
 	}
 	return nil
@@ -243,6 +318,12 @@ func (c *Campaign) getBaseURL() string {
 // This is used to implement the TemplateContext interface.
 func (c *Campaign) getFromAddress() string {
 	return c.SMTP.FromAddress
+}
+
+// getOrgId returns the Campaign's organization ID.
+// This is used to implement the TemplateContext interface.
+func (c *Campaign) getOrgId() int64 {
+	return c.OrgId
 }
 
 // generateSendDate creates a sendDate
@@ -275,33 +356,33 @@ func getCampaignStats(cid int64) (CampaignStats, error) {
 	if err != nil {
 		return s, err
 	}
-	query.Where("status=?", EventDataSubmit).Count(&s.SubmittedData)
+	err = query.Where(campaignQueryWhereStatus, EventDataSubmit).Count(&s.SubmittedData).Error
 	if err != nil {
 		return s, err
 	}
-	query.Where("status=?", EventClicked).Count(&s.ClickedLink)
+	err = query.Where(campaignQueryWhereStatus, EventClicked).Count(&s.ClickedLink).Error
 	if err != nil {
 		return s, err
 	}
-	query.Where("reported=?", true).Count(&s.EmailReported)
+	err = query.Where("reported=?", true).Count(&s.EmailReported).Error
 	if err != nil {
 		return s, err
 	}
 	// Every submitted data event implies they clicked the link
 	s.ClickedLink += s.SubmittedData
-	err = query.Where("status=?", EventOpened).Count(&s.OpenedEmail).Error
+	err = query.Where(campaignQueryWhereStatus, EventOpened).Count(&s.OpenedEmail).Error
 	if err != nil {
 		return s, err
 	}
 	// Every clicked link event implies they opened the email
 	s.OpenedEmail += s.ClickedLink
-	err = query.Where("status=?", EventSent).Count(&s.EmailsSent).Error
+	err = query.Where(campaignQueryWhereStatus, EventSent).Count(&s.EmailsSent).Error
 	if err != nil {
 		return s, err
 	}
 	// Every opened email event implies the email was sent
 	s.EmailsSent += s.OpenedEmail
-	err = query.Where("status=?", Error).Count(&s.Error).Error
+	err = query.Where(campaignQueryWhereStatus, Error).Count(&s.Error).Error
 	return s, err
 }
 
@@ -349,7 +430,7 @@ func GetCampaignSummaries(scope OrgScope) (CampaignSummaries, error) {
 // GetCampaignSummary gets the summary object for a campaign specified by the campaign ID
 func GetCampaignSummary(id int64, scope OrgScope) (CampaignSummary, error) {
 	cs := CampaignSummary{}
-	query := scopeQuery(db.Table("campaigns").Where("id = ?", id), scope)
+	query := scopeQuery(db.Table("campaigns").Where(campaignQueryWhereID, id), scope)
 	query = query.Select("id, name, created_date, launch_date, send_by_date, completed_date, status")
 	err := query.Scan(&cs).Error
 	if err != nil {
@@ -374,33 +455,45 @@ func GetCampaignSummary(id int64, scope OrgScope) (CampaignSummary, error) {
 // ref: #1726
 func GetCampaignMailContext(id int64, uid int64) (Campaign, error) {
 	c := Campaign{}
-	err := db.Where("id = ?", id).Where("user_id = ?", uid).Find(&c).Error
+	err := db.Where(campaignQueryWhereID, id).Where("user_id = ?", uid).Find(&c).Error
 	if err != nil {
 		return c, err
 	}
-	err = db.Table("smtp").Where("id=?", c.SMTPId).Find(&c.SMTP).Error
-	if err != nil {
+	if err := loadMailContextSendingProfile(&c); err != nil {
 		return c, err
 	}
-	err = db.Where("smtp_id=?", c.SMTP.Id).Find(&c.SMTP.Headers).Error
-	if err != nil && err != gorm.ErrRecordNotFound {
+	if err := loadOrDefault("templates", c.TemplateId, &c.Template); err != nil {
 		return c, err
 	}
-	err = db.Table("templates").Where("id=?", c.TemplateId).Find(&c.Template).Error
-	if err != nil {
-		return c, err
-	}
-	err = db.Where("template_id=?", c.Template.Id).Find(&c.Template.Attachments).Error
+	err = db.Where(queryWhereTemplateID, c.Template.Id).Find(&c.Template.Attachments).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return c, err
 	}
 	return c, nil
 }
 
+// loadMailContextSendingProfile loads either the SMS provider or SMTP profile for a campaign.
+func loadMailContextSendingProfile(c *Campaign) error {
+	if c.CampaignType == CampaignTypeSMS {
+		if c.SMSProviderId > 0 {
+			return loadOrDefault("sms_providers", c.SMSProviderId, &c.SMSProvider)
+		}
+		return nil
+	}
+	if err := loadOrDefault("smtp", c.SMTPId, &c.SMTP); err != nil {
+		return err
+	}
+	err := db.Where(queryWhereSMTPID, c.SMTP.Id).Find(&c.SMTP.Headers).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return err
+	}
+	return nil
+}
+
 // GetCampaign returns the campaign, if it exists, specified by the given id and org scope.
 func GetCampaign(id int64, scope OrgScope) (Campaign, error) {
 	c := Campaign{}
-	err := scopeQuery(db.Where("id = ?", id), scope).Find(&c).Error
+	err := scopeQuery(db.Where(campaignQueryWhereID, id), scope).Find(&c).Error
 	if err != nil {
 		log.Errorf("%s: campaign not found", err)
 		return c, err
@@ -420,12 +513,12 @@ func GetCampaignResults(id int64, scope OrgScope) (CampaignResults, error) {
 		}).Error(err)
 		return cr, err
 	}
-	err = db.Table("results").Where("campaign_id=?", cr.Id).Find(&cr.Results).Error
+	err = db.Table("results").Where(campaignQueryWhereCampaignID, cr.Id).Find(&cr.Results).Error
 	if err != nil {
 		log.Errorf("%s: results not found for campaign", err)
 		return cr, err
 	}
-	err = db.Table("events").Where("campaign_id=?", cr.Id).Find(&cr.Events).Error
+	err = db.Table("events").Where(campaignQueryWhereCampaignID, cr.Id).Find(&cr.Events).Error
 	if err != nil {
 		log.Errorf("%s: events not found for campaign", err)
 		return cr, err
@@ -453,11 +546,34 @@ func GetQueuedCampaigns(t time.Time) ([]Campaign, error) {
 
 // PostCampaign inserts a campaign and all associated records into the database.
 func PostCampaign(c *Campaign, scope OrgScope) error {
-	err := c.Validate()
+	if err := c.Validate(); err != nil {
+		return err
+	}
+	initCampaignDefaults(c, scope)
+
+	totalRecipients, err := resolveGroups(c, scope)
 	if err != nil {
 		return err
 	}
-	// Fill in the details
+	if err := resolveTemplate(c, scope); err != nil {
+		return err
+	}
+	if err := resolveSendingResources(c, scope); err != nil {
+		return err
+	}
+	// Insert into the DB
+	if err := db.Save(c).Error; err != nil {
+		log.Error(err)
+		return err
+	}
+	if err := AddEvent(&Event{Message: "Campaign Created"}, c.Id); err != nil {
+		log.Error(err)
+	}
+	return insertCampaignResults(c, totalRecipients)
+}
+
+// initCampaignDefaults fills in default values for a new campaign.
+func initCampaignDefaults(c *Campaign, scope OrgScope) {
 	c.UserId = scope.UserId
 	c.OrgId = scope.OrgId
 	c.CreatedDate = time.Now().UTC()
@@ -474,29 +590,31 @@ func PostCampaign(c *Campaign, scope OrgScope) error {
 	if c.LaunchDate.Before(c.CreatedDate) || c.LaunchDate.Equal(c.CreatedDate) {
 		c.Status = CampaignInProgress
 	}
-	// Check to make sure all the groups already exist
-	// Also, later we'll need to know the total number of recipients (counting
-	// duplicates is ok for now), so we'll do that here to save a loop.
+}
+
+// resolveGroups validates and loads all groups, returning the total recipient count.
+func resolveGroups(c *Campaign, scope OrgScope) (int, error) {
 	totalRecipients := 0
 	for i, g := range c.Groups {
-		c.Groups[i], err = GetGroupByName(g.Name, scope)
+		resolved, err := GetGroupByName(g.Name, scope)
 		if err == gorm.ErrRecordNotFound {
-			log.WithFields(logrus.Fields{
-				"group": g.Name,
-			}).Error("Group does not exist")
-			return ErrGroupNotFound
+			log.WithFields(logrus.Fields{"group": g.Name}).Error("Group does not exist")
+			return 0, ErrGroupNotFound
 		} else if err != nil {
 			log.Error(err)
-			return err
+			return 0, err
 		}
-		totalRecipients += len(c.Groups[i].Targets)
+		c.Groups[i] = resolved
+		totalRecipients += len(resolved.Targets)
 	}
-	// Check to make sure the template exists
+	return totalRecipients, nil
+}
+
+// resolveTemplate validates and loads the campaign template.
+func resolveTemplate(c *Campaign, scope OrgScope) error {
 	t, err := GetTemplateByName(c.Template.Name, scope)
 	if err == gorm.ErrRecordNotFound {
-		log.WithFields(logrus.Fields{
-			"template": c.Template.Name,
-		}).Error("Template does not exist")
+		log.WithFields(logrus.Fields{"template": c.Template.Name}).Error("Template does not exist")
 		return ErrTemplateNotFound
 	} else if err != nil {
 		log.Error(err)
@@ -504,25 +622,41 @@ func PostCampaign(c *Campaign, scope OrgScope) error {
 	}
 	c.Template = t
 	c.TemplateId = t.Id
-	// Check to make sure the page exists
-	p, err := GetPageByName(c.Page.Name, scope)
+	return nil
+}
+
+// resolveSendingResources loads the SMS provider or page+SMTP for the campaign type.
+func resolveSendingResources(c *Campaign, scope OrgScope) error {
+	if c.CampaignType == CampaignTypeSMS {
+		return resolveSMSResources(c, scope)
+	}
+	return resolveEmailResources(c, scope)
+}
+
+func resolveSMSResources(c *Campaign, scope OrgScope) error {
+	sp, err := GetSMSProviderByName(c.SMSProvider.Name, scope)
 	if err == gorm.ErrRecordNotFound {
-		log.WithFields(logrus.Fields{
-			"page": c.Page.Name,
-		}).Error("Page does not exist")
-		return ErrPageNotFound
+		log.WithFields(logrus.Fields{"sms_provider": c.SMSProvider.Name}).Error("SMS provider does not exist")
+		return ErrSMSProviderNotFound
 	} else if err != nil {
 		log.Error(err)
 		return err
 	}
-	c.Page = p
-	c.PageId = p.Id
-	// Check to make sure the sending profile exists
+	c.SMSProvider = sp
+	c.SMSProviderId = sp.Id
+	if c.Page.Name != "" {
+		return resolvePageByName(c, scope)
+	}
+	return nil
+}
+
+func resolveEmailResources(c *Campaign, scope OrgScope) error {
+	if err := resolvePageByName(c, scope); err != nil {
+		return err
+	}
 	s, err := GetSMTPByName(c.SMTP.Name, scope)
 	if err == gorm.ErrRecordNotFound {
-		log.WithFields(logrus.Fields{
-			"smtp": c.SMTP.Name,
-		}).Error("Sending profile does not exist")
+		log.WithFields(logrus.Fields{"smtp": c.SMTP.Name}).Error("Sending profile does not exist")
 		return ErrSMTPNotFound
 	} else if err != nil {
 		log.Error(err)
@@ -530,80 +664,39 @@ func PostCampaign(c *Campaign, scope OrgScope) error {
 	}
 	c.SMTP = s
 	c.SMTPId = s.Id
-	// Insert into the DB
-	err = db.Save(c).Error
-	if err != nil {
+	return nil
+}
+
+func resolvePageByName(c *Campaign, scope OrgScope) error {
+	p, err := GetPageByName(c.Page.Name, scope)
+	if err == gorm.ErrRecordNotFound {
+		log.WithFields(logrus.Fields{"page": c.Page.Name}).Error("Page does not exist")
+		return ErrPageNotFound
+	} else if err != nil {
 		log.Error(err)
 		return err
 	}
-	err = AddEvent(&Event{Message: "Campaign Created"}, c.Id)
-	if err != nil {
-		log.Error(err)
-	}
-	// Insert all the results
+	c.Page = p
+	c.PageId = p.Id
+	return nil
+}
+
+// insertCampaignResults creates results and maillogs for every recipient.
+func insertCampaignResults(c *Campaign, totalRecipients int) error {
 	resultMap := make(map[string]bool)
 	recipientIndex := 0
 	tx := db.Begin()
 	for _, g := range c.Groups {
-		// Insert a result for each target in the group
 		for _, t := range g.Targets {
-			// Remove duplicate results - we should only
-			// send emails to unique email addresses.
-			if _, ok := resultMap[t.Email]; ok {
+			dedupeKey := t.Email
+			if c.CampaignType == CampaignTypeSMS {
+				dedupeKey = t.Phone
+			}
+			if resultMap[dedupeKey] {
 				continue
 			}
-			resultMap[t.Email] = true
-			sendDate := c.generateSendDate(recipientIndex, totalRecipients)
-			r := &Result{
-				BaseRecipient: BaseRecipient{
-					Email:     t.Email,
-					Position:  t.Position,
-					FirstName: t.FirstName,
-					LastName:  t.LastName,
-				},
-				Status:       StatusScheduled,
-				CampaignId:   c.Id,
-				UserId:       c.UserId,
-				SendDate:     sendDate,
-				Reported:     false,
-				ModifiedDate: c.CreatedDate,
-			}
-			err = r.GenerateId(tx)
-			if err != nil {
-				log.Error(err)
-				tx.Rollback()
-				return err
-			}
-			processing := false
-			if r.SendDate.Before(c.CreatedDate) || r.SendDate.Equal(c.CreatedDate) {
-				r.Status = StatusSending
-				processing = true
-			}
-			err = tx.Save(r).Error
-			if err != nil {
-				log.WithFields(logrus.Fields{
-					"email": t.Email,
-				}).Errorf("error creating result: %v", err)
-				tx.Rollback()
-				return err
-			}
-			c.Results = append(c.Results, *r)
-			log.WithFields(logrus.Fields{
-				"email":     r.Email,
-				"send_date": sendDate,
-			}).Debug("creating maillog")
-			m := &MailLog{
-				UserId:     c.UserId,
-				CampaignId: c.Id,
-				RId:        r.RId,
-				SendDate:   sendDate,
-				Processing: processing,
-			}
-			err = tx.Save(m).Error
-			if err != nil {
-				log.WithFields(logrus.Fields{
-					"email": t.Email,
-				}).Errorf("error creating maillog entry: %v", err)
+			resultMap[dedupeKey] = true
+			if err := insertSingleResult(tx, c, t, recipientIndex, totalRecipients); err != nil {
 				tx.Rollback()
 				return err
 			}
@@ -613,23 +706,58 @@ func PostCampaign(c *Campaign, scope OrgScope) error {
 	return tx.Commit().Error
 }
 
+func insertSingleResult(tx *gorm.DB, c *Campaign, t Target, idx, total int) error {
+	sendDate := c.generateSendDate(idx, total)
+	r := &Result{
+		BaseRecipient: BaseRecipient{
+			Email: t.Email, Position: t.Position,
+			FirstName: t.FirstName, LastName: t.LastName, Phone: t.Phone,
+		},
+		Status: StatusScheduled, CampaignId: c.Id, UserId: c.UserId,
+		SendDate: sendDate, Reported: false, ModifiedDate: c.CreatedDate,
+	}
+	if err := r.GenerateId(tx); err != nil {
+		log.Error(err)
+		return err
+	}
+	processing := false
+	if r.SendDate.Before(c.CreatedDate) || r.SendDate.Equal(c.CreatedDate) {
+		r.Status = StatusSending
+		processing = true
+	}
+	if err := tx.Save(r).Error; err != nil {
+		log.WithFields(logrus.Fields{"email": t.Email}).Errorf("error creating result: %v", err)
+		return err
+	}
+	c.Results = append(c.Results, *r)
+	m := &MailLog{
+		UserId: c.UserId, CampaignId: c.Id, RId: r.RId,
+		SendDate: sendDate, Processing: processing,
+	}
+	if err := tx.Save(m).Error; err != nil {
+		log.WithFields(logrus.Fields{"email": t.Email}).Errorf("error creating maillog entry: %v", err)
+		return err
+	}
+	return nil
+}
+
 // DeleteCampaign deletes the specified campaign
 func DeleteCampaign(id int64) error {
 	log.WithFields(logrus.Fields{
 		"campaign_id": id,
 	}).Info("Deleting campaign")
 	// Delete all the campaign results
-	err := db.Where("campaign_id=?", id).Delete(&Result{}).Error
+	err := db.Where(campaignQueryWhereCampaignID, id).Delete(&Result{}).Error
 	if err != nil {
 		log.Error(err)
 		return err
 	}
-	err = db.Where("campaign_id=?", id).Delete(&Event{}).Error
+	err = db.Where(campaignQueryWhereCampaignID, id).Delete(&Event{}).Error
 	if err != nil {
 		log.Error(err)
 		return err
 	}
-	err = db.Where("campaign_id=?", id).Delete(&MailLog{}).Error
+	err = db.Where(campaignQueryWhereCampaignID, id).Delete(&MailLog{}).Error
 	if err != nil {
 		log.Error(err)
 		return err
@@ -653,7 +781,7 @@ func CompleteCampaign(id int64, scope OrgScope) error {
 		return err
 	}
 	// Delete any maillogs still set to be sent out, preventing future emails
-	err = db.Where("campaign_id=?", id).Delete(&MailLog{}).Error
+	err = db.Where(campaignQueryWhereCampaignID, id).Delete(&MailLog{}).Error
 	if err != nil {
 		log.Error(err)
 		return err

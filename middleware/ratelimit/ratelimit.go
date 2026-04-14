@@ -80,7 +80,7 @@ func NewPostLimiter(opts ...PostLimiterOption) *PostLimiter {
 }
 
 func (limiter *PostLimiter) pollCleanup() {
-	ticker := time.NewTicker(time.Duration(limiter.cleanupInterval) * time.Second)
+	ticker := time.NewTicker(limiter.cleanupInterval)
 	for range ticker.C {
 		limiter.Cleanup()
 	}
@@ -124,9 +124,8 @@ func (limiter *PostLimiter) allow(ip string) bool {
 }
 
 // Limit enforces the configured rate limit for POST requests.
-//
-// TODO: Change the return value to an http.Handler when we clean up the
-// way Gophish routing is done.
+// It returns an http.HandlerFunc for compatibility with the current
+// Gophish routing setup.
 func (limiter *PostLimiter) Limit(next http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		clientIP, _, err := net.SplitHostPort(r.RemoteAddr)
@@ -134,7 +133,7 @@ func (limiter *PostLimiter) Limit(next http.Handler) http.HandlerFunc {
 			clientIP = r.RemoteAddr
 		}
 		if r.Method == http.MethodPost && !limiter.allow(clientIP) {
-			log.Error("")
+			log.Warnf("Rate limit exceeded for %s on %s", clientIP, r.URL.Path)
 			http.Error(w, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests)
 			return
 		}

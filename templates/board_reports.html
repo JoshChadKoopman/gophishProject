@@ -1,0 +1,123 @@
+{{define "body"}}
+<div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+    <div class="page-header">
+        <h1>
+            <i class="fa fa-briefcase"></i> Board Reports
+            {{if .ViewReports}}
+            <button class="btn btn-primary pull-right" id="newReportBtn">
+                <i class="fa fa-plus"></i> New Board Report
+            </button>
+            <button class="btn btn-default pull-right" id="previewBtn" style="margin-right:8px;">
+                <i class="fa fa-eye"></i> Quick Preview
+            </button>
+            {{end}}
+        </h1>
+    </div>
+    <div id="flashes" class="row"></div>
+
+    <!-- Quick Preview Panel -->
+    <div id="previewPanel" style="display:none;">
+        <div class="panel panel-info">
+            <div class="panel-heading">
+                <h3 class="panel-title"><i class="fa fa-eye"></i> Live Preview — Executive Summary
+                    <button class="btn btn-xs btn-default pull-right" id="closePreview"><i class="fa fa-times"></i></button>
+                </h3>
+            </div>
+            <div class="panel-body" id="previewContent">
+                <p class="text-muted"><i class="fa fa-spinner fa-spin"></i> Generating snapshot...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Saved Reports Table -->
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <h3 class="panel-title"><i class="fa fa-list"></i> Saved Reports</h3>
+        </div>
+        <div class="panel-body" style="padding:0;">
+            <table class="table table-hover table-striped" id="reportsTable" style="margin:0;">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Period</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="reportsBody"></tbody>
+            </table>
+        </div>
+    </div>
+    <div id="reportsEmpty" style="display:none; text-align:center; padding:40px 0; color:#999;">
+        <i class="fa fa-briefcase fa-3x"></i>
+        <h3>No board reports yet.</h3>
+        <p>Create a new board report to generate executive-level summaries of your security posture.</p>
+    </div>
+
+    <!-- Report Detail Modal -->
+    <div class="modal fade" id="reportDetailModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                    <h4 class="modal-title" id="reportDetailTitle">Board Report</h4>
+                </div>
+                <div class="modal-body" id="reportDetailBody">
+                    <p class="text-muted"><i class="fa fa-spinner fa-spin"></i> Loading...</p>
+                </div>
+                <div class="modal-footer">
+                    <div class="btn-group">
+                        <a class="btn btn-primary" id="exportPDF" target="_blank"><i class="fa fa-file-pdf-o"></i> Export PDF</a>
+                        <a class="btn btn-success" id="exportXLSX" target="_blank"><i class="fa fa-file-excel-o"></i> Export XLSX</a>
+                        <a class="btn btn-default" id="exportCSV" target="_blank"><i class="fa fa-download"></i> Export CSV</a>
+                    </div>
+                    <button class="btn btn-default" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Report Modal -->
+    <div class="modal fade" id="newReportModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                    <h4 class="modal-title"><i class="fa fa-plus"></i> Create Board Report</h4>
+                </div>
+                <div class="modal-body">
+                    <form id="newReportForm">
+                        <div class="form-group">
+                            <label for="reportTitle">Report Title</label>
+                            <input type="text" class="form-control" id="reportTitle" placeholder="e.g. Q1 2026 Security Posture Report" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="reportStart">Period Start</label>
+                                    <input type="date" class="form-control" id="reportStart">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="reportEnd">Period End</label>
+                                    <input type="date" class="form-control" id="reportEnd">
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-default" data-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" id="saveReportBtn"><i class="fa fa-save"></i> Create Report</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{{end}}
+
+{{define "scripts"}}
+<script src="/js/dist/app/board_reports.min.js"></script>
+{{end}}

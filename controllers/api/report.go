@@ -15,7 +15,7 @@ import (
 // ReportOverview handles GET /api/reports/overview
 func (as *Server) ReportOverview(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	overview, err := models.GetReportOverview(getOrgScope(r))
@@ -30,7 +30,7 @@ func (as *Server) ReportOverview(w http.ResponseWriter, r *http.Request) {
 // ReportTrend handles GET /api/reports/trend?days=30
 func (as *Server) ReportTrend(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	days := 30
@@ -51,7 +51,7 @@ func (as *Server) ReportTrend(w http.ResponseWriter, r *http.Request) {
 // ReportRiskScores handles GET /api/reports/risk-scores
 func (as *Server) ReportRiskScores(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	scores, err := models.GetRiskScores(getOrgScope(r))
@@ -66,7 +66,7 @@ func (as *Server) ReportRiskScores(w http.ResponseWriter, r *http.Request) {
 // ReportTrainingSummary handles GET /api/reports/training-summary
 func (as *Server) ReportTrainingSummary(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	summary, err := models.GetTrainingSummaryReport(getOrgScope(r))
@@ -81,7 +81,7 @@ func (as *Server) ReportTrainingSummary(w http.ResponseWriter, r *http.Request) 
 // ReportGroupComparison handles GET /api/reports/group-comparison
 func (as *Server) ReportGroupComparison(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	comparisons, err := models.GetGroupComparison(getOrgScope(r))
@@ -107,7 +107,7 @@ func sanitizeCSVField(s string) string {
 // ReportExport handles GET /api/reports/export?type=X&format=csv
 func (as *Server) ReportExport(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	scope := getOrgScope(r)
@@ -115,11 +115,19 @@ func (as *Server) ReportExport(w http.ResponseWriter, r *http.Request) {
 	format := r.URL.Query().Get("format")
 
 	if format == "pdf" {
+		if reportType == "compliance" {
+			as.complianceExportPDF(w, scope)
+			return
+		}
 		as.reportExportPDF(w, r, scope, reportType)
 		return
 	}
+	if format == "xlsx" {
+		as.ReportExportExcel(w, r, scope, reportType)
+		return
+	}
 	if format != "csv" {
-		JSONResponse(w, models.Response{Success: false, Message: "Unsupported format. Use 'csv' or 'pdf'."}, http.StatusBadRequest)
+		JSONResponse(w, models.Response{Success: false, Message: "Unsupported format. Use 'csv', 'xlsx', or 'pdf'."}, http.StatusBadRequest)
 		return
 	}
 
@@ -212,8 +220,12 @@ func (as *Server) ReportExport(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 
+	case "compliance":
+		as.complianceExportCSV(w, scope)
+		return
+
 	default:
-		http.Error(w, "Unknown report type. Use: overview, risk-scores, training, groups", http.StatusBadRequest)
+		http.Error(w, "Unknown report type. Use: overview, risk-scores, training, groups, compliance", http.StatusBadRequest)
 		return
 	}
 }
@@ -261,6 +273,10 @@ func (as *Server) reportExportPDF(w http.ResponseWriter, r *http.Request, scope 
 		as.pdfTraining(pdf, scope)
 	case "groups":
 		as.pdfGroups(pdf, scope)
+	case "compliance":
+		// Compliance has its own PDF generator
+		as.complianceExportPDF(w, scope)
+		return
 	default:
 		http.Error(w, "Unknown report type", http.StatusBadRequest)
 		return

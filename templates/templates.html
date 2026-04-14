@@ -9,6 +9,8 @@
     <div class="row">
         <button type="button" class="btn btn-primary" onclick="edit(-1)" data-toggle="modal" data-backdrop="static"
             data-target="#modal"><i class="fa fa-plus"></i> New Template</button>
+        <button type="button" class="btn btn-info" data-toggle="modal" data-backdrop="static"
+            data-target="#libraryModal"><i class="fa fa-book"></i> Browse Library</button>
         {{if index .OrgFeatures "ai_templates"}}
         <button type="button" class="btn btn-success" data-toggle="modal" data-backdrop="static"
             data-target="#aiGenerateModal"><i class="fa fa-magic"></i> Generate with AI</button>
@@ -214,6 +216,42 @@
                 <button type="button" class="btn btn-success" id="aiGenerateAndSave" title="Generate and save directly">
                     <i class="fa fa-magic"></i> Generate &amp; Save
                 </button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Template Library Modal -->
+<div class="modal fade" id="libraryModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title"><i class="fa fa-book"></i> Template Library</h4>
+            </div>
+            <div class="modal-body">
+                <div id="libraryFlashes" class="row"></div>
+                <div class="row" style="margin-bottom:15px">
+                    <div class="col-md-6">
+                        <select id="libCategoryFilter" class="form-control">
+                            <option value="">All Categories</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <select id="libDifficultyFilter" class="form-control">
+                            <option value="">All Difficulties</option>
+                            <option value="1">1 - Easy</option>
+                            <option value="2">2 - Medium</option>
+                            <option value="3">3 - Hard</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="libraryLoading" style="text-align:center;padding:30px">
+                    <i class="fa fa-spinner fa-spin fa-2x"></i>
+                </div>
+                <div id="libraryGrid" class="row" style="display:none; max-height:500px; overflow-y:auto;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" data-dismiss="modal" class="btn btn-default">Close</button>
             </div>
         </div>
     </div>

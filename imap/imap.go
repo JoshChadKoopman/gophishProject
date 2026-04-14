@@ -145,21 +145,25 @@ func (mbox *Mailbox) GetUnread(markAsRead, delete bool) ([]Email, error) {
 	items := []imap.FetchItem{imap.FetchEnvelope, imap.FetchFlags, imap.FetchInternalDate, section.FetchItem()}
 	messages := make(chan *imap.Message)
 
+	// Use a channel to propagate fetch errors back to the caller.
+	fetchErr := make(chan error, 1)
 	go func() {
 		if err := imapClient.Fetch(seqset, items, messages); err != nil {
-			log.Error("Error fetching emails: ", err.Error()) // TODO: How to handle this, need to propogate error out
+			log.Error("Error fetching emails: ", err.Error())
+			fetchErr <- err
 		}
+		close(fetchErr)
 	}()
 
 	// Step through each email
 	for msg := range messages {
-		// Extract raw message body. I can't find a better way to do this with the emersion library
+		// Extract raw message body
 		var em *email.Email
 		var buf []byte
 		for _, value := range msg.Body {
 			buf = make([]byte, value.Len())
 			value.Read(buf)
-			break // There should only ever be one item in this map, but I'm not 100% sure
+			break
 		}
 
 		//Remove CR characters, see https://github.com/jordan-wright/email/issues/106
@@ -174,10 +178,16 @@ func (mbox *Mailbox) GetUnread(markAsRead, delete bool) ([]Email, error) {
 			return emails, err
 		}
 
-		emtmp := Email{Email: em, SeqNum: msg.SeqNum} // Not sure why msg.Uid is always 0, so swapped to sequence numbers
+		emtmp := Email{Email: em, SeqNum: msg.SeqNum}
 		emails = append(emails, emtmp)
 
 	}
+
+	// Check if the background fetch goroutine encountered an error
+	if fErr := <-fetchErr; fErr != nil {
+		return emails, fmt.Errorf("error during IMAP fetch: %w", fErr)
+	}
+
 	return emails, nil
 }
 

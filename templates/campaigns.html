@@ -89,6 +89,11 @@
                 <div class="form-group">
                     <label for="name">Name:</label>
                     <input type="text" class="form-control" id="name" placeholder="Campaign name" autofocus>
+                    <label class="control-label" for="campaign_type">Campaign Type:</label>
+                    <select class="form-control" id="campaign_type">
+                        <option value="email">Email Phishing</option>
+                        <option value="sms">SMS Phishing (Smishing)</option>
+                    </select>
                     <label class="control-label" for="template">Email Template:</label>
                     <select class="form-control" placeholder="Template Name" id="template" />
                     <option></option>
@@ -123,6 +128,12 @@
                                 class="btn btn-primary button">
                                 <i class="fa fa-envelope"></i> Send Test Email</button>
                         </span>
+                    </div>
+                    <div id="sms_provider_group" style="display:none;">
+                        <label class="control-label" for="sms_provider">SMS Provider:</label>
+                        <select class="form-control" placeholder="SMS Provider" id="sms_provider">
+                            <option></option>
+                        </select>
                     </div>
                     <label class="control-label" for="users">Groups:</label>
                     <select class="form-control" id="users" multiple="multiple"></select>

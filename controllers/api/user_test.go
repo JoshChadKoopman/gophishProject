@@ -14,6 +14,16 @@ import (
 	"github.com/gophish/gophish/models"
 )
 
+// Shared test constants for user API tests.
+const (
+	userTestFmtUnexpectedCode = "unexpected error code received. expected %d got %d"
+	userTestEmail             = "foo@example.com"
+	userTestFmtMarshalErr     = "error marshaling userRequest payload: %v"
+	userTestFmtUnexpectedUser = "unexpected username received. expected %s got %s"
+	userTestURLFmt            = "/api/users/%d"
+	userTestBearerFmt         = "Bearer %s"
+)
+
 func createUnpriviledgedUser(t *testing.T, slug string) *models.User {
 	role, err := models.GetRoleBySlug(slug)
 	if err != nil {
@@ -42,7 +52,7 @@ func TestGetUsers(t *testing.T) {
 	testCtx.apiServer.Users(w, r)
 	expected := http.StatusOK
 	if w.Code != expected {
-		t.Fatalf("unexpected error code received. expected %d got %d", expected, w.Code)
+		t.Fatalf(userTestFmtUnexpectedCode, expected, w.Code)
 	}
 
 	got := []models.User{}
@@ -65,17 +75,17 @@ func TestGetUsers(t *testing.T) {
 func TestCreateUser(t *testing.T) {
 	testCtx := setupTest(t)
 	payload := &userRequest{
-		Username:  "foo@example.com",
+		Username:  userTestEmail,
 		Password:  "ValidPass1ok",
 		FirstName: "Foo",
 		LastName:  "Bar",
-		Email:     "foo@example.com",
+		Email:     userTestEmail,
 		Position:  "Analyst",
 		Role:      models.RoleUser,
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
-		t.Fatalf("error marshaling userRequest payload: %v", err)
+		t.Fatalf(userTestFmtMarshalErr, err)
 	}
 
 	r := httptest.NewRequest(http.MethodPost, "/api/users", bytes.NewBuffer(body))
@@ -86,7 +96,7 @@ func TestCreateUser(t *testing.T) {
 	testCtx.apiServer.Users(w, r)
 	expected := http.StatusOK
 	if w.Code != expected {
-		t.Fatalf("unexpected error code received. expected %d got %d", expected, w.Code)
+		t.Fatalf(userTestFmtUnexpectedCode, expected, w.Code)
 	}
 
 	got := &models.User{}
@@ -95,7 +105,7 @@ func TestCreateUser(t *testing.T) {
 		t.Fatalf("error decoding user payload: %v", err)
 	}
 	if got.Username != payload.Email {
-		t.Fatalf("unexpected username received. expected %s got %s", payload.Email, got.Username)
+		t.Fatalf(userTestFmtUnexpectedUser, payload.Email, got.Username)
 	}
 	if got.Role.Slug != payload.Role {
 		t.Fatalf("unexpected role received. expected %s got %s", payload.Role, got.Role.Slug)
@@ -120,12 +130,12 @@ func TestModifyUser(t *testing.T) {
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
-		t.Fatalf("error marshaling userRequest payload: %v", err)
+		t.Fatalf(userTestFmtMarshalErr, err)
 	}
-	url := fmt.Sprintf("/api/users/%d", unpriviledgedUser.Id)
+	url := fmt.Sprintf(userTestURLFmt, unpriviledgedUser.Id)
 	r := httptest.NewRequest(http.MethodPut, url, bytes.NewBuffer(body))
 	r.Header.Set("Content-Type", "application/json")
-	r.Header.Set("Authorization", fmt.Sprintf("Bearer %s", unpriviledgedUser.ApiKey))
+	r.Header.Set("Authorization", fmt.Sprintf(userTestBearerFmt, unpriviledgedUser.ApiKey))
 	w := httptest.NewRecorder()
 
 	testCtx.apiServer.ServeHTTP(w, r)
@@ -136,17 +146,17 @@ func TestModifyUser(t *testing.T) {
 	}
 	expected := http.StatusOK
 	if w.Code != expected {
-		t.Fatalf("unexpected error code received. expected %d got %d", expected, w.Code)
+		t.Fatalf(userTestFmtUnexpectedCode, expected, w.Code)
 	}
 	if response.Username != newEmail {
-		t.Fatalf("unexpected username received. expected %s got %s", newEmail, response.Username)
+		t.Fatalf(userTestFmtUnexpectedUser, newEmail, response.Username)
 	}
 	got, err := models.GetUser(unpriviledgedUser.Id)
 	if err != nil {
 		t.Fatalf("error getting unpriviledged user: %v", err)
 	}
 	if response.Username != got.Username {
-		t.Fatalf("unexpected username received. expected %s got %s", response.Username, got.Username)
+		t.Fatalf(userTestFmtUnexpectedUser, response.Username, got.Username)
 	}
 	err = bcrypt.CompareHashAndPassword([]byte(got.Hash), []byte(newPassword))
 	if err != nil {
@@ -166,13 +176,13 @@ func TestUnauthorizedListUsers(t *testing.T) {
 	// but we need to go through the router for this test to ensure the
 	// middleware gets applied.
 	r := httptest.NewRequest(http.MethodGet, "/api/users/", nil)
-	r.Header.Set("Authorization", fmt.Sprintf("Bearer %s", unauthorizedUser.ApiKey))
+	r.Header.Set("Authorization", fmt.Sprintf(userTestBearerFmt, unauthorizedUser.ApiKey))
 	w := httptest.NewRecorder()
 
 	testCtx.apiServer.ServeHTTP(w, r)
 	expected := http.StatusForbidden
 	if w.Code != expected {
-		t.Fatalf("unexpected error code received. expected %d got %d", expected, w.Code)
+		t.Fatalf(userTestFmtUnexpectedCode, expected, w.Code)
 	}
 }
 
@@ -183,15 +193,15 @@ func TestUnauthorizedGetUser(t *testing.T) {
 	// First, we'll make sure that a user with the "user" role is unable to
 	// get the information of another user (in this case, the main admin).
 	unauthorizedUser := createUnpriviledgedUser(t, models.RoleUser)
-	url := fmt.Sprintf("/api/users/%d", testCtx.admin.Id)
+	url := fmt.Sprintf(userTestURLFmt, testCtx.admin.Id)
 	r := httptest.NewRequest(http.MethodGet, url, nil)
-	r.Header.Set("Authorization", fmt.Sprintf("Bearer %s", unauthorizedUser.ApiKey))
+	r.Header.Set("Authorization", fmt.Sprintf(userTestBearerFmt, unauthorizedUser.ApiKey))
 	w := httptest.NewRecorder()
 
 	testCtx.apiServer.ServeHTTP(w, r)
 	expected := http.StatusForbidden
 	if w.Code != expected {
-		t.Fatalf("unexpected error code received. expected %d got %d", expected, w.Code)
+		t.Fatalf(userTestFmtUnexpectedCode, expected, w.Code)
 	}
 }
 
@@ -201,27 +211,27 @@ func TestUnauthorizedGetUser(t *testing.T) {
 func TestUnauthorizedSetRole(t *testing.T) {
 	testCtx := setupTest(t)
 	unauthorizedUser := createUnpriviledgedUser(t, models.RoleUser)
-	url := fmt.Sprintf("/api/users/%d", unauthorizedUser.Id)
+	url := fmt.Sprintf(userTestURLFmt, unauthorizedUser.Id)
 	payload := &userRequest{
 		Username:  unauthorizedUser.Username,
 		FirstName: "Foo",
 		LastName:  "Bar",
-		Email:     "foo@example.com",
+		Email:     userTestEmail,
 		Position:  "Analyst",
 		Role:      models.RoleAdmin,
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
-		t.Fatalf("error marshaling userRequest payload: %v", err)
+		t.Fatalf(userTestFmtMarshalErr, err)
 	}
 	r := httptest.NewRequest(http.MethodPut, url, bytes.NewBuffer(body))
-	r.Header.Set("Authorization", fmt.Sprintf("Bearer %s", unauthorizedUser.ApiKey))
+	r.Header.Set("Authorization", fmt.Sprintf(userTestBearerFmt, unauthorizedUser.ApiKey))
 	w := httptest.NewRecorder()
 
 	testCtx.apiServer.ServeHTTP(w, r)
 	expected := http.StatusBadRequest
 	if w.Code != expected {
-		t.Fatalf("unexpected error code received. expected %d got %d", expected, w.Code)
+		t.Fatalf(userTestFmtUnexpectedCode, expected, w.Code)
 	}
 	response := &models.Response{}
 	err = json.NewDecoder(w.Body).Decode(response)
@@ -248,17 +258,17 @@ func TestModifyWithExistingUsername(t *testing.T) {
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
-		t.Fatalf("error marshaling userRequest payload: %v", err)
+		t.Fatalf(userTestFmtMarshalErr, err)
 	}
-	url := fmt.Sprintf("/api/users/%d", unauthorizedUser.Id)
+	url := fmt.Sprintf(userTestURLFmt, unauthorizedUser.Id)
 	r := httptest.NewRequest(http.MethodPut, url, bytes.NewReader(body))
-	r.Header.Set("Authorization", fmt.Sprintf("Bearer %s", unauthorizedUser.ApiKey))
+	r.Header.Set("Authorization", fmt.Sprintf(userTestBearerFmt, unauthorizedUser.ApiKey))
 	w := httptest.NewRecorder()
 
 	testCtx.apiServer.ServeHTTP(w, r)
 	expected := http.StatusBadRequest
 	if w.Code != expected {
-		t.Fatalf("unexpected error code received. expected %d got %d", expected, w.Code)
+		t.Fatalf(userTestFmtUnexpectedCode, expected, w.Code)
 	}
 	expectedResponse := &models.Response{
 		Message: ErrEmailTaken.Error(),

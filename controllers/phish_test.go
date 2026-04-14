@@ -4,14 +4,27 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"reflect"
 	"testing"
 
 	"github.com/gophish/gophish/config"
 	"github.com/gophish/gophish/models"
+)
+
+// Shared format strings for phish tests.
+const (
+	fmtTrackEndpointErr   = "error requesting /track endpoint: %v"
+	fmtTrackStatusInvalid = "invalid status code received for /track endpoint. expected %d got %d"
+	fmtPhishURLFormat     = "%s/?%s=%s"
+	fmtRootEndpointErr    = "error requesting / endpoint: %v"
+	fmtRootStatusInvalid  = "invalid status code received for / endpoint. expected %d got %d"
+	fmtUnexpectedResult   = "unexpected result status received. expected %s got %s"
+	fmtUnexpectedEvent    = "unexpected event status received. expected %s got %s"
+	fmtUnexpectedModDate  = "unexpected result modified date received. expected %s got %s"
 )
 
 func ctrlTestScope(uid int64) models.OrgScope {
@@ -49,14 +62,14 @@ func getFirstEmailRequest(t *testing.T) models.EmailRequest {
 func openEmail(t *testing.T, ctx *testContext, rid string) {
 	resp, err := http.Get(fmt.Sprintf("%s/track?%s=%s", ctx.phishServer.URL, models.RecipientParameter, rid))
 	if err != nil {
-		t.Fatalf("error requesting /track endpoint: %v", err)
+		t.Fatalf(fmtTrackEndpointErr, err)
 	}
 	defer resp.Body.Close()
-	got, err := ioutil.ReadAll(resp.Body)
+	got, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatalf("error reading response body from /track endpoint: %v", err)
 	}
-	expected, err := ioutil.ReadFile("static/images/pixel.png")
+	expected, err := os.ReadFile("static/images/pixel.png")
 	if err != nil {
 		t.Fatalf("error reading local transparent pixel: %v", err)
 	}
@@ -68,13 +81,13 @@ func openEmail(t *testing.T, ctx *testContext, rid string) {
 func openEmail404(t *testing.T, ctx *testContext, rid string) {
 	resp, err := http.Get(fmt.Sprintf("%s/track?%s=%s", ctx.phishServer.URL, models.RecipientParameter, rid))
 	if err != nil {
-		t.Fatalf("error requesting /track endpoint: %v", err)
+		t.Fatalf(fmtTrackEndpointErr, err)
 	}
 	defer resp.Body.Close()
 	got := resp.StatusCode
 	expected := http.StatusNotFound
 	if got != expected {
-		t.Fatalf("invalid status code received for /track endpoint. expected %d got %d", expected, got)
+		t.Fatalf(fmtTrackStatusInvalid, expected, got)
 	}
 }
 
@@ -103,12 +116,12 @@ func reportEmail404(t *testing.T, ctx *testContext, rid string) {
 }
 
 func clickLink(t *testing.T, ctx *testContext, rid string, expectedHTML string) {
-	resp, err := http.Get(fmt.Sprintf("%s/?%s=%s", ctx.phishServer.URL, models.RecipientParameter, rid))
+	resp, err := http.Get(fmt.Sprintf(fmtPhishURLFormat, ctx.phishServer.URL, models.RecipientParameter, rid))
 	if err != nil {
-		t.Fatalf("error requesting / endpoint: %v", err)
+		t.Fatalf(fmtRootEndpointErr, err)
 	}
 	defer resp.Body.Close()
-	got, err := ioutil.ReadAll(resp.Body)
+	got, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatalf("error reading payload from / endpoint response: %v", err)
 	}
@@ -118,15 +131,15 @@ func clickLink(t *testing.T, ctx *testContext, rid string, expectedHTML string) 
 }
 
 func clickLink404(t *testing.T, ctx *testContext, rid string) {
-	resp, err := http.Get(fmt.Sprintf("%s/?%s=%s", ctx.phishServer.URL, models.RecipientParameter, rid))
+	resp, err := http.Get(fmt.Sprintf(fmtPhishURLFormat, ctx.phishServer.URL, models.RecipientParameter, rid))
 	if err != nil {
-		t.Fatalf("error requesting / endpoint: %v", err)
+		t.Fatalf(fmtRootEndpointErr, err)
 	}
 	defer resp.Body.Close()
 	got := resp.StatusCode
 	expected := http.StatusNotFound
 	if got != expected {
-		t.Fatalf("invalid status code received for / endpoint. expected %d got %d", expected, got)
+		t.Fatalf(fmtRootStatusInvalid, expected, got)
 	}
 }
 
@@ -139,7 +152,7 @@ func transparencyRequest(t *testing.T, ctx *testContext, r models.Result, rid, p
 	got := resp.StatusCode
 	expected := http.StatusOK
 	if got != expected {
-		t.Fatalf("invalid status code received for / endpoint. expected %d got %d", expected, got)
+		t.Fatalf(fmtRootStatusInvalid, expected, got)
 	}
 	tr := &TransparencyResponse{}
 	err = json.NewDecoder(resp.Body).Decode(tr)
@@ -162,7 +175,7 @@ func TestOpenedPhishingEmail(t *testing.T) {
 	campaign := getFirstCampaign(t)
 	result := campaign.Results[0]
 	if result.Status != models.StatusSending {
-		t.Fatalf("unexpected result status received. expected %s got %s", models.StatusSending, result.Status)
+		t.Fatalf(fmtUnexpectedResult, models.StatusSending, result.Status)
 	}
 
 	openEmail(t, ctx, result.RId)
@@ -171,13 +184,13 @@ func TestOpenedPhishingEmail(t *testing.T) {
 	result = campaign.Results[0]
 	lastEvent := campaign.Events[len(campaign.Events)-1]
 	if result.Status != models.EventOpened {
-		t.Fatalf("unexpected result status received. expected %s got %s", models.EventOpened, result.Status)
+		t.Fatalf(fmtUnexpectedResult, models.EventOpened, result.Status)
 	}
 	if lastEvent.Message != models.EventOpened {
-		t.Fatalf("unexpected event status received. expected %s got %s", lastEvent.Message, models.EventOpened)
+		t.Fatalf(fmtUnexpectedEvent, lastEvent.Message, models.EventOpened)
 	}
 	if result.ModifiedDate != lastEvent.Time {
-		t.Fatalf("unexpected result modified date received. expected %s got %s", lastEvent.Time, result.ModifiedDate)
+		t.Fatalf(fmtUnexpectedModDate, lastEvent.Time, result.ModifiedDate)
 	}
 }
 
@@ -187,7 +200,7 @@ func TestReportedPhishingEmail(t *testing.T) {
 	campaign := getFirstCampaign(t)
 	result := campaign.Results[0]
 	if result.Status != models.StatusSending {
-		t.Fatalf("unexpected result status received. expected %s got %s", models.StatusSending, result.Status)
+		t.Fatalf(fmtUnexpectedResult, models.StatusSending, result.Status)
 	}
 
 	reportedEmail(t, ctx, result.RId)
@@ -200,10 +213,10 @@ func TestReportedPhishingEmail(t *testing.T) {
 		t.Fatalf("unexpected result report status received. expected %v got %v", true, result.Reported)
 	}
 	if lastEvent.Message != models.EventReported {
-		t.Fatalf("unexpected event status received. expected %s got %s", lastEvent.Message, models.EventReported)
+		t.Fatalf(fmtUnexpectedEvent, lastEvent.Message, models.EventReported)
 	}
 	if result.ModifiedDate != lastEvent.Time {
-		t.Fatalf("unexpected result modified date received. expected %s got %s", lastEvent.Time, result.ModifiedDate)
+		t.Fatalf(fmtUnexpectedModDate, lastEvent.Time, result.ModifiedDate)
 	}
 }
 
@@ -213,7 +226,7 @@ func TestClickedPhishingLinkAfterOpen(t *testing.T) {
 	campaign := getFirstCampaign(t)
 	result := campaign.Results[0]
 	if result.Status != models.StatusSending {
-		t.Fatalf("unexpected result status received. expected %s got %s", models.StatusSending, result.Status)
+		t.Fatalf(fmtUnexpectedResult, models.StatusSending, result.Status)
 	}
 
 	openEmail(t, ctx, result.RId)
@@ -223,13 +236,13 @@ func TestClickedPhishingLinkAfterOpen(t *testing.T) {
 	result = campaign.Results[0]
 	lastEvent := campaign.Events[len(campaign.Events)-1]
 	if result.Status != models.EventClicked {
-		t.Fatalf("unexpected result status received. expected %s got %s", models.EventClicked, result.Status)
+		t.Fatalf(fmtUnexpectedResult, models.EventClicked, result.Status)
 	}
 	if lastEvent.Message != models.EventClicked {
-		t.Fatalf("unexpected event status received. expected %s got %s", lastEvent.Message, models.EventClicked)
+		t.Fatalf(fmtUnexpectedEvent, lastEvent.Message, models.EventClicked)
 	}
 	if result.ModifiedDate != lastEvent.Time {
-		t.Fatalf("unexpected result modified date received. expected %s got %s", lastEvent.Time, result.ModifiedDate)
+		t.Fatalf(fmtUnexpectedModDate, lastEvent.Time, result.ModifiedDate)
 	}
 }
 
@@ -238,21 +251,21 @@ func TestNoRecipientID(t *testing.T) {
 	defer tearDown(t, ctx)
 	resp, err := http.Get(fmt.Sprintf("%s/track", ctx.phishServer.URL))
 	if err != nil {
-		t.Fatalf("error requesting /track endpoint: %v", err)
+		t.Fatalf(fmtTrackEndpointErr, err)
 	}
 	got := resp.StatusCode
 	expected := http.StatusNotFound
 	if got != expected {
-		t.Fatalf("invalid status code received for /track endpoint. expected %d got %d", expected, got)
+		t.Fatalf(fmtTrackStatusInvalid, expected, got)
 	}
 
 	resp, err = http.Get(ctx.phishServer.URL)
 	if err != nil {
-		t.Fatalf("error requesting /track endpoint: %v", err)
+		t.Fatalf(fmtTrackEndpointErr, err)
 	}
 	got = resp.StatusCode
 	if got != expected {
-		t.Fatalf("invalid status code received for / endpoint. expected %d got %d", expected, got)
+		t.Fatalf(fmtRootStatusInvalid, expected, got)
 	}
 }
 
@@ -271,7 +284,7 @@ func TestCompletedCampaignClick(t *testing.T) {
 	campaign := getFirstCampaign(t)
 	result := campaign.Results[0]
 	if result.Status != models.StatusSending {
-		t.Fatalf("unexpected result status received. expected %s got %s", models.StatusSending, result.Status)
+		t.Fatalf(fmtUnexpectedResult, models.StatusSending, result.Status)
 	}
 
 	openEmail(t, ctx, result.RId)
@@ -279,7 +292,7 @@ func TestCompletedCampaignClick(t *testing.T) {
 	campaign = getFirstCampaign(t)
 	result = campaign.Results[0]
 	if result.Status != models.EventOpened {
-		t.Fatalf("unexpected result status received. expected %s got %s", models.EventOpened, result.Status)
+		t.Fatalf(fmtUnexpectedResult, models.EventOpened, result.Status)
 	}
 
 	models.CompleteCampaign(campaign.Id, ctrlTestScope(1))
@@ -289,7 +302,7 @@ func TestCompletedCampaignClick(t *testing.T) {
 	campaign = getFirstCampaign(t)
 	result = campaign.Results[0]
 	if result.Status != models.EventOpened {
-		t.Fatalf("unexpected result status received. expected %s got %s", models.EventOpened, result.Status)
+		t.Fatalf(fmtUnexpectedResult, models.EventOpened, result.Status)
 	}
 }
 
@@ -304,10 +317,10 @@ func TestRobotsHandler(t *testing.T) {
 	got := resp.StatusCode
 	expectedStatus := http.StatusOK
 	if got != expectedStatus {
-		t.Fatalf("invalid status code received for /track endpoint. expected %d got %d", expectedStatus, got)
+		t.Fatalf(fmtTrackStatusInvalid, expectedStatus, got)
 	}
 	expected := []byte("User-agent: *\nDisallow: /\n")
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatalf("error reading response body from /robots.txt endpoint: %v", err)
 	}
@@ -399,15 +412,15 @@ func TestRedirectTemplating(t *testing.T) {
 		},
 	}
 	result := campaign.Results[0]
-	resp, err := client.PostForm(fmt.Sprintf("%s/?%s=%s", ctx.phishServer.URL, models.RecipientParameter, result.RId), url.Values{"username": {"test"}, "password": {"test"}})
+	resp, err := client.PostForm(fmt.Sprintf(fmtPhishURLFormat, ctx.phishServer.URL, models.RecipientParameter, result.RId), url.Values{"username": {"test"}, "password": {"test"}})
 	if err != nil {
-		t.Fatalf("error requesting / endpoint: %v", err)
+		t.Fatalf(fmtRootEndpointErr, err)
 	}
 	defer resp.Body.Close()
 	got := resp.StatusCode
 	expectedStatus := http.StatusFound
 	if got != expectedStatus {
-		t.Fatalf("invalid status code received for /track endpoint. expected %d got %d", expectedStatus, got)
+		t.Fatalf(fmtTrackStatusInvalid, expectedStatus, got)
 	}
 	expectedURL := fmt.Sprintf("http://example.com/%s", result.RId)
 	gotURL, err := resp.Location()

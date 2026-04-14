@@ -42,7 +42,7 @@ func (as *Server) ReportButtonConfig(w http.ResponseWriter, r *http.Request) {
 		}
 		JSONResponse(w, config, http.StatusOK)
 	default:
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 	}
 }
 
@@ -50,7 +50,7 @@ func (as *Server) ReportButtonConfig(w http.ResponseWriter, r *http.Request) {
 // generates a new plugin API key for the org.
 func (as *Server) ReportButtonRegenerateKey(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	scope := getOrgScope(r)
@@ -66,7 +66,7 @@ func (as *Server) ReportButtonRegenerateKey(w http.ResponseWriter, r *http.Reque
 // emails for the admin's org.
 func (as *Server) ReportedEmails(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	scope := getOrgScope(r)
@@ -82,7 +82,7 @@ func (as *Server) ReportedEmails(w http.ResponseWriter, r *http.Request) {
 // allows an admin to classify a reported email.
 func (as *Server) ReportedEmailClassify(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPut {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	scope := getOrgScope(r)

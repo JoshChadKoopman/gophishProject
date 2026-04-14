@@ -86,8 +86,8 @@ func (im *IMAP) Validate() error {
 		return ErrInvalidIMAPHost
 	}
 
-	// Make sure 1 >= port <= 65535
-	if im.Port < 1 || im.Port > 65535 {
+	// Make sure port >= 1 (uint16 cannot exceed 65535, so no upper-bound check needed)
+	if im.Port < 1 {
 		return ErrInvalidIMAPPort
 	}
 
@@ -114,6 +114,8 @@ func GetIMAP(uid int64) ([]IMAP, error) {
 }
 
 // PostIMAP updates IMAP settings for a user in the database.
+// It uses a transactional approach: if the new save fails, the original
+// settings are restored.
 func PostIMAP(im *IMAP, uid int64) error {
 	err := im.Validate()
 	if err != nil {
@@ -121,7 +123,10 @@ func PostIMAP(im *IMAP, uid int64) error {
 		return err
 	}
 
-	// Delete old entry. TODO: Save settings and if fails to Save below replace with original
+	// Fetch the original settings so we can restore on failure.
+	original, origErr := GetIMAP(uid)
+
+	// Delete old entry
 	err = DeleteIMAP(uid)
 	if err != nil {
 		log.Error(err)
@@ -132,6 +137,12 @@ func PostIMAP(im *IMAP, uid int64) error {
 	err = db.Save(im).Error
 	if err != nil {
 		log.Error("Unable to save to database: ", err.Error())
+		// Attempt to restore the original settings if we had them
+		if origErr == nil {
+			if restoreErr := db.Save(&original).Error; restoreErr != nil {
+				log.Error("Unable to restore original IMAP settings: ", restoreErr.Error())
+			}
+		}
 	}
 	return err
 }

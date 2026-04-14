@@ -38,6 +38,6 @@ func (as *Server) AuditLog(w http.ResponseWriter, r *http.Request) {
 		}
 		JSONResponse(w, resp, http.StatusOK)
 	default:
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 	}
 }

@@ -70,6 +70,9 @@ var ErrHostNotSpecified = errors.New("No SMTP Host specified")
 // ErrInvalidHost indicates that the SMTP server string is invalid
 var ErrInvalidHost = errors.New("Invalid SMTP server address")
 
+// queryWhereSMTPID is the shared WHERE clause for smtp_id lookups.
+const queryWhereSMTPID = "smtp_id=?"
+
 // TableName specifies the database tablename for Gorm to use
 func (s SMTP) TableName() string {
 	return "smtp"
@@ -105,7 +108,7 @@ func (s *SMTP) Validate() error {
 
 // validateFromAddress validates
 func validateFromAddress(email string) bool {
-	r, _ := regexp.Compile("^([a-zA-Z0-9_\\-\\.]+)@([a-zA-Z0-9_\\-\\.]+)\\.([a-zA-Z]{2,18})$")
+	r, _ := regexp.Compile(`^([a-zA-Z0-9_\-.]+)@([a-zA-Z0-9_\-.]+)\.([a-zA-Z]{2,18})$`)
 	return r.MatchString(email)
 }
 
@@ -148,7 +151,7 @@ func GetSMTPs(scope OrgScope) ([]SMTP, error) {
 		return ss, err
 	}
 	for i := range ss {
-		err = db.Where("smtp_id=?", ss[i].Id).Find(&ss[i].Headers).Error
+		err = db.Where(queryWhereSMTPID, ss[i].Id).Find(&ss[i].Headers).Error
 		if err != nil && err != gorm.ErrRecordNotFound {
 			log.Error(err)
 			return ss, err
@@ -165,7 +168,7 @@ func GetSMTP(id int64, scope OrgScope) (SMTP, error) {
 		log.Error(err)
 		return s, err
 	}
-	err = db.Where("smtp_id=?", s.Id).Find(&s.Headers).Error
+	err = db.Where(queryWhereSMTPID, s.Id).Find(&s.Headers).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		log.Error(err)
 		return s, err
@@ -181,7 +184,7 @@ func GetSMTPByName(n string, scope OrgScope) (SMTP, error) {
 		log.Error(err)
 		return s, err
 	}
-	err = db.Where("smtp_id=?", s.Id).Find(&s.Headers).Error
+	err = db.Where(queryWhereSMTPID, s.Id).Find(&s.Headers).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		log.Error(err)
 	}
@@ -225,7 +228,7 @@ func PutSMTP(s *SMTP) error {
 		log.Error(err)
 	}
 	// Delete all custom headers, and replace with new ones
-	err = db.Where("smtp_id=?", s.Id).Delete(&Header{}).Error
+	err = db.Where(queryWhereSMTPID, s.Id).Delete(&Header{}).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		log.Error(err)
 		return err
@@ -245,7 +248,7 @@ func PutSMTP(s *SMTP) error {
 // DeleteSMTP deletes an existing SMTP in the database.
 func DeleteSMTP(id int64, scope OrgScope) error {
 	// Delete all custom headers
-	err := db.Where("smtp_id=?", id).Delete(&Header{}).Error
+	err := db.Where(queryWhereSMTPID, id).Delete(&Header{}).Error
 	if err != nil {
 		log.Error(err)
 		return err

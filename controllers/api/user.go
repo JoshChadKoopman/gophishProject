@@ -40,7 +40,7 @@ var ErrEmailTaken = errors.New("Email address already taken")
 
 // ErrInsufficientPermission is thrown when a user attempts to change an
 // attribute (such as the role) for which they don't have permission.
-var ErrInsufficientPermission = errors.New("Permission denied")
+var ErrInsufficientPermission = errors.New(ErrPermissionDenied)
 
 // userRequest is the payload which represents the creation of a new user.
 type userRequest struct {

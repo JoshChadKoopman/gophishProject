@@ -14,26 +14,28 @@ var ErrModifyingOnlyAdmin = errors.New("Cannot remove the only administrator")
 
 // User represents the user model for gophish.
 type User struct {
-	Id                     int64        `json:"id"`
-	Username               string       `json:"username" sql:"not null;unique"`
-	Hash                   string       `json:"-"`
-	ApiKey                 string       `json:"api_key" sql:"not null;unique"`
-	FirstName              string       `json:"first_name"`
-	LastName               string       `json:"last_name"`
-	Email                  string       `json:"email"`
-	Position               string       `json:"position"`
-	Role                   Role         `json:"role" gorm:"association_autoupdate:false;association_autocreate:false"`
-	RoleID                 int64        `json:"-"`
-	OrgId                  int64        `json:"org_id" gorm:"column:org_id"`
-	Org                    Organization `json:"org,omitempty" gorm:"association_autoupdate:false;association_autocreate:false"`
-	PasswordChangeRequired bool         `json:"password_change_required"`
-	AccountLocked          bool         `json:"account_locked"`
-	LastLogin              time.Time    `json:"last_login"`
-	Department             string       `json:"department" gorm:"column:department"`
-	JobTitle               string       `json:"job_title" gorm:"column:job_title"`
-	FailedLogins           int          `json:"failed_logins" gorm:"column:failed_logins;default:0"`
-	LastFailedLogin        time.Time    `json:"last_failed_login" gorm:"column:last_failed_login"`
-	PreferredLanguage      string       `json:"preferred_language" gorm:"column:preferred_language;default:'en'"`
+	Id                       int64        `json:"id"`
+	Username                 string       `json:"username" sql:"not null;unique"`
+	Hash                     string       `json:"-"`
+	ApiKey                   string       `json:"api_key" sql:"not null;unique"`
+	FirstName                string       `json:"first_name"`
+	LastName                 string       `json:"last_name"`
+	Email                    string       `json:"email"`
+	Position                 string       `json:"position"`
+	Role                     Role         `json:"role" gorm:"association_autoupdate:false;association_autocreate:false"`
+	RoleID                   int64        `json:"-"`
+	OrgId                    int64        `json:"org_id" gorm:"column:org_id"`
+	Org                      Organization `json:"org,omitempty" gorm:"association_autoupdate:false;association_autocreate:false"`
+	PasswordChangeRequired   bool         `json:"password_change_required"`
+	AccountLocked            bool         `json:"account_locked"`
+	LastLogin                time.Time    `json:"last_login"`
+	Department               string       `json:"department" gorm:"column:department"`
+	JobTitle                 string       `json:"job_title" gorm:"column:job_title"`
+	FailedLogins             int          `json:"failed_logins" gorm:"column:failed_logins;default:0"`
+	LastFailedLogin          time.Time    `json:"last_failed_login" gorm:"column:last_failed_login"`
+	PreferredLanguage        string       `json:"preferred_language" gorm:"column:preferred_language;default:'en'"`
+	TrainingDifficultyMode   string       `json:"training_difficulty_mode" gorm:"column:training_difficulty_mode;default:'adaptive'"`
+	TrainingDifficultyManual int          `json:"training_difficulty_manual" gorm:"column:training_difficulty_manual;default:0"`
 }
 
 // GetUser returns the user that the given id corresponds to. If no user is found, an
@@ -140,7 +142,7 @@ func DeleteUser(id int64) error {
 func RecordFailedLogin(uid int64) error {
 	return db.Model(&User{}).Where("id=?", uid).
 		UpdateColumns(map[string]interface{}{
-			"failed_logins":    db.Raw("failed_logins + 1"),
+			"failed_logins":     db.Raw("failed_logins + 1"),
 			"last_failed_login": time.Now().UTC(),
 		}).Error
 }
@@ -149,7 +151,7 @@ func RecordFailedLogin(uid int64) error {
 func ResetFailedLogins(uid int64) error {
 	return db.Model(&User{}).Where("id=?", uid).
 		UpdateColumns(map[string]interface{}{
-			"failed_logins":    0,
+			"failed_logins":     0,
 			"last_failed_login": time.Time{},
 		}).Error
 }

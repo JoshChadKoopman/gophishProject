@@ -17,7 +17,18 @@ func init() {
 	Store.MaxAge(86400)
 }
 
+// mustGenerateRandomKey wraps securecookie.GenerateRandomKey and panics on
+// failure. A nil return from GenerateRandomKey indicates the system CSPRNG is
+// unavailable, which is a fatal condition for any security-sensitive process.
+func mustGenerateRandomKey(length int) []byte {
+	key := securecookie.GenerateRandomKey(length)
+	if key == nil {
+		panic("middleware: failed to generate random session key — system CSPRNG may be unavailable")
+	}
+	return key
+}
+
 // Store contains the session information for the request
 var Store = sessions.NewCookieStore(
-	[]byte(securecookie.GenerateRandomKey(64)), //Signing key
-	[]byte(securecookie.GenerateRandomKey(32)))
+	mustGenerateRandomKey(64), // Signing key
+	mustGenerateRandomKey(32)) // Encryption key

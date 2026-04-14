@@ -1,0 +1,584 @@
+{{define "body"}}
+<div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+    <div class="page-header">
+        <h1><i class="fa fa-shield"></i> Email Security Dashboard</h1>
+    </div>
+    <div id="flashes" class="row"></div>
+
+    <!-- Summary Stats Cards -->
+    <div class="row" id="securitySummary">
+        <div class="col-md-3">
+            <div class="panel panel-primary">
+                <div class="panel-heading">
+                    <div class="row">
+                        <div class="col-xs-3"><i class="fa fa-envelope fa-3x"></i></div>
+                        <div class="col-xs-9 text-right">
+                            <div class="huge" id="statTotalScanned">-</div>
+                            <div>Emails Scanned</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="panel panel-danger">
+                <div class="panel-heading">
+                    <div class="row">
+                        <div class="col-xs-3"><i class="fa fa-exclamation-triangle fa-3x"></i></div>
+                        <div class="col-xs-9 text-right">
+                            <div class="huge" id="statThreatsDetected">-</div>
+                            <div>Threats Detected</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="panel panel-warning">
+                <div class="panel-heading">
+                    <div class="row">
+                        <div class="col-xs-3"><i class="fa fa-user-secret fa-3x"></i></div>
+                        <div class="col-xs-9 text-right">
+                            <div class="huge" id="statBECAttempts">-</div>
+                            <div>BEC Attempts</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="panel panel-success">
+                <div class="panel-heading">
+                    <div class="row">
+                        <div class="col-xs-3"><i class="fa fa-check-circle fa-3x"></i></div>
+                        <div class="col-xs-9 text-right">
+                            <div class="huge" id="statRemediated">-</div>
+                            <div>Remediated</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs for sub-sections -->
+    <ul class="nav nav-tabs" id="emailSecurityTabs" style="margin-bottom:15px;">
+        <li class="active"><a data-toggle="tab" href="#tabOverview"><i class="fa fa-tachometer"></i> Overview</a></li>
+        <li><a data-toggle="tab" href="#tabInboxMonitor"><i class="fa fa-inbox"></i> Inbox Monitor</a></li>
+        <li><a data-toggle="tab" href="#tabBEC"><i class="fa fa-user-secret"></i> BEC Detection</a></li>
+        <li><a data-toggle="tab" href="#tabGraymail"><i class="fa fa-filter"></i> Graymail</a></li>
+        <li><a data-toggle="tab" href="#tabRemediation"><i class="fa fa-bolt"></i> Remediation</a></li>
+        <li><a data-toggle="tab" href="#tabTickets"><i class="fa fa-ticket"></i> Tickets</a></li>
+    </ul>
+
+    <div class="tab-content">
+        <!-- Overview Tab -->
+        <div id="tabOverview" class="tab-pane fade in active">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="panel panel-default">
+                        <div class="panel-heading"><strong><i class="fa fa-line-chart"></i> Threat Trend (30 Days)</strong></div>
+                        <div class="panel-body">
+                            <div id="threatTrendChart" style="height:280px;">
+                                <div style="text-align:center; padding:40px;"><i class="fa fa-spinner fa-spin fa-2x"></i></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="panel panel-default">
+                        <div class="panel-heading"><strong><i class="fa fa-pie-chart"></i> Threat Classification</strong></div>
+                        <div class="panel-body">
+                            <div id="classificationChart" style="height:280px;">
+                                <div style="text-align:center; padding:40px;"><i class="fa fa-spinner fa-spin fa-2x"></i></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="panel panel-default">
+                        <div class="panel-heading"><strong><i class="fa fa-clock-o"></i> Mean Time to Remediate</strong></div>
+                        <div class="panel-body text-center">
+                            <h2 id="mttrValue" style="margin:5px 0;">-</h2>
+                            <p class="text-muted">Average response time</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="panel panel-default">
+                        <div class="panel-heading"><strong><i class="fa fa-ticket"></i> Open Tickets</strong></div>
+                        <div class="panel-body text-center">
+                            <h2 id="openTicketsCount" style="margin:5px 0;">-</h2>
+                            <p class="text-muted">Requiring attention</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="panel panel-default">
+                        <div class="panel-heading"><strong><i class="fa fa-flag"></i> User Reports (7d)</strong></div>
+                        <div class="panel-body text-center">
+                            <h2 id="userReports7d" style="margin:5px 0;">-</h2>
+                            <p class="text-muted">Emails reported by users</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="panel panel-default">
+                        <div class="panel-heading"><strong><i class="fa fa-exclamation-circle"></i> Recent Threats</strong></div>
+                        <div class="panel-body" style="padding:0;">
+                            <table class="table table-striped table-hover" id="recentThreatsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Sender</th>
+                                        <th>Subject</th>
+                                        <th>Threat Level</th>
+                                        <th>Classification</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recentThreatsBody">
+                                    <tr><td colspan="6" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Inbox Monitor Tab -->
+        <div id="tabInboxMonitor" class="tab-pane fade">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <strong><i class="fa fa-cog"></i> Inbox Monitor Configuration</strong>
+                            <button class="btn btn-xs btn-primary pull-right" id="saveMonitorConfigBtn">
+                                <i class="fa fa-save"></i> Save
+                            </button>
+                        </div>
+                        <div class="panel-body">
+                            <form id="monitorConfigForm">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label>Status</label>
+                                            <select class="form-control" id="monitorEnabled">
+                                                <option value="true">Enabled</option>
+                                                <option value="false">Disabled</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label>Scan Interval (seconds)</label>
+                                            <input type="number" class="form-control" id="monitorInterval" value="300" min="60">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label>Threat Threshold</label>
+                                            <select class="form-control" id="monitorThreshold">
+                                                <option value="suspicious">Suspicious</option>
+                                                <option value="likely_phishing">Likely Phishing</option>
+                                                <option value="confirmed_phishing">Confirmed Phishing</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label>Monitored Mailboxes (one per line)</label>
+                                            <textarea class="form-control" id="monitorMailboxes" rows="3" placeholder="admin@example.com&#10;ceo@example.com"></textarea>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="checkbox">
+                                            <label><input type="checkbox" id="monitorAutoQuarantine"> Auto-Quarantine</label>
+                                        </div>
+                                        <div class="checkbox">
+                                            <label><input type="checkbox" id="monitorAutoDelete"> Auto-Delete (confirmed only)</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="checkbox">
+                                            <label><input type="checkbox" id="monitorBEC"> BEC Detection</label>
+                                        </div>
+                                        <div class="checkbox">
+                                            <label><input type="checkbox" id="monitorGraymail"> Graymail Classification</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="panel panel-default">
+                        <div class="panel-heading"><strong><i class="fa fa-search"></i> Scan Results</strong></div>
+                        <div class="panel-body" style="padding:0;">
+                            <table class="table table-striped table-hover" id="scanResultsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Mailbox</th>
+                                        <th>Sender</th>
+                                        <th>Subject</th>
+                                        <th>Threat Level</th>
+                                        <th>BEC</th>
+                                        <th>Graymail</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="scanResultsBody">
+                                    <tr><td colspan="8" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BEC Detection Tab -->
+        <div id="tabBEC" class="tab-pane fade">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <strong><i class="fa fa-user-secret"></i> Executive Profiles (BEC Protection)</strong>
+                            <button class="btn btn-xs btn-success pull-right" id="addBECProfileBtn">
+                                <i class="fa fa-plus"></i> Add Profile
+                            </button>
+                        </div>
+                        <div class="panel-body" style="padding:0;">
+                            <table class="table table-striped" id="becProfilesTable">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th>Title</th>
+                                        <th>Risk Level</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="becProfilesBody">
+                                    <tr><td colspan="5" class="text-center"><i class="fa fa-spinner fa-spin"></i></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="panel panel-default">
+                        <div class="panel-heading"><strong><i class="fa fa-warning"></i> BEC Detection History</strong></div>
+                        <div class="panel-body" style="padding:0;">
+                            <table class="table table-striped" id="becDetectionsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Impersonated</th>
+                                        <th>Actual Sender</th>
+                                        <th>Technique</th>
+                                        <th>Confidence</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="becDetectionsBody">
+                                    <tr><td colspan="7" class="text-center"><i class="fa fa-spinner fa-spin"></i></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Graymail Tab -->
+        <div id="tabGraymail" class="tab-pane fade">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <strong><i class="fa fa-filter"></i> Graymail Rules</strong>
+                            <button class="btn btn-xs btn-success pull-right" id="addGraymailRuleBtn">
+                                <i class="fa fa-plus"></i> Add Rule
+                            </button>
+                        </div>
+                        <div class="panel-body" style="padding:0;">
+                            <table class="table table-striped" id="graymailRulesTable">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Category</th>
+                                        <th>Match Criteria</th>
+                                        <th>Action</th>
+                                        <th>Enabled</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="graymailRulesBody">
+                                    <tr><td colspan="6" class="text-center"><i class="fa fa-spinner fa-spin"></i></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="panel panel-default">
+                        <div class="panel-heading"><strong><i class="fa fa-pie-chart"></i> Graymail by Category</strong></div>
+                        <div class="panel-body">
+                            <div id="graymailCategoryChart" style="height:280px;">
+                                <div style="text-align:center; padding:40px;"><i class="fa fa-spinner fa-spin fa-2x"></i></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="panel panel-default">
+                        <div class="panel-heading"><strong><i class="fa fa-list"></i> Recent Classifications</strong></div>
+                        <div class="panel-body" style="padding:0;">
+                            <table class="table table-condensed" id="graymailRecentTable">
+                                <thead><tr><th>Sender</th><th>Subject</th><th>Category</th><th>Confidence</th></tr></thead>
+                                <tbody id="graymailRecentBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Remediation Tab -->
+        <div id="tabRemediation" class="tab-pane fade">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <strong><i class="fa fa-bolt"></i> Remediation Actions</strong>
+                            <button class="btn btn-xs btn-danger pull-right" id="newRemediationBtn">
+                                <i class="fa fa-plus"></i> New Action
+                            </button>
+                        </div>
+                        <div class="panel-body" style="padding:0;">
+                            <table class="table table-striped table-hover" id="remediationActionsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Type</th>
+                                        <th>Target</th>
+                                        <th>Subject</th>
+                                        <th>Scope</th>
+                                        <th>Status</th>
+                                        <th>Affected</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="remediationActionsBody">
+                                    <tr><td colspan="8" class="text-center"><i class="fa fa-spinner fa-spin"></i></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tickets Tab -->
+        <div id="tabTickets" class="tab-pane fade">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <strong><i class="fa fa-ticket"></i> Phishing Tickets</strong>
+                            <div class="btn-group btn-group-xs pull-right" id="ticketFilter">
+                                <button class="btn btn-default active" data-status="all">All</button>
+                                <button class="btn btn-default" data-status="open">Open</button>
+                                <button class="btn btn-default" data-status="in_progress">In Progress</button>
+                                <button class="btn btn-default" data-status="resolved">Resolved</button>
+                            </div>
+                        </div>
+                        <div class="panel-body" style="padding:0;">
+                            <table class="table table-striped table-hover" id="ticketsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Ticket #</th>
+                                        <th>Created</th>
+                                        <th>Subject</th>
+                                        <th>Priority</th>
+                                        <th>Status</th>
+                                        <th>Assignee</th>
+                                        <th>SLA</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ticketsBody">
+                                    <tr><td colspan="8" class="text-center"><i class="fa fa-spinner fa-spin"></i></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- BEC Profile Modal -->
+<div class="modal fade" id="becProfileModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                <h4 class="modal-title"><i class="fa fa-user-secret"></i> BEC Executive Profile</h4>
+            </div>
+            <div class="modal-body">
+                <form id="becProfileForm">
+                    <div class="form-group">
+                        <label>Executive Name</label>
+                        <input type="text" class="form-control" id="becProfileName" placeholder="John Smith">
+                    </div>
+                    <div class="form-group">
+                        <label>Email Address</label>
+                        <input type="email" class="form-control" id="becProfileEmail" placeholder="john@company.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Title / Role</label>
+                        <input type="text" class="form-control" id="becProfileTitle" placeholder="CEO">
+                    </div>
+                    <div class="form-group">
+                        <label>Risk Level</label>
+                        <select class="form-control" id="becProfileRisk">
+                            <option value="high">High (C-Suite / Finance)</option>
+                            <option value="medium">Medium (VP / Director)</option>
+                            <option value="low">Low (Manager)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Known Aliases (comma-separated)</label>
+                        <input type="text" class="form-control" id="becProfileAliases" placeholder="john.smith@company.com, js@company.com">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveBECProfileBtn"><i class="fa fa-save"></i> Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Remediation Action Modal -->
+<div class="modal fade" id="remediationModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                <h4 class="modal-title"><i class="fa fa-bolt"></i> Create Remediation Action</h4>
+            </div>
+            <div class="modal-body">
+                <form id="remediationForm">
+                    <div class="form-group">
+                        <label>Action Type</label>
+                        <select class="form-control" id="remActionType">
+                            <option value="delete">Delete Message</option>
+                            <option value="quarantine">Quarantine</option>
+                            <option value="block_sender">Block Sender</option>
+                            <option value="purge">Org-Wide Purge</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Target Email / Mailbox</label>
+                        <input type="email" class="form-control" id="remTargetEmail" placeholder="user@company.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Sender Email</label>
+                        <input type="email" class="form-control" id="remSenderEmail" placeholder="attacker@phishing.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Subject (optional)</label>
+                        <input type="text" class="form-control" id="remSubject">
+                    </div>
+                    <div class="form-group">
+                        <label>Message ID (optional)</label>
+                        <input type="text" class="form-control" id="remMessageId">
+                    </div>
+                    <div class="form-group">
+                        <label>Scope</label>
+                        <select class="form-control" id="remScope">
+                            <option value="single">Single Message</option>
+                            <option value="mailbox">Entire Mailbox</option>
+                            <option value="org_wide">Organization-Wide</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Justification</label>
+                        <textarea class="form-control" id="remJustification" rows="2" placeholder="Reason for this action..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="executeRemediationBtn"><i class="fa fa-bolt"></i> Execute</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Ticket Detail Modal -->
+<div class="modal fade" id="ticketDetailModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                <h4 class="modal-title"><i class="fa fa-ticket"></i> Ticket Details <span id="ticketDetailNumber"></span></h4>
+            </div>
+            <div class="modal-body" id="ticketDetailBody">
+                <div style="text-align:center; padding:20px;"><i class="fa fa-spinner fa-spin fa-2x"></i></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-warning" id="ticketEscalateBtn"><i class="fa fa-arrow-up"></i> Escalate</button>
+                <button type="button" class="btn btn-success" id="ticketResolveBtn"><i class="fa fa-check"></i> Resolve</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.huge { font-size: 28px; font-weight: bold; }
+.panel-primary .panel-heading { background-color: #337ab7; color: #fff; }
+.panel-danger .panel-heading { background-color: #d9534f; color: #fff; }
+.panel-warning .panel-heading { background-color: #f0ad4e; color: #fff; }
+.panel-success .panel-heading { background-color: #5cb85c; color: #fff; }
+.threat-safe { color: #5cb85c; font-weight: bold; }
+.threat-suspicious { color: #f0ad4e; font-weight: bold; }
+.threat-likely_phishing { color: #d9534f; font-weight: bold; }
+.threat-confirmed_phishing { color: #a94442; font-weight: bold; background: #f2dede; padding: 2px 6px; border-radius: 3px; }
+.priority-critical { color: #fff; background: #a94442; padding: 2px 8px; border-radius: 3px; }
+.priority-high { color: #fff; background: #d9534f; padding: 2px 8px; border-radius: 3px; }
+.priority-medium { color: #fff; background: #f0ad4e; padding: 2px 8px; border-radius: 3px; }
+.priority-low { color: #fff; background: #5cb85c; padding: 2px 8px; border-radius: 3px; }
+.status-badge { padding: 2px 8px; border-radius: 3px; font-size: 12px; }
+.status-open { background: #d9edf7; color: #31708f; }
+.status-in_progress { background: #fcf8e3; color: #8a6d3b; }
+.status-resolved { background: #dff0d8; color: #3c763d; }
+.status-closed { background: #f5f5f5; color: #777; }
+</style>
+{{end}}
+
+{{define "scripts"}}
+<script src="/js/dist/app/email_security.min.js"></script>
+{{end}}

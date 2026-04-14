@@ -2,7 +2,23 @@
 <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
     <h1 class="page-header">
         Dashboard
+        <!-- WebSocket connection indicator -->
+        <span id="wsIndicator" class="label label-default" style="font-size:11px; vertical-align:middle; margin-left:12px;" title="Real-time updates">
+            <i class="fa fa-circle-o"></i> Connecting…
+        </span>
     </h1>
+
+    <!-- Time Window Selector (applies to all cards) -->
+    <div style="margin-bottom:16px;">
+        <div class="btn-group btn-group-sm" id="timeWindowSelector">
+            <button class="btn btn-default" data-window="7d">7 Days</button>
+            <button class="btn btn-default active" data-window="30d">30 Days</button>
+            <button class="btn btn-default" data-window="90d">90 Days</button>
+            <button class="btn btn-default" data-window="ytd">YTD</button>
+        </div>
+        <span id="metricsTimestamp" style="font-size:11px; color:#999; margin-left:12px;"></span>
+    </div>
+
     <div id="loading">
         <i class="fa fa-spinner fa-spin fa-4x"></i>
     </div>
@@ -13,8 +29,101 @@
         </div>
     </div>
     <div id="dashboard" style="display:none;">
-        <!-- Summary Cards -->
-        <div class="row" id="summaryCards" style="margin-bottom:20px;"></div>
+
+        <!-- ═══ Real-Time Summary Cards with Sparklines ═══ -->
+        <div class="row" id="realtimeCards">
+            <!-- Campaigns Card -->
+            <div class="col-md-4 col-lg-2">
+                <div class="panel panel-default rt-card">
+                    <div class="panel-body text-center" style="padding:12px;">
+                        <i class="fa fa-bullhorn fa-lg" style="color:#3498db;"></i>
+                        <div class="rt-value" id="rtActiveCampaigns">–</div>
+                        <div class="rt-label">Active Campaigns</div>
+                        <div class="rt-sparkline" id="sparkCampaigns"></div>
+                        <div class="rt-trend" id="trendCampaigns"></div>
+                    </div>
+                </div>
+            </div>
+            <!-- Emails Sent Today Card -->
+            <div class="col-md-4 col-lg-2">
+                <div class="panel panel-default rt-card">
+                    <div class="panel-body text-center" style="padding:12px;">
+                        <i class="fa fa-envelope fa-lg" style="color:#1abc9c;"></i>
+                        <div class="rt-value" id="rtEmailsSent">–</div>
+                        <div class="rt-label">Emails Sent Today</div>
+                        <div class="rt-sparkline" id="sparkEmailsSent"></div>
+                        <div class="rt-trend" id="trendEmailsSent"></div>
+                    </div>
+                </div>
+            </div>
+            <!-- Click Rate Card -->
+            <div class="col-md-4 col-lg-2">
+                <div class="panel panel-default rt-card">
+                    <div class="panel-body text-center" style="padding:12px;">
+                        <i class="fa fa-mouse-pointer fa-lg" style="color:#e74c3c;"></i>
+                        <div class="rt-value" id="rtClickRate">–</div>
+                        <div class="rt-label">Avg Click Rate</div>
+                        <div class="rt-sparkline" id="sparkClickRate"></div>
+                        <div class="rt-trend" id="trendClickRate"></div>
+                    </div>
+                </div>
+            </div>
+            <!-- Report Rate Card -->
+            <div class="col-md-4 col-lg-2">
+                <div class="panel panel-default rt-card">
+                    <div class="panel-body text-center" style="padding:12px;">
+                        <i class="fa fa-flag fa-lg" style="color:#2ecc71;"></i>
+                        <div class="rt-value" id="rtReportRate">–</div>
+                        <div class="rt-label">Avg Report Rate</div>
+                        <div class="rt-sparkline" id="sparkReportRate"></div>
+                        <div class="rt-trend" id="trendReportRate"></div>
+                    </div>
+                </div>
+            </div>
+            <!-- Open Tickets Card -->
+            <div class="col-md-4 col-lg-2">
+                <div class="panel panel-default rt-card">
+                    <div class="panel-body text-center" style="padding:12px;">
+                        <i class="fa fa-ticket fa-lg" style="color:#9b59b6;"></i>
+                        <div class="rt-value" id="rtOpenTickets">–</div>
+                        <div class="rt-label">Open Tickets</div>
+                        <div class="rt-sparkline" id="sparkTickets"></div>
+                        <div class="rt-trend" id="trendTickets"></div>
+                    </div>
+                </div>
+            </div>
+            <!-- Training Completion Card -->
+            <div class="col-md-4 col-lg-2">
+                <div class="panel panel-default rt-card">
+                    <div class="panel-body text-center" style="padding:12px;">
+                        <i class="fa fa-graduation-cap fa-lg" style="color:#f39c12;"></i>
+                        <div class="rt-value" id="rtTrainingCompletion">–</div>
+                        <div class="rt-label">Training Completion</div>
+                        <div class="rt-sparkline" id="sparkTraining"></div>
+                        <div class="rt-trend" id="trendTraining"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Live Activity Feed (optional, fed by WS) -->
+        <div class="row" style="margin-bottom:16px;">
+            <div class="col-lg-12">
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <strong><i class="fa fa-bolt"></i> Live Activity</strong>
+                        <span id="liveActivityCount" class="badge" style="margin-left:6px;">0</span>
+                        <button class="btn btn-xs btn-default pull-right" id="clearActivity"><i class="fa fa-trash-o"></i> Clear</button>
+                    </div>
+                    <div class="panel-body" style="max-height:160px; overflow-y:auto; padding:8px 12px;" id="liveActivityFeed">
+                        <p class="text-muted" style="margin:0; font-size:12px;">Waiting for events…</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Legacy Summary Cards (now inline with sparklines above) -->
+        <div class="row" id="summaryCards" style="margin-bottom:20px; display:none;"></div>
 
         <!-- Trend Chart with date range selector -->
         <div class="row">
@@ -115,6 +224,27 @@
         </div>
     </div>
 </div>
+
+<style>
+/* Real-time dashboard card styles */
+.rt-card { transition: box-shadow 0.2s; }
+.rt-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+.rt-value { font-size: 26px; font-weight: 700; margin: 6px 0 2px; }
+.rt-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+.rt-sparkline { height: 32px; margin: 6px auto 0; max-width: 120px; }
+.rt-trend { font-size: 11px; margin-top: 2px; }
+.rt-trend .trend-up   { color: #e74c3c; }
+.rt-trend .trend-down { color: #2ecc71; }
+.rt-trend .trend-flat { color: #999; }
+.rt-trend .trend-report-up   { color: #2ecc71; }
+.rt-trend .trend-report-down { color: #e74c3c; }
+#wsIndicator.ws-connected { background-color: #2ecc71; }
+#wsIndicator.ws-disconnected { background-color: #e74c3c; }
+#wsIndicator.ws-connecting { background-color: #f39c12; }
+.live-event { font-size: 12px; padding: 3px 0; border-bottom: 1px solid #f0f0f0; animation: fadeIn 0.3s; }
+@keyframes fadeIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+.live-event-time { color: #999; font-size: 10px; margin-right: 6px; }
+</style>
 {{end}} {{define "scripts"}}
 <script src="/js/dist/app/dashboard.min.js"></script>
 {{end}}

@@ -113,9 +113,12 @@ func (ps *PhishingServer) registerRoutes() {
 	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fileServer))
 	router.HandleFunc("/track", ps.TrackHandler)
 	router.HandleFunc("/robots.txt", ps.RobotsHandler)
+	router.HandleFunc("/qr", ps.QRHandler)
 	router.HandleFunc("/{path:.*}/track", ps.TrackHandler)
 	router.HandleFunc("/{path:.*}/report", ps.ReportHandler)
 	router.HandleFunc("/report", ps.ReportHandler)
+	router.HandleFunc("/{path:.*}/qr", ps.QRHandler)
+	router.HandleFunc("/nanolearning/ack", ps.NanolearningAckHandler)
 	router.HandleFunc("/{path:.*}", ps.PhishHandler)
 
 	// Setup GZIP compression
@@ -162,6 +165,50 @@ func (ps *PhishingServer) TrackHandler(w http.ResponseWriter, r *http.Request) {
 		log.Error(err)
 	}
 	http.ServeFile(w, r, "static/images/pixel.png")
+}
+
+// QRHandler serves a dynamically generated QR code PNG image that encodes
+// the phishing URL for the given recipient. This allows templates to use
+// <img src="{{.QRCodeURL}}"> as an alternative to the inline base64 {{.QRCode}}.
+func (ps *PhishingServer) QRHandler(w http.ResponseWriter, r *http.Request) {
+	r, err := setupContext(r)
+	if err != nil {
+		if err != ErrInvalidRequest && err != ErrCampaignComplete {
+			log.Error(err)
+		}
+		http.NotFound(w, r)
+		return
+	}
+	// Build the phishing URL for this recipient
+	var phishURL string
+	if preview, ok := ctx.Get(r, "result").(models.EmailRequest); ok {
+		ptx, err := models.NewPhishingTemplateContext(&preview, preview.BaseRecipient, preview.RId)
+		if err != nil {
+			log.Error(err)
+			http.NotFound(w, r)
+			return
+		}
+		phishURL = ptx.URL
+	} else {
+		rs := ctx.Get(r, "result").(models.Result)
+		c := ctx.Get(r, "campaign").(models.Campaign)
+		ptx, err := models.NewPhishingTemplateContext(&c, rs.BaseRecipient, rs.RId)
+		if err != nil {
+			log.Error(err)
+			http.NotFound(w, r)
+			return
+		}
+		phishURL = ptx.URL
+	}
+	qrPNG, err := models.GenerateQRCodePNG(phishURL)
+	if err != nil {
+		log.Error(err)
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "image/png")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Write(qrPNG)
 }
 
 // ReportHandler tracks emails as they are reported, updating the status for the given Result
@@ -266,6 +313,18 @@ func (ps *PhishingServer) PhishHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			// Fall through to normal landing page if feedback page can't be loaded
 		}
+		// Auto-trigger nanolearning tip on phishing click when no feedback page is configured.
+		// This provides an immediate micro-learning intervention for the user.
+		if !c.FeedbackEnabled || c.FeedbackPageId == 0 {
+			go func() {
+				defer func() {
+					if rec := recover(); rec != nil {
+						log.Errorf("nanolearning trigger panic: %v", rec)
+					}
+				}()
+				models.TriggerNanolearningOnClick(c.Id, rs.Email, rs.RId)
+			}()
+		}
 	case r.Method == "POST":
 		err = rs.HandleFormSubmit(d)
 		if err != nil {
@@ -324,6 +383,34 @@ func renderFeedbackResponse(w http.ResponseWriter, r *http.Request, ptx models.P
 // RobotsHandler prevents search engines, etc. from indexing phishing materials
 func (ps *PhishingServer) RobotsHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "User-agent: *\nDisallow: /")
+}
+
+// NanolearningAckHandler records that a user acknowledged a nanolearning tip.
+// Called via POST from the nanolearning interstitial page.
+func (ps *PhishingServer) NanolearningAckHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.NotFound(w, r)
+		return
+	}
+	_ = r.ParseForm()
+	eventIdStr := r.FormValue("event_id")
+	if eventIdStr == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	var eventId int64
+	for _, c := range eventIdStr {
+		if c >= '0' && c <= '9' {
+			eventId = eventId*10 + int64(c-'0')
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+	}
+	if err := models.AcknowledgeNanolearning(eventId); err != nil {
+		log.Error(err)
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // TransparencyHandler returns a TransparencyResponse for the provided result

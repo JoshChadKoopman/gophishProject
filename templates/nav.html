@@ -48,6 +48,18 @@
                     <a href="/reports"><i class="fa fa-bar-chart"></i> {{T .Locale "nav.reports"}}</a>
                 </li>
                 {{end}}
+                {{if and .OrgFeatures (index .OrgFeatures "board_reports")}}
+                {{if .ViewReports}}
+                <li>
+                    <a href="/board-reports"><i class="fa fa-briefcase"></i> {{T .Locale "nav.board_reports"}}</a>
+                </li>
+                {{end}}
+                {{end}}
+                {{if .ViewReports}}
+                <li>
+                    <a href="/roi"><i class="fa fa-line-chart"></i> {{T .Locale "nav.roi_reporting"}}</a>
+                </li>
+                {{end}}
                 {{if .ViewReports}}
                 <li>
                     <a href="/audit-log"><i class="fa fa-history"></i> {{T .Locale "nav.audit_log"}}</a>
@@ -68,6 +80,9 @@
                 <li>
                     <a href="/academy"><i class="fa fa-graduation-cap"></i> {{T .Locale "nav.academy"}}</a>
                 </li>
+                <li>
+                    <a href="/difficulty"><i class="fa fa-sliders"></i> {{T .Locale "nav.difficulty"}}</a>
+                </li>
                 {{if and .OrgFeatures (index .OrgFeatures "gamification")}}
                 <li>
                     <a href="/leaderboard"><i class="fa fa-trophy"></i> {{T .Locale "nav.leaderboard"}}</a>
@@ -76,12 +91,30 @@
                 <li>
                     <a href="/threat-alerts"><i class="fa fa-shield"></i> {{T .Locale "nav.threat_alerts"}}</a>
                 </li>
+                <li>
+                    <a href="/cyber-hygiene"><i class="fa fa-laptop"></i> {{T .Locale "nav.cyber_hygiene"}}</a>
+                </li>
+                {{if .ModifyObjects}}
+                <li>
+                    <a href="/remediation"><i class="fa fa-medkit"></i> {{T .Locale "nav.remediation"}}</a>
+                </li>
+                {{end}}
                 {{if and .OrgFeatures (index .OrgFeatures "report_button")}}
                 {{if .ModifyObjects}}
                 <li>
                     <a href="/reported-emails"><i class="fa fa-flag"></i> {{T .Locale "nav.reported_emails"}}</a>
                 </li>
                 {{end}}
+                {{end}}
+                {{if .ModifyObjects}}
+                <li>
+                    <a href="/email-security"><i class="fa fa-shield"></i> Email Security</a>
+                </li>
+                {{end}}
+                {{if and .OrgFeatures (index .OrgFeatures "msp_partner_portal")}}
+                <li>
+                    <a href="/partner-portal"><i class="fa fa-handshake-o"></i> Partner Portal</a>
+                </li>
                 {{end}}
                 {{if .ModifyObjects}}
                 <li>

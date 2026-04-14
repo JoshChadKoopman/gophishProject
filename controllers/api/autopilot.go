@@ -26,7 +26,7 @@ func (as *Server) AutopilotConfig(w http.ResponseWriter, r *http.Request) {
 	case http.MethodPut:
 		ac := models.AutopilotConfig{}
 		if err := json.NewDecoder(r.Body).Decode(&ac); err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: "Invalid JSON"}, http.StatusBadRequest)
+			JSONResponse(w, models.Response{Success: false, Message: ErrInvalidJSON}, http.StatusBadRequest)
 			return
 		}
 		ac.OrgId = scope.OrgId
@@ -38,14 +38,14 @@ func (as *Server) AutopilotConfig(w http.ResponseWriter, r *http.Request) {
 		JSONResponse(w, ac, http.StatusOK)
 
 	default:
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 	}
 }
 
 // AutopilotEnable handles POST /api/autopilot/enable.
 func (as *Server) AutopilotEnable(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	scope := getOrgScope(r)
@@ -60,7 +60,7 @@ func (as *Server) AutopilotEnable(w http.ResponseWriter, r *http.Request) {
 // AutopilotDisable handles POST /api/autopilot/disable.
 func (as *Server) AutopilotDisable(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	scope := getOrgScope(r)
@@ -75,7 +75,7 @@ func (as *Server) AutopilotDisable(w http.ResponseWriter, r *http.Request) {
 // AutopilotSchedule handles GET /api/autopilot/schedule.
 func (as *Server) AutopilotSchedule(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	scope := getOrgScope(r)
@@ -106,7 +106,7 @@ func (as *Server) AutopilotBlackoutDates(w http.ResponseWriter, r *http.Request)
 	case http.MethodPost:
 		d := models.AutopilotBlackoutDate{}
 		if err := json.NewDecoder(r.Body).Decode(&d); err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: "Invalid JSON"}, http.StatusBadRequest)
+			JSONResponse(w, models.Response{Success: false, Message: ErrInvalidJSON}, http.StatusBadRequest)
 			return
 		}
 		d.OrgId = scope.OrgId
@@ -122,14 +122,14 @@ func (as *Server) AutopilotBlackoutDates(w http.ResponseWriter, r *http.Request)
 		JSONResponse(w, d, http.StatusCreated)
 
 	default:
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 	}
 }
 
 // AutopilotBlackoutDate handles DELETE /api/autopilot/blackout/{id}.
 func (as *Server) AutopilotBlackoutDate(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	scope := getOrgScope(r)

@@ -1,0 +1,222 @@
+{{define "body"}}
+<div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+    <div class="page-header">
+        <h1>
+            <i class="fa fa-medkit"></i> Remediation Paths
+            {{if .ModifyObjects}}
+            <button class="btn btn-primary pull-right" id="createPathBtn">
+                <i class="fa fa-plus"></i> New Remediation Path
+            </button>
+            <button class="btn btn-default pull-right" id="evaluateBtn" style="margin-right:8px;">
+                <i class="fa fa-refresh"></i> Auto-Evaluate
+            </button>
+            {{end}}
+        </h1>
+    </div>
+    <div id="flashes" class="row"></div>
+
+    <!-- Summary Cards (Admin) -->
+    {{if .ModifyObjects}}
+    <div id="remediationSummary" class="row" style="margin-bottom:20px;">
+        <div class="col-md-2">
+            <div class="panel panel-default text-center">
+                <div class="panel-body">
+                    <h3 id="totalPaths" style="margin:5px 0;">—</h3>
+                    <p style="color:#888;margin:0;font-size:12px;">Total</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="panel panel-info text-center">
+                <div class="panel-body">
+                    <h3 id="activePaths" style="margin:5px 0;">—</h3>
+                    <p style="color:#888;margin:0;font-size:12px;">Active</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="panel panel-success text-center">
+                <div class="panel-body">
+                    <h3 id="completedPaths" style="margin:5px 0;">—</h3>
+                    <p style="color:#888;margin:0;font-size:12px;">Completed</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="panel panel-danger text-center">
+                <div class="panel-body">
+                    <h3 id="criticalCount" style="margin:5px 0;">—</h3>
+                    <p style="color:#888;margin:0;font-size:12px;">Critical Risk</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="panel panel-warning text-center">
+                <div class="panel-body">
+                    <h3 id="highCount" style="margin:5px 0;">—</h3>
+                    <p style="color:#888;margin:0;font-size:12px;">High Risk</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="panel panel-default text-center">
+                <div class="panel-body">
+                    <h3 id="avgCompletion" style="margin:5px 0;">—</h3>
+                    <p style="color:#888;margin:0;font-size:12px;">Avg Completion</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {{end}}
+
+    <!-- Status Filter -->
+    <div class="btn-group" style="margin-bottom:15px;" id="statusFilter">
+        <button class="btn btn-default active" data-status="all">All</button>
+        <button class="btn btn-info" data-status="active"><i class="fa fa-clock-o"></i> Active</button>
+        <button class="btn btn-success" data-status="completed"><i class="fa fa-check"></i> Completed</button>
+        <button class="btn btn-warning" data-status="expired"><i class="fa fa-hourglass-end"></i> Expired</button>
+        <button class="btn btn-default" data-status="cancelled"><i class="fa fa-ban"></i> Cancelled</button>
+    </div>
+
+    <!-- Paths Table -->
+    <div class="table-responsive">
+        <table id="pathsTable" class="table table-hover">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Name</th>
+                    <th>Risk Level</th>
+                    <th>Status</th>
+                    <th>Progress</th>
+                    <th>Due Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="pathsBody"></tbody>
+        </table>
+    </div>
+
+    <!-- My Paths (non-admin, user view) -->
+    <div id="myPathsSection" style="display:none;">
+        <h3><i class="fa fa-user"></i> My Remediation Paths</h3>
+        <div id="myPathsList"></div>
+    </div>
+
+    <!-- Empty State -->
+    <div id="pathsEmpty" style="display:none; text-align:center; padding:40px 0; color:#999;">
+        <i class="fa fa-medkit fa-3x"></i>
+        <h3>No remediation paths found.</h3>
+        <p>Remediation paths are created automatically when repeat phishing offenders are escalated, or manually by admins.</p>
+    </div>
+</div>
+
+<!-- Create Remediation Path Modal -->
+<div class="modal fade" id="createPathModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                <h4 class="modal-title"><i class="fa fa-medkit"></i> Create Remediation Path</h4>
+            </div>
+            <div class="modal-body">
+                <div id="modal.flashes"></div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>Path Name</label>
+                            <input type="text" class="form-control" id="pathName" placeholder="e.g. Remediation — john@company.com">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>User Email</label>
+                            <input type="email" class="form-control" id="pathUserEmail" placeholder="employee@company.com">
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>User ID</label>
+                            <input type="number" class="form-control" id="pathUserId" placeholder="User ID">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>Fail Count</label>
+                            <input type="number" class="form-control" id="pathFailCount" value="1" min="0">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>Due Date</label>
+                            <input type="date" class="form-control" id="pathDueDate">
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Assigned Courses</label>
+                    <p class="help-block">Select one or more training courses for this remediation path.</p>
+                    <div id="courseCheckboxes" style="max-height:200px; overflow-y:auto; border:1px solid #ddd; padding:10px; border-radius:4px;">
+                        <em>Loading courses...</em>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="savePathBtn"><i class="fa fa-save"></i> Create Path</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Path Detail Modal -->
+<div class="modal fade" id="pathDetailModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                <h4 class="modal-title" id="detailPathName">Path Detail</h4>
+            </div>
+            <div class="modal-body">
+                <div class="row" style="margin-bottom:15px;">
+                    <div class="col-md-4"><strong>User:</strong> <span id="detailUser"></span></div>
+                    <div class="col-md-4"><strong>Risk Level:</strong> <span id="detailRisk"></span></div>
+                    <div class="col-md-4"><strong>Status:</strong> <span id="detailStatus"></span></div>
+                </div>
+                <div class="row" style="margin-bottom:15px;">
+                    <div class="col-md-4"><strong>Fail Count:</strong> <span id="detailFailCount"></span></div>
+                    <div class="col-md-4"><strong>Due Date:</strong> <span id="detailDueDate"></span></div>
+                    <div class="col-md-4"><strong>Completion:</strong> <span id="detailCompletion"></span></div>
+                </div>
+                <div class="progress" style="height:20px;">
+                    <div id="detailProgressBar" class="progress-bar progress-bar-striped" role="progressbar" style="min-width:2em;"></div>
+                </div>
+                <h4 style="margin-top:20px;">Steps</h4>
+                <table class="table table-condensed">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Course</th>
+                            <th>Status</th>
+                            <th>Completed</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detailSteps"></tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                {{if .ModifyObjects}}
+                <button type="button" class="btn btn-danger" id="cancelPathBtn" style="display:none;"><i class="fa fa-ban"></i> Cancel Path</button>
+                {{end}}
+            </div>
+        </div>
+    </div>
+</div>
+{{end}}
+
+{{define "scripts"}}
+<script src="/js/dist/app/remediation.min.js"></script>
+{{end}}

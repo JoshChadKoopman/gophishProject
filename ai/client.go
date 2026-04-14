@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"time"
 )
@@ -12,9 +12,9 @@ import (
 // Response represents a parsed LLM response with the generated content and
 // token usage statistics.
 type Response struct {
-	Content     string `json:"content"`
-	InputTokens int    `json:"input_tokens"`
-	OutputTokens int   `json:"output_tokens"`
+	Content      string `json:"content"`
+	InputTokens  int    `json:"input_tokens"`
+	OutputTokens int    `json:"output_tokens"`
 }
 
 // Client is the interface that all AI provider implementations must satisfy.
@@ -104,7 +104,7 @@ func (c *ClaudeClient) Generate(systemPrompt, userPrompt string) (*Response, err
 	}
 	defer resp.Body.Close()
 
-	respBody, err := ioutil.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("ai/claude: read response: %w", err)
 	}
@@ -207,7 +207,7 @@ func (c *OpenAIClient) Generate(systemPrompt, userPrompt string) (*Response, err
 	}
 	defer resp.Body.Close()
 
-	respBody, err := ioutil.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("ai/openai: read response: %w", err)
 	}

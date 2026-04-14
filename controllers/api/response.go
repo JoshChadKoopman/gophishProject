@@ -8,6 +8,15 @@ import (
 	log "github.com/gophish/gophish/logger"
 )
 
+// ErrMethodNotAllowed is the standard message for unsupported HTTP methods.
+const ErrMethodNotAllowed = "Method not allowed"
+
+// ErrInvalidJSON is the standard message for malformed JSON request bodies.
+const ErrInvalidJSON = "Invalid JSON"
+
+// ErrPermissionDenied is the standard message for permission-denied responses.
+const ErrPermissionDenied = "Permission denied"
+
 // JSONResponse attempts to set the status code, c, and marshal the given interface, d, into a response that
 // is written to the given ResponseWriter.
 func JSONResponse(w http.ResponseWriter, d interface{}, c int) {

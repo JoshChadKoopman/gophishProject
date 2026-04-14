@@ -6,6 +6,12 @@ import (
 	log "github.com/gophish/gophish/logger"
 )
 
+// Reusable query fragments.
+const (
+	queryByUserID = "user_id = ?"
+	queryByID     = "id = ?"
+)
+
 // Badge represents an achievement that users can earn.
 type Badge struct {
 	Id            int64     `json:"id" gorm:"column:id; primary_key:yes"`
@@ -62,6 +68,11 @@ type LeaderboardEntry struct {
 	BadgeCount int    `json:"badge_count" gorm:"-"`
 }
 
+// TableName overrides the default table name for LeaderboardEntry.
+func (LeaderboardEntry) TableName() string {
+	return "leaderboard_cache"
+}
+
 // --- Badge functions ---
 
 // GetAllBadges returns all defined badges.
@@ -74,13 +85,13 @@ func GetAllBadges() ([]Badge, error) {
 // GetUserBadges returns all badges earned by a user.
 func GetUserBadges(userId int64) ([]UserBadge, error) {
 	ubs := []UserBadge{}
-	err := db.Where("user_id = ?", userId).Order("earned_date desc").Find(&ubs).Error
+	err := db.Where(queryByUserID, userId).Order("earned_date desc").Find(&ubs).Error
 	if err != nil {
 		return ubs, err
 	}
 	for i := range ubs {
 		b := Badge{}
-		if err := db.Where("id = ?", ubs[i].BadgeId).First(&b).Error; err == nil {
+		if err := db.Where(queryByID, ubs[i].BadgeId).First(&b).Error; err == nil {
 			ubs[i].BadgeName = b.Name
 			ubs[i].BadgeDescription = b.Description
 			ubs[i].BadgeIconURL = b.IconURL
@@ -127,8 +138,25 @@ func AwardBadge(userId int64, badgeSlug string) (*UserBadge, bool) {
 // GetUserBadgeCount returns the number of badges a user has earned.
 func GetUserBadgeCount(userId int64) int {
 	var count int
-	db.Table("user_badges").Where("user_id = ?", userId).Count(&count)
+	db.Table("user_badges").Where(queryByUserID, userId).Count(&count)
 	return count
+}
+
+// badgeRule maps a threshold to a badge slug.
+type badgeRule struct {
+	threshold int
+	slug      string
+}
+
+// awardByThreshold checks a list of rules and awards badges when the count meets the threshold.
+func awardByThreshold(userId int64, count int, rules []badgeRule, awarded *[]UserBadge) {
+	for _, r := range rules {
+		if count >= r.threshold {
+			if ub, ok := AwardBadge(userId, r.slug); ok {
+				*awarded = append(*awarded, *ub)
+			}
+		}
+	}
 }
 
 // CheckAndAwardBadges evaluates all badge criteria for a user and awards any newly earned badges.
@@ -149,41 +177,19 @@ func CheckAndAwardBadges(userId int64) []UserBadge {
 	db.Table("quiz_attempts").Where("user_id = ? AND passed = 1 AND score = total_questions", userId).Count(&perfectQuizzes)
 
 	// Course completion badges
-	if coursesCompleted >= 1 {
-		if ub, ok := AwardBadge(userId, "first_course"); ok {
-			awarded = append(awarded, *ub)
-		}
-	}
-	if coursesCompleted >= 5 {
-		if ub, ok := AwardBadge(userId, "five_courses"); ok {
-			awarded = append(awarded, *ub)
-		}
-	}
-	if coursesCompleted >= 10 {
-		if ub, ok := AwardBadge(userId, "ten_courses"); ok {
-			awarded = append(awarded, *ub)
-		}
-	}
+	awardByThreshold(userId, coursesCompleted, []badgeRule{
+		{1, "first_course"}, {5, "five_courses"}, {10, "ten_courses"},
+	}, &awarded)
 
 	// Quiz badges
-	if perfectQuizzes >= 1 {
-		if ub, ok := AwardBadge(userId, "perfect_quiz"); ok {
-			awarded = append(awarded, *ub)
-		}
-	}
-	if quizzesPassed >= 5 {
-		if ub, ok := AwardBadge(userId, "five_quizzes"); ok {
-			awarded = append(awarded, *ub)
-		}
-	}
+	awardByThreshold(userId, perfectQuizzes, []badgeRule{{1, "perfect_quiz"}}, &awarded)
+	awardByThreshold(userId, quizzesPassed, []badgeRule{{5, "five_quizzes"}}, &awarded)
 
 	// Academy tier badges
 	completedSlugs := GetCompletedTierSlugs(userId)
 	tierBadgeMap := map[string]string{
-		"bronze":   "bronze_tier",
-		"silver":   "silver_tier",
-		"gold":     "gold_tier",
-		"platinum": "platinum_tier",
+		"bronze": "bronze_tier", "silver": "silver_tier",
+		"gold": "gold_tier", "platinum": "platinum_tier",
 	}
 	for _, slug := range completedSlugs {
 		if badgeSlug, ok := tierBadgeMap[slug]; ok {
@@ -196,30 +202,15 @@ func CheckAndAwardBadges(userId int64) []UserBadge {
 	// Streak badges
 	streak, err := GetUserStreak(userId, "weekly")
 	if err == nil {
-		if streak.CurrentStreak >= 3 {
-			if ub, ok := AwardBadge(userId, "week_streak_3"); ok {
-				awarded = append(awarded, *ub)
-			}
-		}
-		if streak.CurrentStreak >= 8 {
-			if ub, ok := AwardBadge(userId, "week_streak_8"); ok {
-				awarded = append(awarded, *ub)
-			}
-		}
-		if streak.CurrentStreak >= 16 {
-			if ub, ok := AwardBadge(userId, "week_streak_16"); ok {
-				awarded = append(awarded, *ub)
-			}
-		}
+		awardByThreshold(userId, streak.CurrentStreak, []badgeRule{
+			{3, "week_streak_3"}, {8, "week_streak_8"}, {16, "week_streak_16"},
+		}, &awarded)
 	}
 
 	// Compliance cert badges
-	complianceCount := GetComplianceCertCount(userId)
-	if complianceCount >= 1 {
-		if ub, ok := AwardBadge(userId, "compliance_cert"); ok {
-			awarded = append(awarded, *ub)
-		}
-	}
+	awardByThreshold(userId, GetComplianceCertCount(userId), []badgeRule{
+		{1, "compliance_cert"},
+	}, &awarded)
 
 	return awarded
 }
@@ -236,7 +227,7 @@ func GetUserStreak(userId int64, streakType string) (UserStreak, error) {
 // GetUserStreaks returns all streaks for a user.
 func GetUserStreaks(userId int64) ([]UserStreak, error) {
 	streaks := []UserStreak{}
-	err := db.Where("user_id = ?", userId).Find(&streaks).Error
+	err := db.Where(queryByUserID, userId).Find(&streaks).Error
 	return streaks, err
 }
 
@@ -319,7 +310,7 @@ func GetLeaderboard(orgId int64, period string, department string, limit int) ([
 	// Enrich with user info
 	for i := range entries {
 		u := User{}
-		if err := db.Where("id = ?", entries[i].UserId).First(&u).Error; err == nil {
+		if err := db.Where(queryByID, entries[i].UserId).First(&u).Error; err == nil {
 			entries[i].UserName = u.FirstName + " " + u.LastName
 			entries[i].UserEmail = u.Username
 		}
@@ -336,7 +327,7 @@ func GetUserLeaderboardPosition(userId int64, orgId int64, period string) (*Lead
 		return nil, err
 	}
 	u := User{}
-	if err := db.Where("id = ?", userId).First(&u).Error; err == nil {
+	if err := db.Where(queryByID, userId).First(&u).Error; err == nil {
 		entry.UserName = u.FirstName + " " + u.LastName
 		entry.UserEmail = u.Username
 	}

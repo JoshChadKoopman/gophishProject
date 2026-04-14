@@ -508,4 +508,84 @@ $(document).ready(function () {
         aiSetLoading(false);
     });
 
+    // --- Template Library ---
+    var libTemplates = [];
+
+    function renderLibrary(list) {
+        var grid = $("#libraryGrid").empty();
+        if (!list || list.length === 0) {
+            grid.html('<div class="col-md-12"><p class="text-muted text-center">No templates match the selected filters.</p></div>');
+            return;
+        }
+        var diffLabels = {1: "Easy", 2: "Medium", 3: "Hard"};
+        var diffColors = {1: "#28a745", 2: "#ffc107", 3: "#dc3545"};
+        $.each(list, function (i, t) {
+            var card = '<div class="col-md-6" style="margin-bottom:15px">' +
+                '<div style="border:1px solid #e0e0e0;border-radius:6px;padding:15px;height:100%">' +
+                '<h5 style="margin-top:0">' + escapeHtml(t.name) + '</h5>' +
+                '<p style="font-size:12px;color:#888;margin:4px 0"><span class="label label-default">' + escapeHtml(t.category) + '</span> ' +
+                '<span class="label" style="background:' + (diffColors[t.difficulty_level] || '#999') + '">' + (diffLabels[t.difficulty_level] || t.difficulty_level) + '</span></p>' +
+                '<p style="font-size:13px;color:#555">' + escapeHtml(t.description) + '</p>' +
+                '<p style="font-size:12px;color:#999">Subject: <em>' + escapeHtml(t.subject || '(SMS — no subject)') + '</em></p>' +
+                '<button class="btn btn-sm btn-primary lib-import-btn" data-slug="' + escapeHtml(t.slug) + '"><i class="fa fa-download"></i> Import</button>' +
+                '</div></div>';
+            grid.append(card);
+        });
+    }
+
+    function filterLibrary() {
+        var cat = $("#libCategoryFilter").val();
+        var diff = parseInt($("#libDifficultyFilter").val()) || 0;
+        var filtered = libTemplates;
+        if (cat) filtered = filtered.filter(function (t) { return t.category === cat; });
+        if (diff) filtered = filtered.filter(function (t) { return t.difficulty_level === diff; });
+        renderLibrary(filtered);
+    }
+
+    $("#libraryModal").on("show.bs.modal", function () {
+        $("#libraryLoading").show();
+        $("#libraryGrid").hide();
+        // Load categories
+        api.TemplateLibrary.categories()
+            .success(function (cats) {
+                var sel = $("#libCategoryFilter").empty().append('<option value="">All Categories</option>');
+                $.each(cats, function (i, c) {
+                    sel.append('<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>');
+                });
+            });
+        // Load templates
+        api.TemplateLibrary.get()
+            .success(function (data) {
+                libTemplates = data;
+                $("#libraryLoading").hide();
+                $("#libraryGrid").show();
+                renderLibrary(libTemplates);
+            })
+            .error(function () {
+                $("#libraryLoading").hide();
+                $("#libraryFlashes").html('<div class="alert alert-danger">Error loading template library</div>');
+            });
+    });
+
+    $("#libCategoryFilter, #libDifficultyFilter").on("change", filterLibrary);
+
+    $(document).on("click", ".lib-import-btn", function () {
+        var btn = $(this);
+        var slug = btn.data("slug");
+        btn.prop("disabled", true).html('<i class="fa fa-spinner fa-spin"></i> Importing...');
+        api.TemplateLibrary.import(slug)
+            .success(function (data) {
+                btn.prop("disabled", false).html('<i class="fa fa-check"></i> Imported!');
+                setTimeout(function () {
+                    btn.html('<i class="fa fa-download"></i> Import');
+                }, 2000);
+                load();
+            })
+            .error(function (data) {
+                btn.prop("disabled", false).html('<i class="fa fa-download"></i> Import');
+                var msg = (data.responseJSON && data.responseJSON.message) || "Import failed";
+                $("#libraryFlashes").html('<div class="alert alert-danger">' + escapeHtml(msg) + '</div>');
+            });
+    });
+
 })

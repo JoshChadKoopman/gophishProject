@@ -1,0 +1,317 @@
+{{define "body"}}
+<div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+    <div class="page-header">
+        <h1>
+            <i class="fa fa-laptop"></i> Cyber Hygiene — My Apps &amp; Devices
+            <button class="btn btn-primary pull-right" id="addDeviceBtn">
+                <i class="fa fa-plus"></i> Register Device
+            </button>
+        </h1>
+    </div>
+    <div id="flashes" class="row"></div>
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs" id="hygieneTabs" style="margin-bottom:20px;">
+        <li class="active"><a data-toggle="tab" href="#devicesTab"><i class="fa fa-laptop"></i> My Devices</a></li>
+        <li><a data-toggle="tab" href="#checklistTab"><i class="fa fa-check-square-o"></i> Personalized Checklist</a></li>
+        <li><a data-toggle="tab" href="#techStackTab"><i class="fa fa-cogs"></i> Tech Stack Profile</a></li>
+        {{if .ModifySystem}}
+        <li><a data-toggle="tab" href="#adminTab"><i class="fa fa-bar-chart"></i> Admin Dashboard</a></li>
+        {{end}}
+    </ul>
+
+    <div class="tab-content">
+        <!-- MY DEVICES TAB -->
+        <div id="devicesTab" class="tab-pane fade in active">
+            <div id="devicesList"></div>
+            <div id="devicesEmpty" style="display:none; text-align:center; padding:40px 0; color:#999;">
+                <i class="fa fa-laptop fa-3x"></i>
+                <h3>No devices registered yet.</h3>
+                <p>Register your work devices to track their security hygiene.</p>
+            </div>
+        </div>
+
+        <!-- PERSONALIZED CHECKLIST TAB -->
+        <div id="checklistTab" class="tab-pane fade">
+            <div id="checklistContent">
+                <p class="text-muted"><i class="fa fa-spinner fa-spin"></i> Loading personalized checks...</p>
+            </div>
+        </div>
+
+        <!-- TECH STACK PROFILE TAB -->
+        <div id="techStackTab" class="tab-pane fade">
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <h3 class="panel-title"><i class="fa fa-cogs"></i> Your Tech Stack Profile</h3>
+                </div>
+                <div class="panel-body">
+                    <p class="text-muted">Complete your tech stack profile to get personalized hygiene recommendations.</p>
+                    <form id="techStackForm">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="tsOS">Primary OS</label>
+                                    <select class="form-control" id="tsOS">
+                                        <option value="">Select...</option>
+                                        <option value="Windows">Windows</option>
+                                        <option value="macOS">macOS</option>
+                                        <option value="Linux">Linux</option>
+                                        <option value="ChromeOS">ChromeOS</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="tsBrowser">Browser</label>
+                                    <select class="form-control" id="tsBrowser">
+                                        <option value="">Select...</option>
+                                        <option value="Chrome">Chrome</option>
+                                        <option value="Firefox">Firefox</option>
+                                        <option value="Safari">Safari</option>
+                                        <option value="Edge">Edge</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="tsEmail">Email Client</label>
+                                    <select class="form-control" id="tsEmail">
+                                        <option value="">Select...</option>
+                                        <option value="Outlook">Outlook</option>
+                                        <option value="Gmail">Gmail</option>
+                                        <option value="Apple Mail">Apple Mail</option>
+                                        <option value="Thunderbird">Thunderbird</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="tsRemoteAccess">Remote Access / VPN</label>
+                                    <input type="text" class="form-control" id="tsRemoteAccess" placeholder="e.g. Cisco AnyConnect, WireGuard">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="tsMobile">Mobile Device</label>
+                                    <input type="text" class="form-control" id="tsMobile" placeholder="e.g. iPhone 15, Samsung Galaxy">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="tsCloudApps">Cloud Apps (comma-separated)</label>
+                                    <input type="text" class="form-control" id="tsCloudApps" placeholder="e.g. Slack, Teams, Notion">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="tsDevTools">Dev Tools (comma-separated)</label>
+                            <input type="text" class="form-control" id="tsDevTools" placeholder="e.g. VS Code, Docker, Git">
+                        </div>
+                        <button type="submit" class="btn btn-primary"><i class="fa fa-save"></i> Save Profile</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- ADMIN DASHBOARD TAB -->
+        {{if .ModifySystem}}
+        <div id="adminTab" class="tab-pane fade">
+            <!-- Summary Cards -->
+            <div class="row" id="adminSummaryCards" style="margin-bottom:20px;">
+                <div class="col-md-2">
+                    <div class="panel panel-default text-center">
+                        <div class="panel-body">
+                            <h3 id="adminTotalDevices" style="margin:5px 0;">—</h3>
+                            <p style="color:#888;margin:0;font-size:12px;">Total Devices</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="panel panel-success text-center">
+                        <div class="panel-body">
+                            <h3 id="adminFullyCompliant" style="margin:5px 0;">—</h3>
+                            <p style="color:#888;margin:0;font-size:12px;">Fully Compliant</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="panel panel-danger text-center">
+                        <div class="panel-body">
+                            <h3 id="adminAtRisk" style="margin:5px 0;">—</h3>
+                            <p style="color:#888;margin:0;font-size:12px;">At Risk (&lt;50%)</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="panel panel-info text-center">
+                        <div class="panel-body">
+                            <h3 id="adminAvgScore" style="margin:5px 0;">—</h3>
+                            <p style="color:#888;margin:0;font-size:12px;">Avg Score</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="panel panel-default text-center">
+                        <div class="panel-body">
+                            <h3 id="adminProfileCount" style="margin:5px 0;">—</h3>
+                            <p style="color:#888;margin:0;font-size:12px;">Tech Profiles</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="panel panel-default text-center">
+                        <div class="panel-body">
+                            <h3 id="adminPassRate" style="margin:5px 0;">—</h3>
+                            <p style="color:#888;margin:0;font-size:12px;">Pass Rate</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Check Breakdown -->
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="panel panel-default">
+                        <div class="panel-heading"><i class="fa fa-pie-chart"></i> Check Breakdown</div>
+                        <div class="panel-body" id="checkBreakdown">
+                            <p class="text-muted">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="panel panel-default">
+                        <div class="panel-heading"><i class="fa fa-desktop"></i> OS Breakdown</div>
+                        <div class="panel-body" id="osBreakdown">
+                            <p class="text-muted">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="panel panel-default">
+                        <div class="panel-heading"><i class="fa fa-mobile"></i> Device Types</div>
+                        <div class="panel-body" id="deviceTypeBreakdown">
+                            <p class="text-muted">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Device Table -->
+            <h4><i class="fa fa-list"></i> All Devices</h4>
+            <div class="table-responsive">
+                <table id="adminDevicesTable" class="table table-hover table-condensed">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Email</th>
+                            <th>Device</th>
+                            <th>Type</th>
+                            <th>OS</th>
+                            <th>Score</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminDevicesBody"></tbody>
+                </table>
+            </div>
+        </div>
+        {{end}}
+    </div>
+</div>
+
+<!-- Add/Edit Device Modal -->
+<div class="modal fade" id="deviceModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                <h4 class="modal-title" id="deviceModalTitle"><i class="fa fa-laptop"></i> Register Device</h4>
+            </div>
+            <div class="modal-body">
+                <div id="modal.flashes"></div>
+                <input type="hidden" id="deviceId">
+                <div class="form-group">
+                    <label for="deviceName">Device Name</label>
+                    <input type="text" class="form-control" id="deviceName" placeholder="e.g. My Work Laptop">
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="deviceType">Device Type</label>
+                            <select class="form-control" id="deviceType">
+                                <option value="laptop">Laptop</option>
+                                <option value="desktop">Desktop</option>
+                                <option value="mobile">Mobile</option>
+                                <option value="tablet">Tablet</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="deviceOS">Operating System</label>
+                            <select class="form-control" id="deviceOS">
+                                <option value="">Select...</option>
+                                <option value="Windows 11">Windows 11</option>
+                                <option value="Windows 10">Windows 10</option>
+                                <option value="macOS">macOS</option>
+                                <option value="Linux">Linux</option>
+                                <option value="ChromeOS">ChromeOS</option>
+                                <option value="iOS">iOS</option>
+                                <option value="Android">Android</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveDeviceBtn"><i class="fa fa-save"></i> Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hygiene Check Modal -->
+<div class="modal fade" id="checkModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                <h4 class="modal-title"><i class="fa fa-check-square-o"></i> Update Hygiene Check</h4>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="checkDeviceId">
+                <input type="hidden" id="checkType">
+                <div class="form-group">
+                    <label>Check</label>
+                    <p id="checkLabel" class="form-control-static" style="font-weight:bold;"></p>
+                </div>
+                <div class="form-group">
+                    <label for="checkStatus">Status</label>
+                    <select class="form-control" id="checkStatus">
+                        <option value="pass">✅ Pass</option>
+                        <option value="fail">❌ Fail</option>
+                        <option value="unknown">❓ Unknown</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="checkNote">Note (optional)</label>
+                    <input type="text" class="form-control" id="checkNote" placeholder="Additional details...">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveCheckBtn"><i class="fa fa-save"></i> Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+{{end}}
+
+{{define "scripts"}}
+<script src="/js/dist/app/cyber_hygiene.min.js"></script>
+{{end}}

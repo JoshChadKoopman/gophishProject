@@ -20,9 +20,9 @@ type AcademyTier struct {
 	CreatedDate  time.Time `json:"created_date" gorm:"column:created_date"`
 
 	// Populated at query time, not stored
-	Sessions         []AcademySession `json:"sessions,omitempty" gorm:"-"`
-	TotalSessions    int              `json:"total_sessions" gorm:"-"`
-	RequiredSessions int              `json:"required_sessions" gorm:"-"`
+	Sessions         []AcademySession     `json:"sessions,omitempty" gorm:"-"`
+	TotalSessions    int                  `json:"total_sessions" gorm:"-"`
+	RequiredSessions int                  `json:"required_sessions" gorm:"-"`
 	UserProgress     *AcademyUserProgress `json:"user_progress,omitempty" gorm:"-"`
 }
 
@@ -53,11 +53,23 @@ type AcademyUserProgress struct {
 	CreatedDate       time.Time `json:"created_date" gorm:"column:created_date"`
 }
 
+// TableName overrides the default GORM table name.
+func (AcademyUserProgress) TableName() string {
+	return "academy_user_progress"
+}
+
+// Shared WHERE clause constants for academy queries.
+const (
+	orderSortOrderAsc       = "sort_order asc"
+	queryWhereTierID        = "tier_id = ?"
+	queryWhereUserAndTierID = "user_id = ? AND tier_id = ?"
+)
+
 // GetAcademyTiers returns all active tiers for an org (falls back to system defaults org_id=0).
 func GetAcademyTiers(orgId int64) ([]AcademyTier, error) {
 	tiers := []AcademyTier{}
 	err := db.Where("(org_id = ? OR org_id = 0) AND is_active = 1", orgId).
-		Order("sort_order asc").Find(&tiers).Error
+		Order(orderSortOrderAsc).Find(&tiers).Error
 	if err != nil {
 		log.Error(err)
 		return tiers, err
@@ -65,7 +77,7 @@ func GetAcademyTiers(orgId int64) ([]AcademyTier, error) {
 	// Populate session counts
 	for i := range tiers {
 		var total, required int
-		db.Table("academy_sessions").Where("tier_id = ?", tiers[i].Id).Count(&total)
+		db.Table("academy_sessions").Where(queryWhereTierID, tiers[i].Id).Count(&total)
 		db.Table("academy_sessions").Where("tier_id = ? AND is_required = 1", tiers[i].Id).Count(&required)
 		tiers[i].TotalSessions = total
 		tiers[i].RequiredSessions = required
@@ -81,7 +93,7 @@ func GetAcademyTiersWithProgress(orgId, userId int64) ([]AcademyTier, error) {
 	}
 	for i := range tiers {
 		progress := AcademyUserProgress{}
-		err := db.Where("user_id = ? AND tier_id = ?", userId, tiers[i].Id).First(&progress).Error
+		err := db.Where(queryWhereUserAndTierID, userId, tiers[i].Id).First(&progress).Error
 		if err == nil {
 			tiers[i].UserProgress = &progress
 		}
@@ -108,13 +120,13 @@ func GetAcademyTierBySlug(orgId int64, slug string) (AcademyTier, error) {
 // GetAcademySessions returns all sessions for a tier with presentation names.
 func GetAcademySessions(tierId int64) ([]AcademySession, error) {
 	sessions := []AcademySession{}
-	err := db.Where("tier_id = ?", tierId).Order("sort_order asc").Find(&sessions).Error
+	err := db.Where(queryWhereTierID, tierId).Order(orderSortOrderAsc).Find(&sessions).Error
 	if err != nil {
 		return sessions, err
 	}
 	for i := range sessions {
 		tp := TrainingPresentation{}
-		if err := db.Table("training_presentations").Where("id = ?", sessions[i].PresentationId).First(&tp).Error; err == nil {
+		if err := db.Table("training_presentations").Where(queryWhereID, sessions[i].PresentationId).First(&tp).Error; err == nil {
 			sessions[i].PresentationName = tp.Name
 		}
 	}
@@ -144,7 +156,7 @@ func CreateAcademySession(s *AcademySession) error {
 
 // UpdateAcademySession updates a session's sort order, estimated minutes, or required flag.
 func UpdateAcademySession(s *AcademySession) error {
-	return db.Table("academy_sessions").Where("id = ?", s.Id).Updates(map[string]interface{}{
+	return db.Table("academy_sessions").Where(queryWhereID, s.Id).Updates(map[string]interface{}{
 		"sort_order":        s.SortOrder,
 		"estimated_minutes": s.EstimatedMinutes,
 		"is_required":       s.IsRequired,
@@ -153,13 +165,13 @@ func UpdateAcademySession(s *AcademySession) error {
 
 // DeleteAcademySession removes a session from a tier.
 func DeleteAcademySession(id int64) error {
-	return db.Where("id = ?", id).Delete(&AcademySession{}).Error
+	return db.Where(queryWhereID, id).Delete(&AcademySession{}).Error
 }
 
 // GetAcademyUserProgress returns progress for a user on a tier.
 func GetAcademyUserProgress(userId, tierId int64) (AcademyUserProgress, error) {
 	p := AcademyUserProgress{}
-	err := db.Where("user_id = ? AND tier_id = ?", userId, tierId).First(&p).Error
+	err := db.Where(queryWhereUserAndTierID, userId, tierId).First(&p).Error
 	return p, err
 }
 
@@ -216,17 +228,17 @@ func UpdateAcademyProgress(userId, tierId int64) error {
 // unlockNextTier finds the next tier by sort_order and marks it as unlocked for the user.
 func unlockNextTier(userId, currentTierId int64) {
 	currentTier := AcademyTier{}
-	if err := db.Where("id = ?", currentTierId).First(&currentTier).Error; err != nil {
+	if err := db.Where(queryWhereID, currentTierId).First(&currentTier).Error; err != nil {
 		return
 	}
 	nextTier := AcademyTier{}
 	if err := db.Where("(org_id = ? OR org_id = 0) AND sort_order > ? AND is_active = 1",
-		currentTier.OrgId, currentTier.SortOrder).Order("sort_order asc").First(&nextTier).Error; err != nil {
+		currentTier.OrgId, currentTier.SortOrder).Order(orderSortOrderAsc).First(&nextTier).Error; err != nil {
 		return // No next tier
 	}
 	// Ensure progress record exists
 	existing := AcademyUserProgress{}
-	if err := db.Where("user_id = ? AND tier_id = ?", userId, nextTier.Id).First(&existing).Error; err != nil {
+	if err := db.Where(queryWhereUserAndTierID, userId, nextTier.Id).First(&existing).Error; err != nil {
 		existing = AcademyUserProgress{
 			UserId:       userId,
 			TierId:       nextTier.Id,
@@ -237,7 +249,7 @@ func unlockNextTier(userId, currentTierId int64) {
 			log.Error(err)
 		}
 	} else if !existing.TierUnlocked {
-		db.Table("academy_user_progress").Where("id = ?", existing.Id).Update("tier_unlocked", true)
+		db.Table("academy_user_progress").Where(queryWhereID, existing.Id).Update("tier_unlocked", true)
 	}
 }
 
@@ -249,7 +261,7 @@ func CreateAcademyTier(t *AcademyTier) error {
 
 // UpdateAcademyTier updates a tier's details.
 func UpdateAcademyTier(t *AcademyTier) error {
-	return db.Table("academy_tiers").Where("id = ?", t.Id).Updates(map[string]interface{}{
+	return db.Table("academy_tiers").Where(queryWhereID, t.Id).Updates(map[string]interface{}{
 		"name":           t.Name,
 		"description":    t.Description,
 		"badge_icon_url": t.BadgeIconURL,
@@ -260,9 +272,9 @@ func UpdateAcademyTier(t *AcademyTier) error {
 
 // DeleteAcademyTier removes a tier and its sessions.
 func DeleteAcademyTier(id int64) error {
-	db.Where("tier_id = ?", id).Delete(&AcademySession{})
-	db.Where("tier_id = ?", id).Delete(&AcademyUserProgress{})
-	return db.Where("id = ?", id).Delete(&AcademyTier{}).Error
+	db.Where(queryWhereTierID, id).Delete(&AcademySession{})
+	db.Where(queryWhereTierID, id).Delete(&AcademyUserProgress{})
+	return db.Where(queryWhereID, id).Delete(&AcademyTier{}).Error
 }
 
 // GetCompletedTierCount returns the number of tiers a user has completed.
@@ -293,7 +305,7 @@ func GetCompletedTierSlugs(userId int64) []string {
 // GetTierSessionIDs returns all session IDs for a tier.
 func GetTierSessionIDs(tierId int64) []int64 {
 	sessions := []AcademySession{}
-	db.Where("tier_id = ?", tierId).Find(&sessions)
+	db.Where(queryWhereTierID, tierId).Find(&sessions)
 	ids := make([]int64, len(sessions))
 	for i, s := range sessions {
 		ids[i] = s.Id

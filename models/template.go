@@ -9,22 +9,26 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
+// queryWhereTemplateID is the shared WHERE clause for template_id lookups.
+const queryWhereTemplateID = "template_id=?"
+
 // Template models hold the attributes for an email template to be sent to targets
 type Template struct {
-	Id             int64        `json:"id" gorm:"column:id; primary_key:yes"`
-	UserId         int64        `json:"-" gorm:"column:user_id"`
-	OrgId          int64        `json:"-" gorm:"column:org_id"`
-	Name           string       `json:"name"`
-	EnvelopeSender string       `json:"envelope_sender"`
-	Subject        string       `json:"subject"`
-	Text           string       `json:"text"`
-	HTML           string       `json:"html" gorm:"column:html"`
+	Id              int64        `json:"id" gorm:"column:id; primary_key:yes"`
+	UserId          int64        `json:"-" gorm:"column:user_id"`
+	OrgId           int64        `json:"-" gorm:"column:org_id"`
+	Name            string       `json:"name"`
+	EnvelopeSender  string       `json:"envelope_sender"`
+	Subject         string       `json:"subject"`
+	Text            string       `json:"text"`
+	HTML            string       `json:"html" gorm:"column:html"`
 	ModifiedDate    time.Time    `json:"modified_date"`
 	Attachments     []Attachment `json:"attachments"`
 	AIGenerated     bool         `json:"ai_generated" gorm:"column:ai_generated"`
 	DifficultyLevel int          `json:"difficulty_level" gorm:"column:difficulty_level"`
 	Language        string       `json:"language" gorm:"column:language"`
 	TargetRole      string       `json:"target_role" gorm:"column:target_role"`
+	Category        string       `json:"category" gorm:"column:category"`
 }
 
 // ErrTemplateNameNotSpecified is thrown when a template name is not specified
@@ -71,7 +75,7 @@ func GetTemplates(scope OrgScope) ([]Template, error) {
 	}
 	for i := range ts {
 		// Get Attachments
-		err = db.Where("template_id=?", ts[i].Id).Find(&ts[i].Attachments).Error
+		err = db.Where(queryWhereTemplateID, ts[i].Id).Find(&ts[i].Attachments).Error
 		if err == nil && len(ts[i].Attachments) == 0 {
 			ts[i].Attachments = make([]Attachment, 0)
 		}
@@ -93,7 +97,7 @@ func GetTemplate(id int64, scope OrgScope) (Template, error) {
 	}
 
 	// Get Attachments
-	err = db.Where("template_id=?", t.Id).Find(&t.Attachments).Error
+	err = db.Where(queryWhereTemplateID, t.Id).Find(&t.Attachments).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		log.Error(err)
 		return t, err
@@ -114,7 +118,7 @@ func GetTemplateByName(n string, scope OrgScope) (Template, error) {
 	}
 
 	// Get Attachments
-	err = db.Where("template_id=?", t.Id).Find(&t.Attachments).Error
+	err = db.Where(queryWhereTemplateID, t.Id).Find(&t.Attachments).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		log.Error(err)
 		return t, err
@@ -156,7 +160,7 @@ func PutTemplate(t *Template) error {
 		return err
 	}
 	// Delete all attachments, and replace with new ones
-	err := db.Where("template_id=?", t.Id).Delete(&Attachment{}).Error
+	err := db.Where(queryWhereTemplateID, t.Id).Delete(&Attachment{}).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		log.Error(err)
 		return err
@@ -186,7 +190,7 @@ func PutTemplate(t *Template) error {
 // An error is returned if a template with the given org scope and template id is not found.
 func DeleteTemplate(id int64, scope OrgScope) error {
 	// Delete attachments
-	err := db.Where("template_id=?", id).Delete(&Attachment{}).Error
+	err := db.Where(queryWhereTemplateID, id).Delete(&Attachment{}).Error
 	if err != nil {
 		log.Error(err)
 		return err

@@ -1,11 +1,12 @@
 package imap
 
-/* TODO:
-*		 - Have a counter per config for number of consecutive login errors and backoff (e.g if supplied creds are incorrect)
-*		 - Have a DB field "last_login_error" if last login failed
-*		 - DB counter for non-campaign emails that the admin should investigate
-*		 - Add field to User for numner of non-campaign emails reported
- */
+// Future improvements for IMAP monitoring:
+//   - Implement a per-config counter for consecutive login errors with exponential backoff
+//     (e.g. if supplied credentials are incorrect).
+//   - Add a "last_login_error" field in the database to surface IMAP failures in the UI.
+//   - Add a DB counter for non-campaign emails that the admin should investigate.
+//   - Track the number of non-campaign reported emails per User.
+
 import (
 	"bytes"
 	"context"
@@ -24,7 +25,7 @@ import (
 // Pattern for GoPhish emails e.g ?rid=AbC1234
 // We include the optional quoted-printable 3D at the front, just in case decoding fails. e.g ?rid=3DAbC1234
 // We also include alternative URL encoded representations of '=' and '?' to handle Microsoft ATP URLs e.g %3Frid%3DAbC1234
-var goPhishRegex = regexp.MustCompile("((\\?|%3F)rid(=|%3D)(3D)?([A-Za-z0-9]{7}))")
+var goPhishRegex = regexp.MustCompile(`((\?|%3F)rid(=|%3D)(3D)?([A-Za-z0-9]{7}))`)
 
 // Monitor is a worker that monitors IMAP servers for reported campaign emails
 type Monitor struct {
@@ -136,69 +137,93 @@ func checkForNewEmails(im models.IMAP) {
 	// Update last_succesful_login here via im.Host
 	err = models.SuccessfulLogin(&im)
 
-	if len(msgs) > 0 {
-		log.Debugf("%d new emails for %s", len(msgs), im.Username)
-		var reportingFailed []uint32 // SeqNums of emails that were unable to be reported to phishing server, mark as unread
-		var deleteEmails []uint32    // SeqNums of campaign emails. If DeleteReportedCampaignEmail is true, we will delete these
-		for _, m := range msgs {
-			// Check if sender is from company's domain, if enabled. TODO: Make this an IMAP filter
-			if im.RestrictDomain != "" { // e.g domainResitct = widgets.com
-				splitEmail := strings.Split(m.Email.From, "@")
-				senderDomain := splitEmail[len(splitEmail)-1]
-				if senderDomain != im.RestrictDomain {
-					log.Debug("Ignoring email as not from company domain: ", senderDomain)
-					continue
-				}
-			}
-
-			rids, err := matchEmail(m.Email) // Search email Text, HTML, and each attachment for rid parameters
-
-			if err != nil {
-				log.Errorf("Error searching email for rids from user '%s': %s", m.Email.From, err.Error())
-				continue
-			}
-			if len(rids) < 1 {
-				// In the future this should be an alert in Gophish
-				log.Infof("User '%s' reported email with subject '%s'. This is not a GoPhish campaign; you should investigate it.", m.Email.From, m.Email.Subject)
-			}
-			for rid := range rids {
-				log.Infof("User '%s' reported email with rid %s", m.Email.From, rid)
-				result, err := models.GetResult(rid)
-				if err != nil {
-					log.Error("Error reporting GoPhish email with rid ", rid, ": ", err.Error())
-					reportingFailed = append(reportingFailed, m.SeqNum)
-					continue
-				}
-				err = result.HandleEmailReport(models.EventDetails{})
-				if err != nil {
-					log.Error("Error updating GoPhish email with rid ", rid, ": ", err.Error())
-					continue
-				}
-				if im.DeleteReportedCampaignEmail {
-					deleteEmails = append(deleteEmails, m.SeqNum)
-				}
-			}
-
-		}
-		// Check if any emails were unable to be reported, so we can mark them as unread
-		if len(reportingFailed) > 0 {
-			log.Debugf("Marking %d emails as unread as failed to report", len(reportingFailed))
-			err := mailServer.MarkAsUnread(reportingFailed) // Set emails as unread that we failed to report to GoPhish
-			if err != nil {
-				log.Error("Unable to mark emails as unread: ", err.Error())
-			}
-		}
-		// If the DeleteReportedCampaignEmail flag is set, delete reported Gophish campaign emails
-		if len(deleteEmails) > 0 {
-			log.Debugf("Deleting %d campaign emails", len(deleteEmails))
-			err := mailServer.DeleteEmails(deleteEmails) // Delete GoPhish campaign emails.
-			if err != nil {
-				log.Error("Failed to delete emails: ", err.Error())
-			}
-		}
-
-	} else {
+	if len(msgs) == 0 {
 		log.Debug("No new emails for ", im.Username)
+		return
+	}
+
+	log.Debugf("%d new emails for %s", len(msgs), im.Username)
+	reportingFailed, deleteEmails := processMessages(msgs, im)
+	handlePostProcessing(mailServer, reportingFailed, deleteEmails)
+}
+
+// processMessages iterates through unread messages and returns SeqNums for
+// emails that failed to report and campaign emails to delete.
+func processMessages(msgs []Email, im models.IMAP) ([]uint32, []uint32) {
+	var reportingFailed []uint32
+	var deleteEmails []uint32
+
+	for _, m := range msgs {
+		if shouldSkipByDomain(m, im.RestrictDomain) {
+			continue
+		}
+
+		rids, err := matchEmail(m.Email)
+		if err != nil {
+			log.Errorf("Error searching email for rids from user '%s': %s", m.Email.From, err.Error())
+			continue
+		}
+		if len(rids) < 1 {
+			log.Infof("User '%s' reported email with subject '%s'. This is not a GoPhish campaign; you should investigate it.", m.Email.From, m.Email.Subject)
+		}
+		failed, toDelete := processRIDs(rids, m, im.DeleteReportedCampaignEmail)
+		reportingFailed = append(reportingFailed, failed...)
+		deleteEmails = append(deleteEmails, toDelete...)
+	}
+	return reportingFailed, deleteEmails
+}
+
+// shouldSkipByDomain returns true if domain restriction is enabled and the
+// sender does not match.
+func shouldSkipByDomain(m Email, restrictDomain string) bool {
+	if restrictDomain == "" {
+		return false
+	}
+	splitEmail := strings.Split(m.Email.From, "@")
+	senderDomain := splitEmail[len(splitEmail)-1]
+	if senderDomain != restrictDomain {
+		log.Debug("Ignoring email as not from company domain: ", senderDomain)
+		return true
+	}
+	return false
+}
+
+// processRIDs reports each rid found in an email and returns SeqNums that
+// failed and SeqNums that should be deleted.
+func processRIDs(rids map[string]bool, m Email, deleteCampaignEmail bool) ([]uint32, []uint32) {
+	var failed, toDelete []uint32
+	for rid := range rids {
+		log.Infof("User '%s' reported email with rid %s", m.Email.From, rid)
+		result, err := models.GetResult(rid)
+		if err != nil {
+			log.Error("Error reporting GoPhish email with rid ", rid, ": ", err.Error())
+			failed = append(failed, m.SeqNum)
+			continue
+		}
+		if err = result.HandleEmailReport(models.EventDetails{}); err != nil {
+			log.Error("Error updating GoPhish email with rid ", rid, ": ", err.Error())
+			continue
+		}
+		if deleteCampaignEmail {
+			toDelete = append(toDelete, m.SeqNum)
+		}
+	}
+	return failed, toDelete
+}
+
+// handlePostProcessing marks failed emails as unread and deletes campaign emails.
+func handlePostProcessing(mailServer Mailbox, reportingFailed, deleteEmails []uint32) {
+	if len(reportingFailed) > 0 {
+		log.Debugf("Marking %d emails as unread as failed to report", len(reportingFailed))
+		if err := mailServer.MarkAsUnread(reportingFailed); err != nil {
+			log.Error("Unable to mark emails as unread: ", err.Error())
+		}
+	}
+	if len(deleteEmails) > 0 {
+		log.Debugf("Deleting %d campaign emails", len(deleteEmails))
+		if err := mailServer.DeleteEmails(deleteEmails); err != nil {
+			log.Error("Failed to delete emails: ", err.Error())
+		}
 	}
 }
 

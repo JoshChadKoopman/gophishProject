@@ -90,6 +90,22 @@ func (w *DefaultWorker) processCampaigns(t time.Time) error {
 					return
 				}
 			}
+			// SMS campaigns are sent directly via the SMS provider API
+			if c.CampaignType == models.CampaignTypeSMS {
+				log.WithFields(logrus.Fields{
+					"num_sms": len(msc),
+				}).Info("Sending SMS messages for processing")
+				for _, m := range msc {
+					ml := m.(*models.MailLog)
+					if err := ml.SendSMS(); err != nil {
+						log.Error(err)
+						ml.Error(err)
+					} else {
+						ml.Success()
+					}
+				}
+				return
+			}
 			log.WithFields(logrus.Fields{
 				"num_emails": len(msc),
 			}).Info("Sending emails to mailer for processing")
@@ -107,6 +123,9 @@ func (w *DefaultWorker) Start() {
 	go StartBRSWorker()
 	go StartAutopilotWorker()
 	go StartGamificationWorker()
+	go StartReminderWorker()
+	go StartAdaptiveEngineWorker()
+	go StartContentLibraryUpdater()
 	for t := range time.Tick(1 * time.Minute) {
 		err := w.processCampaigns(t)
 		if err != nil {

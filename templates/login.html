@@ -58,6 +58,25 @@
             </a>
         </div>
         {{end}}
+        {{if .SAMLEnabled}}
+        <div style="max-width:340px; margin:0 auto; text-align:center;">
+            {{if not .OIDCEnabled}}
+            <p style="color:#999; margin:15px 0 10px;">{{T .Locale "login.or"}}</p>
+            {{end}}
+            {{if .SAMLSplitMode}}
+            <a href="/auth/saml/admin/login" class="btn btn-default btn-block" style="margin-bottom:8px;">
+                <i class="fa fa-shield"></i>&nbsp; Admin SSO (SAML)
+            </a>
+            <a href="/auth/saml/user/login" class="btn btn-default btn-block">
+                <i class="fa fa-sign-in"></i>&nbsp; User SSO (SAML)
+            </a>
+            {{else}}
+            <a href="/auth/saml/login" class="btn btn-default btn-block">
+                <i class="fa fa-sign-in"></i>&nbsp; Sign in with SAML SSO
+            </a>
+            {{end}}
+        </div>
+        {{end}}
     </div>
     <!-- Placed at the end of the document so the pages load faster -->
     <script src="/js/dist/vendor.min.js"></script>

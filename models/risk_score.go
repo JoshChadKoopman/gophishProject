@@ -18,21 +18,24 @@ const (
 
 	// DateFormat is the standard date layout used for BRS history and trend queries.
 	DateFormat = "2006-01-02"
+
+	// queryWhereUserID is the shared WHERE clause fragment for user_id lookups.
+	queryWhereUserID = "user_id = ?"
 )
 
 // UserRiskScoreRecord is the materialized BRS stored in the database.
 type UserRiskScoreRecord struct {
-	Id              int64     `json:"id" gorm:"primary_key"`
-	UserId          int64     `json:"user_id" gorm:"unique"`
-	OrgId           int64     `json:"org_id"`
-	SimulationScore float64   `json:"simulation_score"`
-	AcademyScore    float64   `json:"academy_score"`
-	QuizScore       float64   `json:"quiz_score"`
-	TrendScore      float64   `json:"trend_score"`
-	ConsistencyScore float64  `json:"consistency_score"`
-	CompositeScore  float64   `json:"composite_score"`
-	Percentile      float64   `json:"percentile"`
-	LastCalculated  time.Time `json:"last_calculated"`
+	Id               int64     `json:"id" gorm:"primary_key"`
+	UserId           int64     `json:"user_id" gorm:"unique"`
+	OrgId            int64     `json:"org_id"`
+	SimulationScore  float64   `json:"simulation_score"`
+	AcademyScore     float64   `json:"academy_score"`
+	QuizScore        float64   `json:"quiz_score"`
+	TrendScore       float64   `json:"trend_score"`
+	ConsistencyScore float64   `json:"consistency_score"`
+	CompositeScore   float64   `json:"composite_score"`
+	Percentile       float64   `json:"percentile"`
+	LastCalculated   time.Time `json:"last_calculated"`
 }
 
 // TableName overrides GORM's default table name.
@@ -42,20 +45,20 @@ func (UserRiskScoreRecord) TableName() string {
 
 // DepartmentRiskScore is the aggregated BRS per department.
 type DepartmentRiskScore struct {
-	Id              int64     `json:"id" gorm:"primary_key"`
-	OrgId           int64     `json:"org_id"`
-	Department      string    `json:"department"`
-	CompositeScore  float64   `json:"composite_score"`
-	UserCount       int       `json:"user_count"`
-	LastCalculated  time.Time `json:"last_calculated"`
+	Id             int64     `json:"id" gorm:"primary_key"`
+	OrgId          int64     `json:"org_id"`
+	Department     string    `json:"department"`
+	CompositeScore float64   `json:"composite_score"`
+	UserCount      int       `json:"user_count"`
+	LastCalculated time.Time `json:"last_calculated"`
 }
 
 // BRSHistoryPoint stores a historical composite score for trend analysis.
 type BRSHistoryPoint struct {
-	Id              int64     `json:"id" gorm:"primary_key"`
-	UserId          int64     `json:"user_id"`
-	CompositeScore  float64   `json:"composite_score"`
-	CalculatedDate  time.Time `json:"calculated_date"`
+	Id             int64     `json:"id" gorm:"primary_key"`
+	UserId         int64     `json:"user_id"`
+	CompositeScore float64   `json:"composite_score"`
+	CalculatedDate time.Time `json:"calculated_date"`
 }
 
 // TableName overrides GORM's default table name.
@@ -126,7 +129,7 @@ func CalculateUserBRS(userId int64) (*UserRiskScoreRecord, error) {
 
 	// Upsert: try update first, then create
 	existing := UserRiskScoreRecord{}
-	if db.Where("user_id = ?", userId).First(&existing).RecordNotFound() {
+	if db.Where(queryWhereUserID, userId).First(&existing).RecordNotFound() {
 		err = db.Create(&record).Error
 	} else {
 		record.Id = existing.Id
@@ -180,7 +183,7 @@ func RecalculateOrgBRS(orgId int64) error {
 	sort.Float64s(scores)
 	for _, u := range users {
 		var rec UserRiskScoreRecord
-		if db.Where("user_id = ?", u.Id).First(&rec).RecordNotFound() {
+		if db.Where(queryWhereUserID, u.Id).First(&rec).RecordNotFound() {
 			continue
 		}
 		pct := percentileRank(scores, rec.CompositeScore)
@@ -208,7 +211,7 @@ func RecalculateAllBRS() error {
 // GetUserBRS returns the materialized BRS detail for a user.
 func GetUserBRS(userId int64) (BRSUserDetail, error) {
 	var rec UserRiskScoreRecord
-	err := db.Where("user_id = ?", userId).First(&rec).Error
+	err := db.Where(queryWhereUserID, userId).First(&rec).Error
 	if err != nil {
 		return BRSUserDetail{}, err
 	}
@@ -368,7 +371,7 @@ func calcSimulationScore(userId int64) float64 {
 // calcAcademyScore: percentage of completed training assignments.
 func calcAcademyScore(userId int64) float64 {
 	var total, completed int
-	db.Model(&CourseAssignment{}).Where("user_id = ?", userId).Count(&total)
+	db.Model(&CourseAssignment{}).Where(queryWhereUserID, userId).Count(&total)
 	if total == 0 {
 		return 50 // Neutral
 	}

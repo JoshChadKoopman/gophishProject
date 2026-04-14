@@ -15,7 +15,9 @@ type logMailer struct {
 	queue chan []mailer.Mail
 }
 
-func (m *logMailer) Start(ctx context.Context) {}
+func (m *logMailer) Start(ctx context.Context) {
+	// No-op: logMailer is a test double that only captures queued mail.
+}
 
 func (m *logMailer) Queue(ms []mailer.Mail) {
 	m.queue <- ms
@@ -119,12 +121,10 @@ func setupCampaign(id int) (*models.Campaign, error) {
 	return &c, err
 }
 
-func TestMailLogGrouping(t *testing.T) {
-	setupTest(t)
-
-	// Create the campaigns and unlock the maillogs so that they're picked up
-	// by the worker
-	for i := 0; i < 10; i++ {
+// createAndUnlockCampaigns creates n campaigns and unlocks their maillogs.
+func createAndUnlockCampaigns(t *testing.T, n int) {
+	t.Helper()
+	for i := 0; i < n; i++ {
 		campaign, err := setupCampaign(i)
 		if err != nil {
 			t.Fatalf("error creating campaign: %v", err)
@@ -137,18 +137,14 @@ func TestMailLogGrouping(t *testing.T) {
 			m.Unlock()
 		}
 	}
+}
 
-	lm := &logMailer{queue: make(chan []mailer.Mail)}
-	worker := &DefaultWorker{}
-	worker.mailer = lm
-
-	// Trigger the worker, generating the maillogs and sending them to the
-	// mailer
-	worker.processCampaigns(time.Now())
-
-	// Verify that each slice of maillogs received belong to the same campaign
-	for i := 0; i < 10; i++ {
-		ms := <-lm.queue
+// verifyMaillogGrouping reads n batches from the queue and asserts all maillogs
+// in each batch share the same campaign ID.
+func verifyMaillogGrouping(t *testing.T, queue <-chan []mailer.Mail, n int) {
+	t.Helper()
+	for i := 0; i < n; i++ {
+		ms := <-queue
 		maillog, ok := ms[0].(*models.MailLog)
 		if !ok {
 			t.Fatalf("unable to cast mail to models.MailLog")
@@ -159,10 +155,25 @@ func TestMailLogGrouping(t *testing.T) {
 			if !ok {
 				t.Fatalf("unable to cast mail to models.MailLog")
 			}
-			got := maillog.CampaignId
-			if got != expected {
+			if got := maillog.CampaignId; got != expected {
 				t.Fatalf("unexpected campaign ID received for maillog: got %d expected %d", got, expected)
 			}
 		}
 	}
+}
+
+func TestMailLogGrouping(t *testing.T) {
+	setupTest(t)
+
+	const campaignCount = 10
+	createAndUnlockCampaigns(t, campaignCount)
+
+	lm := &logMailer{queue: make(chan []mailer.Mail)}
+	worker := &DefaultWorker{}
+	worker.mailer = lm
+
+	// Trigger the worker, generating the maillogs and sending them to the mailer
+	worker.processCampaigns(time.Now())
+
+	verifyMaillogGrouping(t, lm.queue, campaignCount)
 }

@@ -4,6 +4,9 @@ import (
 	"time"
 )
 
+// queryWhereAlertID is the shared WHERE clause fragment for alert_id lookups.
+const queryWhereAlertID = "alert_id = ?"
+
 // ThreatAlert represents a security alert/article created by admins and
 // targeted at specific roles or departments within an organization.
 type ThreatAlert struct {
@@ -69,7 +72,7 @@ func GetThreatAlerts(orgId int64) ([]ThreatAlert, error) {
 	}
 	// Populate read counts
 	for i := range alerts {
-		db.Model(&ThreatAlertRead{}).Where("alert_id = ?", alerts[i].Id).Count(&alerts[i].ReadCount)
+		db.Model(&ThreatAlertRead{}).Where(queryWhereAlertID, alerts[i].Id).Count(&alerts[i].ReadCount)
 	}
 	return alerts, nil
 }
@@ -98,7 +101,7 @@ func GetThreatAlert(id int64, orgId int64) (ThreatAlert, error) {
 	if err != nil {
 		return alert, err
 	}
-	db.Model(&ThreatAlertRead{}).Where("alert_id = ?", alert.Id).Count(&alert.ReadCount)
+	db.Model(&ThreatAlertRead{}).Where(queryWhereAlertID, alert.Id).Count(&alert.ReadCount)
 	return alert, nil
 }
 
@@ -108,7 +111,7 @@ func DeleteThreatAlert(id int64, orgId int64) error {
 	if err != nil {
 		return err
 	}
-	db.Where("alert_id = ?", alert.Id).Delete(&ThreatAlertRead{})
+	db.Where(queryWhereAlertID, alert.Id).Delete(&ThreatAlertRead{})
 	return db.Delete(&alert).Error
 }
 

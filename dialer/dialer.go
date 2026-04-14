@@ -79,15 +79,13 @@ func (d *RestrictedDialer) Dialer() *net.Dialer {
 	}
 }
 
-// defaultDeny represents the list of IP ranges that we want to block unless
-// explicitly overriden.
-var defaultDeny = []string{
+// defaultDenyStr represents the raw CIDR strings for the default deny list.
+var defaultDenyStr = []string{
 	"169.254.0.0/16", // Link-local (used for VPS instance metadata)
 }
 
-// allInternal represents all internal hosts such that the only connections
-// allowed are external ones.
-var allInternal = []string{
+// allInternalStr represents all internal host CIDR strings.
+var allInternalStr = []string{
 	"0.0.0.0/8",
 	"127.0.0.0/8",        // IPv4 loopback
 	"10.0.0.0/8",         // RFC1918
@@ -110,16 +108,54 @@ var allInternal = []string{
 	"fc00::/7",           // IPv6 unique local addr
 }
 
+// parseCIDRList parses a slice of CIDR strings into []*net.IPNet at init time
+// so that the dial-control function does not re-parse on every connection.
+func parseCIDRList(cidrs []string) []*net.IPNet {
+	nets := make([]*net.IPNet, 0, len(cidrs))
+	for _, cidr := range cidrs {
+		_, parsed, err := net.ParseCIDR(cidr)
+		if err != nil {
+			// These are compile-time constants; a parse failure here is a bug.
+			panic("dialer: invalid built-in CIDR: " + cidr)
+		}
+		nets = append(nets, parsed)
+	}
+	return nets
+}
+
+// defaultDeny is the pre-parsed deny list used when no custom allowed hosts
+// are configured.
+var defaultDeny = parseCIDRList(defaultDenyStr)
+
+// allInternal is the pre-parsed list of all internal/reserved ranges used
+// when custom allowed hosts are set.
+var allInternal = parseCIDRList(allInternalStr)
+
 type dialControl = func(network, address string, c syscall.RawConn) error
 
-type restrictedDialer struct {
-	*net.Dialer
-	allowed []string
+// isAllowed returns true if ip matches any of the allowed networks.
+func isAllowed(ip net.IP, allowed []*net.IPNet) bool {
+	for _, ipRange := range allowed {
+		if ipRange.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+// isDenied returns true if ip matches any of the deny-listed networks.
+func isDenied(ip net.IP, denyList []*net.IPNet) bool {
+	for _, ipRange := range denyList {
+		if ipRange.Contains(ip) {
+			return true
+		}
+	}
+	return false
 }
 
 func restrictedControl(allowed []*net.IPNet) dialControl {
 	return func(network string, address string, conn syscall.RawConn) error {
-		if !(network == "tcp4" || network == "tcp6") {
+		if network != "tcp4" && network != "tcp6" {
 			return fmt.Errorf("%s is not a safe network type", network)
 		}
 
@@ -133,25 +169,17 @@ func restrictedControl(allowed []*net.IPNet) dialControl {
 			return fmt.Errorf("%s is not a valid IP address", host)
 		}
 
+		if isAllowed(ip, allowed) {
+			return nil
+		}
+
 		denyList := defaultDeny
 		if len(allowed) > 0 {
 			denyList = allInternal
 		}
 
-		for _, ipRange := range allowed {
-			if ipRange.Contains(ip) {
-				return nil
-			}
-		}
-
-		for _, ipRange := range denyList {
-			_, parsed, err := net.ParseCIDR(ipRange)
-			if err != nil {
-				return fmt.Errorf("error parsing denied range: %v", err)
-			}
-			if parsed.Contains(ip) {
-				return fmt.Errorf("upstream connection denied to internal host")
-			}
+		if isDenied(ip, denyList) {
+			return fmt.Errorf("upstream connection denied to internal host at %s", host)
 		}
 		return nil
 	}

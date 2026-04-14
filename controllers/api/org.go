@@ -27,7 +27,7 @@ func (as *Server) Orgs(w http.ResponseWriter, r *http.Request) {
 		o := models.Organization{}
 		err := json.NewDecoder(r.Body).Decode(&o)
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: "Invalid JSON"}, http.StatusBadRequest)
+			JSONResponse(w, models.Response{Success: false, Message: ErrInvalidJSON}, http.StatusBadRequest)
 			return
 		}
 		err = models.PostOrganization(&o)
@@ -37,7 +37,7 @@ func (as *Server) Orgs(w http.ResponseWriter, r *http.Request) {
 		}
 		JSONResponse(w, o, http.StatusCreated)
 	default:
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 	}
 }
 
@@ -70,7 +70,7 @@ func (as *Server) Org(w http.ResponseWriter, r *http.Request) {
 		update := models.Organization{}
 		err := json.NewDecoder(r.Body).Decode(&update)
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: "Invalid JSON"}, http.StatusBadRequest)
+			JSONResponse(w, models.Response{Success: false, Message: ErrInvalidJSON}, http.StatusBadRequest)
 			return
 		}
 		// Preserve ID and created date
@@ -104,7 +104,7 @@ func (as *Server) Org(w http.ResponseWriter, r *http.Request) {
 		}
 		JSONResponse(w, models.Response{Success: true, Message: "Organization deleted successfully"}, http.StatusOK)
 	default:
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 	}
 }
 
@@ -134,7 +134,7 @@ func (as *Server) OrgMembers(w http.ResponseWriter, r *http.Request) {
 		}
 		err := json.NewDecoder(r.Body).Decode(&req)
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: "Invalid JSON"}, http.StatusBadRequest)
+			JSONResponse(w, models.Response{Success: false, Message: ErrInvalidJSON}, http.StatusBadRequest)
 			return
 		}
 		user, err := models.GetUser(req.UserId)
@@ -150,7 +150,7 @@ func (as *Server) OrgMembers(w http.ResponseWriter, r *http.Request) {
 		}
 		JSONResponse(w, models.Response{Success: true, Message: "User added to organization"}, http.StatusOK)
 	default:
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 	}
 }
 
@@ -161,7 +161,7 @@ func (as *Server) OrgMember(w http.ResponseWriter, r *http.Request) {
 	uid, _ := strconv.ParseInt(vars["uid"], 0, 64)
 
 	if r.Method != http.MethodDelete {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 

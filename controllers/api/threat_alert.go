@@ -15,7 +15,7 @@ import (
 // For regular users: only published alerts targeted at them.
 func (as *Server) ThreatAlerts(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	scope := getOrgScope(r)
@@ -41,7 +41,7 @@ func (as *Server) ThreatAlerts(w http.ResponseWriter, r *http.Request) {
 // ThreatAlertCreate handles POST /api/threat-alerts — creates a new alert.
 func (as *Server) ThreatAlertCreate(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	scope := getOrgScope(r)
@@ -111,7 +111,7 @@ func (as *Server) ThreatAlert(w http.ResponseWriter, r *http.Request) {
 		}
 		JSONResponse(w, models.Response{Success: true, Message: "Alert deleted"}, http.StatusOK)
 	default:
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 	}
 }
 
@@ -119,7 +119,7 @@ func (as *Server) ThreatAlert(w http.ResponseWriter, r *http.Request) {
 // returns the number of unread published alerts for the current user.
 func (as *Server) ThreatAlertUnreadCount(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	scope := getOrgScope(r)

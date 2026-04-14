@@ -16,7 +16,7 @@ import (
 // and optionally saves it directly to the templates table.
 func (as *Server) AIGenerateTemplate(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -31,7 +31,7 @@ func (as *Server) AIGenerateTemplate(w http.ResponseWriter, r *http.Request) {
 		TemplateName   string `json:"template_name"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: "Invalid JSON"}, http.StatusBadRequest)
+		JSONResponse(w, models.Response{Success: false, Message: ErrInvalidJSON}, http.StatusBadRequest)
 		return
 	}
 
@@ -127,7 +127,7 @@ func (as *Server) AIGenerateTemplate(w http.ResponseWriter, r *http.Request) {
 // Returns token usage summary for the current org in the current month.
 func (as *Server) AIUsage(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 

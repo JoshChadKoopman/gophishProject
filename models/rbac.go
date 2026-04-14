@@ -40,6 +40,8 @@ const (
 	RoleLearner = "learner"
 	// RoleAuditor has read-only access to reports and audit logs.
 	RoleAuditor = "auditor"
+	// RoleMSPPartner is for MSP partner admins who manage multiple client organizations.
+	RoleMSPPartner = "msp_partner"
 
 	// Legacy aliases — resolve to Nivoxis slugs so existing call sites compile
 	// correctly after the DB migration renames the old slugs.
@@ -63,6 +65,9 @@ const (
 	// PermissionViewReports determines if a role has read-only access to
 	// reports and audit logs.
 	PermissionViewReports = "view_reports"
+	// PermissionManageMSP determines if a role can manage MSP partner
+	// operations including multi-client management and white-label branding.
+	PermissionManageMSP = "manage_msp"
 )
 
 // Role represents a user role within Gophish. Each user has a single role

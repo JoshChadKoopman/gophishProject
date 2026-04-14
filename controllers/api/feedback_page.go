@@ -90,7 +90,7 @@ func (as *Server) FeedbackPage(w http.ResponseWriter, r *http.Request) {
 // for the requested language.
 func (as *Server) FeedbackPageDefault(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	lang := r.URL.Query().Get("lang")

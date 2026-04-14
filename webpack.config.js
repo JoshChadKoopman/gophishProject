@@ -7,6 +7,11 @@ module.exports = {
         users: './users',
         webhooks: './webhooks',
         training: './training',
+        cyber_hygiene: './cyber_hygiene',
+        remediation: './remediation',
+        reports: './reports',
+        board_reports: './board_reports',
+        email_security: './email_security',
     },
     output: {
         path: path.resolve(__dirname, 'static', 'js', 'dist', 'app'),

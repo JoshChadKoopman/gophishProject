@@ -14,7 +14,7 @@ import (
 // AcademyTiers handles GET /api/academy/tiers — list tiers with user progress.
 func (as *Server) AcademyTiers(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	scope := getOrgScope(r)
@@ -32,7 +32,7 @@ func (as *Server) AcademyTiers(w http.ResponseWriter, r *http.Request) {
 // AcademyTierSessions handles GET /api/academy/tiers/{slug}/sessions — sessions in a tier.
 func (as *Server) AcademyTierSessions(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	scope := getOrgScope(r)
@@ -57,7 +57,7 @@ func (as *Server) AcademyTierSessions(w http.ResponseWriter, r *http.Request) {
 // AcademyTierComplete handles POST /api/academy/tiers/{slug}/complete — attempt tier completion.
 func (as *Server) AcademyTierComplete(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	scope := getOrgScope(r)
@@ -85,17 +85,22 @@ func (as *Server) AcademyTierComplete(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Error(err)
 	}
+
+	// Include praise message for tier completion
+	praiseMsg := models.GetPraiseMessageByEvent(scope.OrgId, models.PraiseEventTierComplete)
+
 	type completeResponse struct {
-		Progress  models.AcademyUserProgress `json:"progress"`
-		NewBadges []models.UserBadge         `json:"new_badges"`
+		Progress      models.AcademyUserProgress `json:"progress"`
+		NewBadges     []models.UserBadge         `json:"new_badges"`
+		PraiseMessage models.PraiseMessage       `json:"praise_message"`
 	}
-	JSONResponse(w, completeResponse{Progress: progress, NewBadges: newBadges}, http.StatusOK)
+	JSONResponse(w, completeResponse{Progress: progress, NewBadges: newBadges, PraiseMessage: praiseMsg}, http.StatusOK)
 }
 
 // AcademyMyProgress handles GET /api/academy/my-progress — overall academy progress.
 func (as *Server) AcademyMyProgress(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	user := ctx.Get(r, "user").(models.User)
@@ -114,7 +119,7 @@ func (as *Server) AcademySessionManage(w http.ResponseWriter, r *http.Request) {
 	case http.MethodPost:
 		s := models.AcademySession{}
 		if err := json.NewDecoder(r.Body).Decode(&s); err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: "Invalid JSON"}, http.StatusBadRequest)
+			JSONResponse(w, models.Response{Success: false, Message: ErrInvalidJSON}, http.StatusBadRequest)
 			return
 		}
 		if err := models.CreateAcademySession(&s); err != nil {
@@ -127,7 +132,7 @@ func (as *Server) AcademySessionManage(w http.ResponseWriter, r *http.Request) {
 	case http.MethodPut:
 		s := models.AcademySession{}
 		if err := json.NewDecoder(r.Body).Decode(&s); err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: "Invalid JSON"}, http.StatusBadRequest)
+			JSONResponse(w, models.Response{Success: false, Message: ErrInvalidJSON}, http.StatusBadRequest)
 			return
 		}
 		if err := models.UpdateAcademySession(&s); err != nil {
@@ -138,14 +143,14 @@ func (as *Server) AcademySessionManage(w http.ResponseWriter, r *http.Request) {
 		JSONResponse(w, s, http.StatusOK)
 
 	default:
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 	}
 }
 
 // AcademySessionDelete handles DELETE /api/academy/sessions/{id}.
 func (as *Server) AcademySessionDelete(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	id, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
@@ -164,7 +169,7 @@ func (as *Server) AcademySessionDelete(w http.ResponseWriter, r *http.Request) {
 // ComplianceCertifications handles GET /api/academy/compliance — list certifications with progress.
 func (as *Server) ComplianceCertifications(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	scope := getOrgScope(r)
@@ -182,7 +187,7 @@ func (as *Server) ComplianceCertifications(w http.ResponseWriter, r *http.Reques
 // ComplianceCertComplete handles POST /api/academy/compliance/{id}/complete — attempt certification.
 func (as *Server) ComplianceCertComplete(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	user := ctx.Get(r, "user").(models.User)
@@ -213,7 +218,7 @@ func (as *Server) ComplianceCertComplete(w http.ResponseWriter, r *http.Request)
 // ComplianceMyCerts handles GET /api/academy/compliance/my-certs.
 func (as *Server) ComplianceMyCerts(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	user := ctx.Get(r, "user").(models.User)
@@ -229,7 +234,7 @@ func (as *Server) ComplianceMyCerts(w http.ResponseWriter, r *http.Request) {
 // ComplianceCertVerify handles GET /api/academy/compliance/verify/{code} — public verification.
 func (as *Server) ComplianceCertVerify(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	code := mux.Vars(r)["code"]

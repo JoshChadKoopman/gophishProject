@@ -2,10 +2,16 @@ package models
 
 import (
 	"bytes"
+	"encoding/base64"
+	"fmt"
+	"image/png"
 	"net/mail"
 	"net/url"
 	"path"
 	"text/template"
+
+	"github.com/boombuler/barcode"
+	"github.com/boombuler/barcode/qr"
 )
 
 // TemplateContext is an interface that allows both campaigns and email
@@ -13,6 +19,7 @@ import (
 type TemplateContext interface {
 	getFromAddress() string
 	getBaseURL() string
+	getOrgId() int64
 }
 
 // PhishingTemplateContext is the context that is sent to any template, such
@@ -24,6 +31,11 @@ type PhishingTemplateContext struct {
 	TrackingURL string
 	RId         string
 	BaseURL     string
+	QRCode      string
+	QRCodeURL   string
+	OrgName     string
+	OrgLogo     string
+	OrgColor    string
 	BaseRecipient
 }
 
@@ -61,6 +73,24 @@ func NewPhishingTemplateContext(ctx TemplateContext, r BaseRecipient, rid string
 	trackingURL.Path = path.Join(trackingURL.Path, "/track")
 	trackingURL.RawQuery = q.Encode()
 
+	qrCodeURL, _ := url.Parse(templateURL)
+	qrCodeURL.Path = path.Join(qrCodeURL.Path, "/qr")
+	qrCodeURL.RawQuery = q.Encode()
+
+	// Generate inline QR code as a base64-encoded data URI
+	qrCodeTag := generateQRCodeTag(phishURL.String())
+
+	// Look up organization branding if available
+	var orgName, orgLogo, orgColor string
+	if orgId := ctx.getOrgId(); orgId > 0 {
+		org, err := GetOrganization(orgId)
+		if err == nil {
+			orgName = org.Name
+			orgLogo = org.LogoURL
+			orgColor = org.PrimaryColor
+		}
+	}
+
 	return PhishingTemplateContext{
 		BaseRecipient: r,
 		BaseURL:       baseURL.String(),
@@ -69,7 +99,41 @@ func NewPhishingTemplateContext(ctx TemplateContext, r BaseRecipient, rid string
 		Tracker:       "<img alt='' style='display: none' src='" + trackingURL.String() + "'/>",
 		From:          fn,
 		RId:           rid,
+		QRCode:        qrCodeTag,
+		QRCodeURL:     qrCodeURL.String(),
+		OrgName:       orgName,
+		OrgLogo:       orgLogo,
+		OrgColor:      orgColor,
 	}, nil
+}
+
+// generateQRCodeTag creates a base64-encoded PNG QR code as an HTML img tag.
+// The QR code encodes the provided URL so recipients can scan it.
+func generateQRCodeTag(targetURL string) string {
+	pngData, err := GenerateQRCodePNG(targetURL)
+	if err != nil {
+		return ""
+	}
+	b64 := base64.StdEncoding.EncodeToString(pngData)
+	return fmt.Sprintf(`<img alt="QR Code" src="data:image/png;base64,%s" width="256" height="256"/>`, b64)
+}
+
+// GenerateQRCodePNG returns the raw PNG bytes of a 256x256 QR code encoding
+// the given URL. It is used both for inline base64 tags and the /qr endpoint.
+func GenerateQRCodePNG(targetURL string) ([]byte, error) {
+	qrCode, err := qr.Encode(targetURL, qr.M, qr.Auto)
+	if err != nil {
+		return nil, err
+	}
+	qrCode, err = barcode.Scale(qrCode, 256, 256)
+	if err != nil {
+		return nil, err
+	}
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, qrCode); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 // ExecuteTemplate creates a templated string based on the provided
@@ -96,6 +160,10 @@ func (vc ValidationContext) getFromAddress() string {
 
 func (vc ValidationContext) getBaseURL() string {
 	return vc.BaseURL
+}
+
+func (vc ValidationContext) getOrgId() int64 {
+	return 0
 }
 
 // ValidateTemplate ensures that the provided text in the page or template

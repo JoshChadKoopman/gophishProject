@@ -13,7 +13,7 @@ import (
 // Returns the 5-factor BRS breakdown for a single user.
 func (as *Server) BRSUserDetail(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	vars := mux.Vars(r)
@@ -34,7 +34,7 @@ func (as *Server) BRSUserDetail(w http.ResponseWriter, r *http.Request) {
 // Returns department-level aggregated BRS.
 func (as *Server) BRSDepartment(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	scores, err := models.GetDepartmentBRS(getOrgScope(r))
@@ -49,7 +49,7 @@ func (as *Server) BRSDepartment(w http.ResponseWriter, r *http.Request) {
 // Returns org and global benchmark comparison.
 func (as *Server) BRSBenchmark(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	user := ctx.Get(r, "user").(models.User)
@@ -65,7 +65,7 @@ func (as *Server) BRSBenchmark(w http.ResponseWriter, r *http.Request) {
 // Returns historical BRS data points for trend charts.
 func (as *Server) BRSTrend(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	userID, err := strconv.ParseInt(r.URL.Query().Get("user_id"), 10, 64)
@@ -91,7 +91,7 @@ func (as *Server) BRSTrend(w http.ResponseWriter, r *http.Request) {
 // Returns the top users by composite BRS (lowest risk first).
 func (as *Server) BRSLeaderboard(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	limit := 25
@@ -112,7 +112,7 @@ func (as *Server) BRSLeaderboard(w http.ResponseWriter, r *http.Request) {
 // Triggers an on-demand BRS recalculation for the org.
 func (as *Server) BRSRecalculate(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	user := ctx.Get(r, "user").(models.User)

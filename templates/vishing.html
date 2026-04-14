@@ -1,0 +1,451 @@
+{{define "body"}}
+<div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+    <div class="page-header">
+        <h1>
+            <i class="fa fa-phone"></i> Vishing Simulations
+            <button class="btn btn-primary pull-right" id="newCampaignBtn">
+                <i class="fa fa-plus"></i> New Campaign
+            </button>
+            <button class="btn btn-default pull-right" id="newScenarioBtn" style="margin-right:8px;">
+                <i class="fa fa-file-text-o"></i> New Scenario
+            </button>
+        </h1>
+    </div>
+    <div id="flashes" class="row"></div>
+
+    <!-- Org Stats Overview -->
+    <div class="row" id="statsRow">
+        <div class="col-md-3">
+            <div class="panel panel-default text-center">
+                <div class="panel-body">
+                    <h2 id="statTotalCampaigns">0</h2>
+                    <p class="text-muted">Total Campaigns</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="panel panel-default text-center">
+                <div class="panel-body">
+                    <h2 id="statAnswerRate">0%</h2>
+                    <p class="text-muted">Answer Rate</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="panel panel-warning text-center">
+                <div class="panel-body">
+                    <h2 id="statFailRate">0%</h2>
+                    <p class="text-muted">Info Disclosure Rate</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="panel panel-success text-center">
+                <div class="panel-body">
+                    <h2 id="statReportRate">0%</h2>
+                    <p class="text-muted">Report Rate</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs for Campaigns / Scenarios -->
+    <ul class="nav nav-tabs" role="tablist">
+        <li class="active"><a href="#campaigns" role="tab" data-toggle="tab"><i class="fa fa-bullhorn"></i> Campaigns</a></li>
+        <li><a href="#scenarios" role="tab" data-toggle="tab"><i class="fa fa-file-text-o"></i> Scenarios</a></li>
+        <li><a href="#library" role="tab" data-toggle="tab"><i class="fa fa-book"></i> Scenario Library</a></li>
+    </ul>
+
+    <div class="tab-content" style="margin-top:15px;">
+        <!-- Campaigns Tab -->
+        <div class="tab-pane active" id="campaigns">
+            <div class="panel panel-default">
+                <div class="panel-body" style="padding:0;">
+                    <table class="table table-hover table-striped" id="campaignsTable" style="margin:0;">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Status</th>
+                                <th>Scenario</th>
+                                <th>Launch Date</th>
+                                <th>Results</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="campaignsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scenarios Tab -->
+        <div class="tab-pane" id="scenarios">
+            <div class="panel panel-default">
+                <div class="panel-body" style="padding:0;">
+                    <table class="table table-hover table-striped" id="scenariosTable" style="margin:0;">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Category</th>
+                                <th>Difficulty</th>
+                                <th>Language</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scenariosBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scenario Library Tab -->
+        <div class="tab-pane" id="library">
+            <p class="text-muted">Pre-built vishing scenarios you can import and customise.</p>
+            <div class="row" id="libraryCards"></div>
+        </div>
+    </div>
+</div>
+
+<!-- New Campaign Modal -->
+<div class="modal fade" id="newCampaignModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title"><i class="fa fa-phone"></i> New Vishing Campaign</h4>
+            </div>
+            <div class="modal-body">
+                <form id="campaignForm">
+                    <div class="form-group">
+                        <label>Campaign Name</label>
+                        <input type="text" class="form-control" name="name" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Scenario</label>
+                                <select class="form-control" name="scenario_id" id="scenarioSelect" required></select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Target Groups</label>
+                                <select class="form-control" name="group_ids" id="groupSelect" multiple required></select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Active Hours Start</label>
+                                <input type="number" class="form-control" name="active_hours_start" value="9" min="0" max="23">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Active Hours End</label>
+                                <input type="number" class="form-control" name="active_hours_end" value="17" min="0" max="23">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Max Retries</label>
+                                <input type="number" class="form-control" name="retry_attempts" value="1" min="0" max="3">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Timezone</label>
+                        <select class="form-control" name="timezone">
+                            <option value="UTC">UTC</option>
+                            <option value="Europe/Amsterdam">Europe/Amsterdam</option>
+                            <option value="Europe/London">Europe/London</option>
+                            <option value="America/New_York">US Eastern</option>
+                            <option value="America/Chicago">US Central</option>
+                            <option value="America/Los_Angeles">US Pacific</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-default" data-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary" id="saveCampaignBtn"><i class="fa fa-save"></i> Create Campaign</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- New Scenario Modal -->
+<div class="modal fade" id="newScenarioModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title"><i class="fa fa-file-text-o"></i> New Vishing Scenario</h4>
+            </div>
+            <div class="modal-body">
+                <form id="scenarioForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Scenario Name</label>
+                                <input type="text" class="form-control" name="name" required>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label>Category</label>
+                                <select class="form-control" name="category">
+                                    <option value="IT Support">IT Support</option>
+                                    <option value="Financial">Financial</option>
+                                    <option value="Executive Impersonation">Executive Impersonation</option>
+                                    <option value="Vendor Impersonation">Vendor Impersonation</option>
+                                    <option value="Tech Support">Tech Support</option>
+                                    <option value="Government">Government</option>
+                                    <option value="Custom">Custom</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label>Difficulty</label>
+                                <select class="form-control" name="difficulty_level">
+                                    <option value="1">Easy</option>
+                                    <option value="2" selected>Medium</option>
+                                    <option value="3">Hard</option>
+                                    <option value="4">Sophisticated</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea class="form-control" name="description" rows="2"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Caller ID Name</label>
+                                <input type="text" class="form-control" name="caller_id_name" placeholder="e.g. IT Help Desk">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Caller ID Number</label>
+                                <input type="text" class="form-control" name="caller_id_number" placeholder="e.g. +31201234567">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Pretext (Social Engineering Premise)</label>
+                        <textarea class="form-control" name="pretext" rows="2"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Greeting Script</label>
+                        <textarea class="form-control" name="greeting" rows="3" placeholder="Hello, this is..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Success Criteria (what constitutes a 'fail')</label>
+                        <textarea class="form-control" name="success_criteria" rows="2"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Max Call Duration (seconds)</label>
+                                <input type="number" class="form-control" name="max_duration_sec" value="120">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Consent Message</label>
+                                <input type="text" class="form-control" name="consent_message" value="This call may be monitored for quality purposes.">
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-default" data-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary" id="saveScenarioBtn"><i class="fa fa-save"></i> Create Scenario</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    loadVishingData();
+    
+    $('#newCampaignBtn').click(function() { $('#newCampaignModal').modal('show'); });
+    $('#newScenarioBtn').click(function() { $('#newScenarioModal').modal('show'); });
+    
+    $('#saveCampaignBtn').click(saveCampaign);
+    $('#saveScenarioBtn').click(saveScenario);
+});
+
+function loadVishingData() {
+    // Load org stats
+    api.get('/api/vishing/stats').then(function(stats) {
+        $('#statTotalCampaigns').text(stats.total_campaigns || 0);
+        $('#statAnswerRate').text((stats.avg_answer_rate || 0).toFixed(1) + '%');
+        $('#statFailRate').text((stats.avg_fail_rate || 0).toFixed(1) + '%');
+        $('#statReportRate').text((stats.avg_report_rate || 0).toFixed(1) + '%');
+    });
+    
+    // Load campaigns
+    api.get('/api/vishing/campaigns/').then(function(campaigns) {
+        var body = $('#campaignsBody').empty();
+        campaigns.forEach(function(c) {
+            body.append('<tr>' +
+                '<td>' + escapeHtml(c.name) + '</td>' +
+                '<td><span class="label label-' + statusClass(c.status) + '">' + c.status + '</span></td>' +
+                '<td>' + (c.scenario ? escapeHtml(c.scenario.name) : 'N/A') + '</td>' +
+                '<td>' + (c.launch_date ? moment(c.launch_date).format('YYYY-MM-DD HH:mm') : '-') + '</td>' +
+                '<td><button class="btn btn-xs btn-info" onclick="viewCampaign(' + c.id + ')"><i class="fa fa-eye"></i></button></td>' +
+                '<td>' +
+                    (c.status === 'Created' ? '<button class="btn btn-xs btn-success" onclick="launchCampaign(' + c.id + ')"><i class="fa fa-play"></i> Launch</button> ' : '') +
+                    '<button class="btn btn-xs btn-danger" onclick="deleteCampaign(' + c.id + ')"><i class="fa fa-trash"></i></button>' +
+                '</td>' +
+            '</tr>');
+        });
+    });
+    
+    // Load scenarios
+    api.get('/api/vishing/scenarios/').then(function(scenarios) {
+        var body = $('#scenariosBody').empty();
+        var select = $('#scenarioSelect').empty();
+        scenarios.forEach(function(s) {
+            body.append('<tr>' +
+                '<td>' + escapeHtml(s.name) + '</td>' +
+                '<td>' + escapeHtml(s.category) + '</td>' +
+                '<td>' + difficultyBadge(s.difficulty_level) + '</td>' +
+                '<td>' + s.language + '</td>' +
+                '<td>' +
+                    '<button class="btn btn-xs btn-danger" onclick="deleteScenario(' + s.id + ')"><i class="fa fa-trash"></i></button>' +
+                '</td>' +
+            '</tr>');
+            select.append('<option value="' + s.id + '">' + escapeHtml(s.name) + '</option>');
+        });
+    });
+    
+    // Load scenario library
+    api.get('/api/vishing/scenarios/library').then(function(library) {
+        var cards = $('#libraryCards').empty();
+        library.forEach(function(s) {
+            cards.append(
+                '<div class="col-md-4">' +
+                    '<div class="panel panel-default">' +
+                        '<div class="panel-heading">' +
+                            '<h4 class="panel-title">' + escapeHtml(s.name) + '</h4>' +
+                        '</div>' +
+                        '<div class="panel-body">' +
+                            '<p><strong>Category:</strong> ' + escapeHtml(s.category) + '</p>' +
+                            '<p><strong>Difficulty:</strong> ' + difficultyBadge(s.difficulty_level) + '</p>' +
+                            '<p>' + escapeHtml(s.pretext || s.description || '') + '</p>' +
+                            '<button class="btn btn-sm btn-success" onclick="importScenario(' + JSON.stringify(s).replace(/"/g, '&quot;') + ')"><i class="fa fa-download"></i> Import</button>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>'
+            );
+        });
+    });
+    
+    // Load groups for campaign creation
+    api.get('/api/groups/').then(function(groups) {
+        var select = $('#groupSelect').empty();
+        groups.forEach(function(g) {
+            select.append('<option value="' + g.id + '">' + escapeHtml(g.name) + '</option>');
+        });
+    });
+}
+
+function statusClass(status) {
+    if (status === 'Completed') return 'success';
+    if (status === 'In progress') return 'primary';
+    return 'default';
+}
+
+function difficultyBadge(level) {
+    var labels = {1: 'Easy', 2: 'Medium', 3: 'Hard', 4: 'Sophisticated'};
+    var classes = {1: 'success', 2: 'info', 3: 'warning', 4: 'danger'};
+    return '<span class="label label-' + (classes[level] || 'default') + '">' + (labels[level] || level) + '</span>';
+}
+
+function saveCampaign() {
+    var form = $('#campaignForm');
+    var groupIds = $('#groupSelect').val() || [];
+    var data = {
+        name: form.find('[name=name]').val(),
+        scenario_id: parseInt(form.find('[name=scenario_id]').val()),
+        group_ids: JSON.stringify(groupIds.map(Number)),
+        active_hours_start: parseInt(form.find('[name=active_hours_start]').val()),
+        active_hours_end: parseInt(form.find('[name=active_hours_end]').val()),
+        retry_attempts: parseInt(form.find('[name=retry_attempts]').val()),
+        timezone: form.find('[name=timezone]').val()
+    };
+    api.post('/api/vishing/campaigns/', data).then(function() {
+        $('#newCampaignModal').modal('hide');
+        loadVishingData();
+    });
+}
+
+function saveScenario() {
+    var form = $('#scenarioForm');
+    var data = {
+        name: form.find('[name=name]').val(),
+        category: form.find('[name=category]').val(),
+        difficulty_level: parseInt(form.find('[name=difficulty_level]').val()),
+        description: form.find('[name=description]').val(),
+        caller_id_name: form.find('[name=caller_id_name]').val(),
+        caller_id_number: form.find('[name=caller_id_number]').val(),
+        pretext: form.find('[name=pretext]').val(),
+        greeting: form.find('[name=greeting]').val(),
+        success_criteria: form.find('[name=success_criteria]').val(),
+        max_duration_sec: parseInt(form.find('[name=max_duration_sec]').val()),
+        consent_message: form.find('[name=consent_message]').val()
+    };
+    api.post('/api/vishing/scenarios/', data).then(function() {
+        $('#newScenarioModal').modal('hide');
+        loadVishingData();
+    });
+}
+
+function launchCampaign(id) {
+    if (!confirm('Launch this vishing campaign? Calls will begin within the configured active hours.')) return;
+    api.post('/api/vishing/campaigns/' + id + '/launch').then(function() {
+        loadVishingData();
+    });
+}
+
+function viewCampaign(id) {
+    window.location = '/campaigns/' + id + '?type=vishing';
+}
+
+function deleteCampaign(id) {
+    if (!confirm('Delete this vishing campaign?')) return;
+    api.del('/api/vishing/campaigns/' + id).then(function() {
+        loadVishingData();
+    });
+}
+
+function deleteScenario(id) {
+    if (!confirm('Delete this vishing scenario?')) return;
+    api.del('/api/vishing/scenarios/' + id).then(function() {
+        loadVishingData();
+    });
+}
+
+function importScenario(scenario) {
+    api.post('/api/vishing/scenarios/', scenario).then(function() {
+        loadVishingData();
+        $('a[href="#scenarios"]').tab('show');
+    });
+}
+
+function escapeHtml(s) {
+    var div = document.createElement('div');
+    div.textContent = s;
+    return div.innerHTML;
+}
+</script>
+{{end}}

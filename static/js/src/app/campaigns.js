@@ -37,24 +37,41 @@ function launch() {
                 if (send_by_date != "") {
                     send_by_date = moment(send_by_date, "MMMM Do YYYY, h:mm a").utc().format()
                 }
+                var campaignType = $("#campaign_type").val()
                 campaign = {
                     name: $("#name").val(),
+                    campaign_type: campaignType,
                     template: {
                         name: $("#template").select2("data")[0].text
                     },
                     url: $("#url").val(),
-                    page: {
-                        name: $("#page").select2("data")[0].text
-                    },
-                    smtp: {
-                        name: $("#profile").select2("data")[0].text
-                    },
                     launch_date: moment($("#launch_date").val(), "MMMM Do YYYY, h:mm a").utc().format(),
                     send_by_date: send_by_date || null,
                     groups: groups,
                     training_presentation_id: parseInt($("#training_course").val()) || 0,
                     feedback_enabled: $("#feedback_enabled_checkbox").prop("checked"),
                     feedback_page_id: parseInt($("#feedback_page").val()) || 0,
+                }
+                if (campaignType === "sms") {
+                    var smsData = $("#sms_provider").select2("data")
+                    campaign.sms_provider = {
+                        name: smsData && smsData.length > 0 ? smsData[0].text : ""
+                    }
+                    // Page is optional for SMS
+                    var pageData = $("#page").select2("data")
+                    if (pageData && pageData.length > 0 && pageData[0].text) {
+                        campaign.page = { name: pageData[0].text }
+                    } else {
+                        campaign.page = { name: "" }
+                    }
+                    campaign.smtp = { name: "" }
+                } else {
+                    campaign.page = {
+                        name: $("#page").select2("data")[0].text
+                    }
+                    campaign.smtp = {
+                        name: $("#profile").select2("data")[0].text
+                    }
                 }
                 // Submit the campaign
                 api.campaigns.post(campaign)
@@ -120,16 +137,40 @@ function sendTestEmail() {
 function dismiss() {
     $("#modal\\.flashes").empty();
     $("#name").val("");
+    $("#campaign_type").val("email");
+    toggleCampaignType("email");
     $("#template").val("").change();
     $("#page").val("").change();
     $("#url").val("");
     $("#profile").val("").change();
+    $("#sms_provider").val("").change();
     $("#users").val("").change();
     $("#training_course").val("0");
     $("#feedback_enabled_checkbox").prop("checked", false);
     $("#feedback_page_select").hide();
     $("#feedback_page").val("0");
     $("#modal").modal('hide');
+}
+
+function toggleCampaignType(type) {
+    if (type === "sms") {
+        // Hide email-specific fields
+        $("#page").closest(".control-label, select").hide();
+        $("label[for='page']").hide();
+        $("#page").next(".select2-container").hide();
+        $("#profile").closest(".input-group").hide();
+        $("label[for='profile']").hide();
+        // Show SMS provider
+        $("#sms_provider_group").show();
+    } else {
+        // Show email-specific fields
+        $("label[for='page']").show();
+        $("#page").next(".select2-container").show();
+        $("label[for='profile']").show();
+        $("#profile").closest(".input-group").show();
+        // Hide SMS provider
+        $("#sms_provider_group").hide();
+    }
 }
 
 function deleteCampaign(idx) {
@@ -273,6 +314,20 @@ function setupOptions() {
                 })
             }
         })
+    // Populate SMS provider dropdown
+    api.SMSProviders.get()
+        .success(function (providers) {
+            if (providers && providers.length > 0) {
+                var sms_s2 = $.map(providers, function (obj) {
+                    obj.text = obj.name
+                    return obj
+                });
+                $("#sms_provider").select2({
+                    placeholder: "Select an SMS Provider",
+                    data: sms_s2,
+                });
+            }
+        })
 }
 
 function edit(campaign) {
@@ -285,6 +340,10 @@ function copy(idx) {
     api.campaignId.get(campaigns[idx].id)
         .success(function (campaign) {
             $("#name").val("Copy of " + campaign.name)
+            if (campaign.campaign_type) {
+                $("#campaign_type").val(campaign.campaign_type)
+                toggleCampaignType(campaign.campaign_type)
+            }
             if (!campaign.template.id) {
                 $("#template").val("").change();
                 $("#template").select2({
@@ -322,6 +381,10 @@ function copy(idx) {
             }
             if (campaign.feedback_page_id) {
                 $("#feedback_page").val(campaign.feedback_page_id.toString())
+            }
+            if (campaign.sms_provider && campaign.sms_provider.id) {
+                $("#sms_provider").val(campaign.sms_provider.id.toString())
+                $("#sms_provider").trigger("change.select2")
             }
         })
         .error(function (data) {
@@ -457,6 +520,10 @@ $(document).ready(function () {
             $("#loading").hide()
             errorFlash("Error fetching campaigns")
         })
+    // Campaign type toggle
+    $("#campaign_type").change(function () {
+        toggleCampaignType($(this).val())
+    })
     // Feedback page toggle
     $("#feedback_enabled_checkbox").change(function () {
         $("#feedback_page_select").toggle(this.checked)

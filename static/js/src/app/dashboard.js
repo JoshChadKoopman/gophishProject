@@ -90,6 +90,315 @@ var statsMapping = {
     "submitted_data": "Submitted Data",
 }
 
+// ═══════════════════════════════════════════════════════════════
+// Real-Time Dashboard — WebSocket, Sparklines, Time Windows
+// ═══════════════════════════════════════════════════════════════
+
+var currentTimeWindow = "30d";
+var dashboardWS = null;
+var wsReconnectTimer = null;
+var liveActivityEvents = [];
+var MAX_LIVE_EVENTS = 50;
+
+// ── WebSocket Connection Manager ──
+
+function connectDashboardWS() {
+    if (dashboardWS && dashboardWS.readyState <= 1) return; // already open/connecting
+
+    var proto = (location.protocol === "https:") ? "wss:" : "ws:";
+    var wsUrl = proto + "//" + location.host + "/api/dashboard/ws?api_key=" + user.api_key;
+
+    setWSIndicator("connecting");
+    dashboardWS = new WebSocket(wsUrl);
+
+    dashboardWS.onopen = function () {
+        setWSIndicator("connected");
+        if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
+        // Tell server our preferred time window
+        dashboardWS.send(JSON.stringify({ action: "set_window", window: currentTimeWindow }));
+    };
+
+    dashboardWS.onmessage = function (evt) {
+        try {
+            var msg = JSON.parse(evt.data);
+            handleWSMessage(msg);
+        } catch (e) { /* ignore malformed */ }
+    };
+
+    dashboardWS.onclose = function () {
+        setWSIndicator("disconnected");
+        // Auto-reconnect after 5 seconds
+        wsReconnectTimer = setTimeout(connectDashboardWS, 5000);
+    };
+
+    dashboardWS.onerror = function () {
+        setWSIndicator("disconnected");
+    };
+}
+
+function setWSIndicator(state) {
+    var el = $("#wsIndicator");
+    el.removeClass("ws-connected ws-disconnected ws-connecting");
+    switch (state) {
+        case "connected":
+            el.addClass("ws-connected").html('<i class="fa fa-circle"></i> Live');
+            break;
+        case "disconnected":
+            el.addClass("ws-disconnected").html('<i class="fa fa-circle"></i> Offline');
+            break;
+        case "connecting":
+            el.addClass("ws-connecting").html('<i class="fa fa-circle-o"></i> Connecting…');
+            break;
+    }
+}
+
+function handleWSMessage(msg) {
+    // dashboard.pulse carries live counts snapshot
+    if (msg.type === "dashboard.pulse" && msg.payload) {
+        updateLiveCountCards(msg.payload);
+        return;
+    }
+
+    // All other events go to the live activity feed and card flash
+    addLiveActivityEvent(msg);
+
+    // Increment/flash the relevant card
+    switch (msg.type) {
+        case "email.sent":
+            flashCard("rtEmailsSent");
+            break;
+        case "email.opened":
+            break;
+        case "link.clicked":
+            flashCard("rtClickRate");
+            break;
+        case "email.reported":
+            flashCard("rtReportRate");
+            break;
+        case "ticket.created":
+            flashCard("rtOpenTickets");
+            break;
+        case "training.completed":
+            flashCard("rtTrainingCompletion");
+            break;
+        case "campaign.progress":
+        case "campaign.completed":
+            flashCard("rtActiveCampaigns");
+            break;
+    }
+}
+
+function flashCard(elemId) {
+    var el = $("#" + elemId);
+    el.css("color", "#e67e22");
+    setTimeout(function () { el.css("color", ""); }, 800);
+}
+
+// ── Live Activity Feed ──
+
+var eventLabels = {
+    "email.sent": { icon: "fa-envelope", color: "#1abc9c", label: "Email Sent" },
+    "email.opened": { icon: "fa-envelope-open-o", color: "#f9bf3b", label: "Opened" },
+    "link.clicked": { icon: "fa-mouse-pointer", color: "#e74c3c", label: "Clicked" },
+    "data.submitted": { icon: "fa-exclamation-circle", color: "#f05b4f", label: "Data Submitted" },
+    "email.reported": { icon: "fa-flag", color: "#2ecc71", label: "Reported" },
+    "campaign.progress": { icon: "fa-bullhorn", color: "#3498db", label: "Campaign Updated" },
+    "campaign.completed": { icon: "fa-check-circle", color: "#27ae60", label: "Campaign Completed" },
+    "ticket.created": { icon: "fa-ticket", color: "#9b59b6", label: "New Ticket" },
+    "ticket.resolved": { icon: "fa-check", color: "#27ae60", label: "Ticket Resolved" },
+    "training.completed": { icon: "fa-graduation-cap", color: "#f39c12", label: "Training Completed" },
+};
+
+function addLiveActivityEvent(msg) {
+    var info = eventLabels[msg.type] || { icon: "fa-info-circle", color: "#888", label: msg.type };
+    var time = msg.timestamp ? moment(msg.timestamp).format("HH:mm:ss") : moment().format("HH:mm:ss");
+    var detail = "";
+    if (msg.payload) {
+        if (msg.payload.email) detail = escapeHtml(msg.payload.email);
+        else if (msg.payload.name) detail = escapeHtml(msg.payload.name);
+    }
+
+    liveActivityEvents.unshift({ time: time, info: info, detail: detail });
+    if (liveActivityEvents.length > MAX_LIVE_EVENTS) liveActivityEvents.pop();
+
+    renderLiveActivityFeed();
+}
+
+function renderLiveActivityFeed() {
+    var feed = $("#liveActivityFeed");
+    if (liveActivityEvents.length === 0) {
+        feed.html('<p class="text-muted" style="margin:0; font-size:12px;">Waiting for events…</p>');
+        $("#liveActivityCount").text("0");
+        return;
+    }
+    var html = "";
+    liveActivityEvents.forEach(function (evt) {
+        html += '<div class="live-event">' +
+            '<span class="live-event-time">' + evt.time + '</span>' +
+            '<i class="fa ' + evt.info.icon + '" style="color:' + evt.info.color + '; margin-right:4px;"></i> ' +
+            '<strong>' + evt.info.label + '</strong>' +
+            (evt.detail ? ' — <span style="color:#555;">' + evt.detail + '</span>' : '') +
+            '</div>';
+    });
+    feed.html(html);
+    $("#liveActivityCount").text(liveActivityEvents.length);
+}
+
+// ── Live Counts Update (from WS pulse or polling) ──
+
+function updateLiveCountCards(counts) {
+    if (counts.active_campaigns !== undefined) $("#rtActiveCampaigns").text(counts.active_campaigns);
+    if (counts.emails_sent_today !== undefined) $("#rtEmailsSent").text(counts.emails_sent_today);
+    if (counts.avg_click_rate !== undefined) $("#rtClickRate").text(counts.avg_click_rate.toFixed(1) + "%");
+    if (counts.avg_report_rate !== undefined) $("#rtReportRate").text(counts.avg_report_rate.toFixed(1) + "%");
+    if (counts.open_tickets !== undefined) $("#rtOpenTickets").text(counts.open_tickets);
+}
+
+// ── Full Metrics + Sparklines ──
+
+function loadDashboardMetrics(window) {
+    api.dashboard.metrics(window)
+        .success(function (data) {
+            if (!data || !data.cards) return;
+            var c = data.cards;
+
+            // Update card values
+            $("#rtActiveCampaigns").text(c.campaigns.active_count);
+            $("#rtEmailsSent").text(c.campaigns.emails_sent);
+            $("#rtClickRate").text(c.click_rate.current_rate.toFixed(1) + "%");
+            $("#rtReportRate").text(c.report_rate.current_rate.toFixed(1) + "%");
+            if (c.tickets) $("#rtOpenTickets").text(c.tickets.open_count);
+            if (c.training) $("#rtTrainingCompletion").text(c.training.completion_rate.toFixed(1) + "%");
+
+            // Render sparklines
+            renderMiniSparkline("sparkCampaigns", c.campaigns.sparkline, "#3498db");
+            renderMiniSparkline("sparkEmailsSent", c.campaigns.sparkline, "#1abc9c");
+            renderMiniSparkline("sparkClickRate", c.click_rate.sparkline, "#e74c3c");
+            renderMiniSparkline("sparkReportRate", c.report_rate.sparkline, "#2ecc71");
+            if (c.tickets) renderMiniSparkline("sparkTickets", c.tickets.sparkline, "#9b59b6");
+            if (c.training) renderMiniSparkline("sparkTraining", c.training.sparkline, "#f39c12");
+
+            // Render trends
+            renderTrendBadge("trendCampaigns", c.campaigns.trend);
+            renderTrendBadge("trendEmailsSent", c.campaigns.trend);
+            renderTrendBadge("trendClickRate", c.click_rate.trend, true);  // click: down=good
+            renderTrendBadge("trendReportRate", c.report_rate.trend, false, true);  // report: up=good
+            if (c.tickets) renderTrendBadge("trendTickets", c.tickets.trend);
+            if (c.training) renderTrendBadge("trendTraining", c.training.trend);
+
+            // Timestamp
+            if (data.generated_at) {
+                $("#metricsTimestamp").text("Updated " + moment(data.generated_at).fromNow());
+            }
+        })
+        .error(function () {
+            // Fallback: use legacy summary cards
+            $("#summaryCards").show();
+            api.reports.overview()
+                .success(function (overview) {
+                    renderSummaryCards(overview);
+                    renderRiskGauge(overview);
+                });
+        });
+}
+
+function renderMiniSparkline(containerId, points, color) {
+    if (!points || points.length === 0) return;
+    var el = document.getElementById(containerId);
+    if (!el) return;
+
+    var values = points.map(function (p) { return p.value; });
+    var maxVal = Math.max.apply(null, values) || 1;
+
+    // Simple SVG sparkline
+    var width = 120, height = 30;
+    var step = width / Math.max(values.length - 1, 1);
+    var pathParts = [];
+    values.forEach(function (v, i) {
+        var x = i * step;
+        var y = height - (v / maxVal) * (height - 2) - 1;
+        pathParts.push((i === 0 ? "M" : "L") + x.toFixed(1) + "," + y.toFixed(1));
+    });
+
+    // Fill area
+    var areaPath = pathParts.join(" ") +
+        " L" + ((values.length - 1) * step).toFixed(1) + "," + height +
+        " L0," + height + " Z";
+
+    var svg = '<svg width="' + width + '" height="' + height + '" style="display:block; margin:0 auto;">' +
+        '<path d="' + areaPath + '" fill="' + color + '" fill-opacity="0.12" />' +
+        '<path d="' + pathParts.join(" ") + '" fill="none" stroke="' + color + '" stroke-width="1.5" />' +
+        '<circle cx="' + ((values.length - 1) * step).toFixed(1) + '" cy="' +
+        (height - (values[values.length - 1] / maxVal) * (height - 2) - 1).toFixed(1) +
+        '" r="2.5" fill="' + color + '" />' +
+        '</svg>';
+    el.innerHTML = svg;
+}
+
+function renderTrendBadge(elemId, trend, clickInvert, reportMode) {
+    var el = $("#" + elemId);
+    if (!trend || trend === "flat") {
+        el.html('<span class="trend-flat">— Flat</span>');
+        return;
+    }
+    if (trend === "up") {
+        if (clickInvert) {
+            el.html('<span class="trend-up"><i class="fa fa-arrow-up"></i> Up</span>');
+        } else if (reportMode) {
+            el.html('<span class="trend-report-up"><i class="fa fa-arrow-up"></i> Up</span>');
+        } else {
+            el.html('<span class="trend-up"><i class="fa fa-arrow-up"></i> Up</span>');
+        }
+    } else {
+        if (clickInvert) {
+            el.html('<span class="trend-down"><i class="fa fa-arrow-down"></i> Down</span>');
+        } else if (reportMode) {
+            el.html('<span class="trend-report-down"><i class="fa fa-arrow-down"></i> Down</span>');
+        } else {
+            el.html('<span class="trend-down"><i class="fa fa-arrow-down"></i> Down</span>');
+        }
+    }
+}
+
+// ── Time Window Selector ──
+
+function switchTimeWindow(window) {
+    currentTimeWindow = window;
+    // Save preference
+    api.dashboard.setPreference(window);
+    // Reload metrics (no page reload)
+    loadDashboardMetrics(window);
+    // Sync the trend chart to the nearest matching day range
+    var dayMap = { "7d": 7, "30d": 30, "90d": 90, "ytd": 365 };
+    var days = dayMap[window] || 30;
+    renderTrendChart(days);
+    // Update the trend range buttons to match
+    $("#trendRange button").removeClass("active");
+    $("#trendRange button[data-days='" + days + "']").addClass("active");
+    // Tell WS server
+    if (dashboardWS && dashboardWS.readyState === 1) {
+        dashboardWS.send(JSON.stringify({ action: "set_window", window: window }));
+    }
+}
+
+// ── Polling Fallback ──
+
+var pollingInterval = null;
+
+function startPollingFallback() {
+    if (pollingInterval) return;
+    pollingInterval = setInterval(function () {
+        api.dashboard.liveCounts()
+            .success(function (counts) {
+                updateLiveCountCards(counts);
+            });
+    }, 15000);
+}
+
+function stopPollingFallback() {
+    if (pollingInterval) { clearInterval(pollingInterval); pollingInterval = null; }
+}
+
 function deleteCampaign(idx) {
     if (confirm("Delete " + campaigns[idx].name + "?")) {
         api.campaignId.delete(campaigns[idx].id)
@@ -333,25 +642,69 @@ $(document).ready(function () {
         }
     })
 
-    // Load enhanced dashboard widgets
-    api.reports.overview()
-        .success(function (overview) {
-            renderSummaryCards(overview);
-            renderRiskGauge(overview);
-        })
-        .error(function () {
-            // Widgets fail gracefully
-        });
+    // ── Load user's saved time window preference ──
+    if (api.dashboard && api.dashboard.preference) {
+        api.dashboard.preference()
+            .success(function (pref) {
+                if (pref && pref.time_window && pref.time_window !== currentTimeWindow) {
+                    currentTimeWindow = pref.time_window;
+                    $("#timeWindowSelector button").removeClass("active");
+                    $("#timeWindowSelector button[data-window='" + currentTimeWindow + "']").addClass("active");
+                }
+                initDashboard();
+            })
+            .error(function () {
+                initDashboard();
+            });
+    } else {
+        initDashboard();
+    }
 
-    renderTrendChart(30);
-    renderTrainingWidget();
-    renderTopVulnerableUsers();
+    function initDashboard() {
+        // ── Real-time metrics (sparklines + cards) ──
+        loadDashboardMetrics(currentTimeWindow);
 
-    // Trend range buttons
+        // ── WebSocket connection for live updates ──
+        try {
+            connectDashboardWS();
+        } catch (e) {
+            // WebSocket not available, use polling fallback
+            startPollingFallback();
+        }
+
+        // Legacy report widgets (still useful)
+        api.reports.overview()
+            .success(function (overview) {
+                renderSummaryCards(overview);
+                renderRiskGauge(overview);
+            })
+            .error(function () {
+                // Widgets fail gracefully
+            });
+
+        renderTrendChart(currentTimeWindow === "7d" ? 7 : currentTimeWindow === "90d" ? 90 : 30);
+        renderTrainingWidget();
+        renderTopVulnerableUsers();
+    }
+
+    // ── Time window selector (global, no page reload) ──
+    $("#timeWindowSelector button").on("click", function () {
+        $("#timeWindowSelector button").removeClass("active");
+        $(this).addClass("active");
+        switchTimeWindow($(this).data("window"));
+    });
+
+    // Trend range buttons (legacy, synced with time window)
     $("#trendRange button").on("click", function () {
         $("#trendRange button").removeClass("active");
         $(this).addClass("active");
         renderTrendChart(parseInt($(this).data("days")));
+    });
+
+    // Clear live activity feed
+    $("#clearActivity").on("click", function () {
+        liveActivityEvents = [];
+        renderLiveActivityFeed();
     });
 
     // Load campaigns table (existing functionality)

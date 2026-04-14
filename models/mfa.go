@@ -45,14 +45,14 @@ type DeviceFingerprint struct {
 // Returns an error if no device exists (gorm.ErrRecordNotFound).
 func GetMFADevice(userID int64) (MFADevice, error) {
 	device := MFADevice{}
-	err := db.Where("user_id = ?", userID).First(&device).Error
+	err := db.Where(queryWhereUserID, userID).First(&device).Error
 	return device, err
 }
 
 // CreateOrUpdateMFADevice upserts the MFA device record for a user.
 func CreateOrUpdateMFADevice(d *MFADevice) error {
 	existing := MFADevice{}
-	err := db.Where("user_id = ?", d.UserID).First(&existing).Error
+	err := db.Where(queryWhereUserID, d.UserID).First(&existing).Error
 	if err != nil {
 		// No existing record — create
 		return db.Create(d).Error
@@ -65,7 +65,7 @@ func CreateOrUpdateMFADevice(d *MFADevice) error {
 func EnableMFADevice(userID int64) error {
 	now := time.Now().UTC()
 	return db.Model(&MFADevice{}).
-		Where("user_id = ?", userID).
+		Where(queryWhereUserID, userID).
 		Updates(map[string]interface{}{
 			"enabled":     true,
 			"enrolled_at": now,
@@ -76,7 +76,7 @@ func EnableMFADevice(userID int64) error {
 // replacing any existing unused codes.
 func SaveMFABackupCodes(userID int64, hashes []string) error {
 	// Delete existing codes
-	if err := db.Where("user_id = ?", userID).Delete(&MFABackupCode{}).Error; err != nil {
+	if err := db.Where(queryWhereUserID, userID).Delete(&MFABackupCode{}).Error; err != nil {
 		return err
 	}
 	now := time.Now().UTC()

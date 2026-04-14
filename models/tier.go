@@ -6,22 +6,60 @@ import (
 
 // Feature slug constants used for feature gating across the platform.
 const (
-	FeatureBasicBRS          = "basic_brs"
-	FeatureAdvancedBRS       = "advanced_brs"
-	FeatureAITemplates       = "ai_templates"
-	FeatureAutopilot         = "autopilot"
-	FeatureAcademyAdvanced   = "academy_advanced"
-	FeatureGamification      = "gamification"
-	FeatureReportButton      = "report_button"
-	FeatureThreatAlertsRead  = "threat_alerts_read"
+	FeatureBasicBRS           = "basic_brs"
+	FeatureAdvancedBRS        = "advanced_brs"
+	FeatureAITemplates        = "ai_templates"
+	FeatureAutopilot          = "autopilot"
+	FeatureAcademyAdvanced    = "academy_advanced"
+	FeatureGamification       = "gamification"
+	FeatureReportButton       = "report_button"
+	FeatureThreatAlertsRead   = "threat_alerts_read"
 	FeatureThreatAlertsCreate = "threat_alerts_create"
-	FeatureBoardReports      = "board_reports"
-	FeatureI18NFull          = "i18n_full"
-	FeatureSCIM              = "scim"
-	FeatureZIM               = "zim"
-	FeatureAIAssistant       = "ai_assistant"
-	FeaturePowerBI           = "power_bi"
-	FeatureMSPWhitelabel     = "msp_whitelabel"
+	FeatureBoardReports       = "board_reports"
+	FeatureI18NFull           = "i18n_full"
+	FeatureSCIM               = "scim"
+	FeatureZIM                = "zim"
+	FeatureAIAssistant        = "ai_assistant"
+	FeaturePowerBI            = "power_bi"
+	FeatureComplianceMapping  = "compliance_mapping"
+	FeatureMSPWhitelabel      = "msp_whitelabel"
+	FeatureCyberHygiene       = "cyber_hygiene"
+	// FeatureCustomTrainingBuilder gates the multi-module custom training
+	// builder (upload multiple PDF/PPTX/video assets per course). Sits in
+	// the All-in-One tier.
+	FeatureCustomTrainingBuilder = "custom_training_builder"
+	// FeatureInboxMonitor gates real-time in-inbox AI threat detection.
+	FeatureInboxMonitor = "inbox_monitor"
+	// FeatureBECDetection gates automated BEC detection.
+	FeatureBECDetection = "bec_detection"
+	// FeatureGraymailClassification gates automated graymail categorization.
+	FeatureGraymailClassification = "graymail_classification"
+	// FeatureOneClickRemediation gates one-click threat removal from inboxes.
+	FeatureOneClickRemediation = "one_click_remediation"
+	// FeaturePhishingTickets gates automated phishing ticket management.
+	FeaturePhishingTickets = "phishing_tickets"
+	// FeatureGoogleWorkspaceReportButton gates Google Workspace support for the report button.
+	FeatureGoogleWorkspaceReportButton = "google_workspace_report_button"
+	// FeatureNLPEmailAnalysis gates AI-powered NLP analysis of reported emails.
+	FeatureNLPEmailAnalysis = "nlp_email_analysis"
+	// FeatureNetworkEvents gates the network events security dashboard.
+	FeatureNetworkEvents = "network_events"
+	// FeatureVishing gates voice phishing (vishing) simulation campaigns.
+	FeatureVishing = "vishing"
+	// FeatureTemplateLibraryDB gates the DB-backed template library management.
+	FeatureTemplateLibraryDB = "template_library_db"
+	// FeatureInboxAIFeedback gates AI-powered inbox feedback for users (Outlook/Gmail add-ins).
+	FeatureInboxAIFeedback = "inbox_ai_feedback"
+	// FeatureEnhancedBoardReports gates enhanced board reports with AI narrative and ROI.
+	FeatureEnhancedBoardReports = "enhanced_board_reports"
+	// FeatureROIDashboard gates the executive ROI reporting dashboard.
+	FeatureROIDashboard = "roi_dashboard"
+	// FeatureAITranslation gates AI-powered dynamic content translation.
+	FeatureAITranslation = "ai_translation"
+	// FeatureDomainPool gates the sending domain pool management.
+	FeatureDomainPool = "domain_pool"
+	// FeatureRealtimeDashboard gates the WebSocket-powered real-time dashboard.
+	FeatureRealtimeDashboard = "realtime_dashboard"
 )
 
 // SubscriptionTier represents a pricing tier with associated limits.

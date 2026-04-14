@@ -6,6 +6,9 @@ import (
 	log "github.com/gophish/gophish/logger"
 )
 
+// queryWhereID is the shared WHERE clause fragment for primary key lookups.
+const queryWhereID = "id = ?"
+
 // ComplianceCertification defines a compliance certification path (e.g., GDPR, NIS2).
 type ComplianceCertification struct {
 	Id                 int64     `json:"id" gorm:"column:id; primary_key:yes"`
@@ -58,7 +61,7 @@ func GetComplianceCertificationsWithProgress(orgId, userId int64) ([]ComplianceC
 		for _, sid := range sessionIDs {
 			// Check if the session's presentation has been completed
 			session := AcademySession{}
-			if err := db.Where("id = ?", sid).First(&session).Error; err != nil {
+			if err := db.Where(queryWhereID, sid).First(&session).Error; err != nil {
 				continue
 			}
 			cp := CourseProgress{}
@@ -80,7 +83,7 @@ func GetComplianceCertificationsWithProgress(orgId, userId int64) ([]ComplianceC
 // GetComplianceCertification returns a single certification by ID.
 func GetComplianceCertification(id int64) (ComplianceCertification, error) {
 	cert := ComplianceCertification{}
-	err := db.Where("id = ?", id).First(&cert).Error
+	err := db.Where(queryWhereID, id).First(&cert).Error
 	return cert, err
 }
 
@@ -95,7 +98,7 @@ func CreateComplianceCertification(c *ComplianceCertification) error {
 
 // UpdateComplianceCertification updates a certification.
 func UpdateComplianceCertification(c *ComplianceCertification) error {
-	return db.Table("compliance_certifications").Where("id = ?", c.Id).Updates(map[string]interface{}{
+	return db.Table("compliance_certifications").Where(queryWhereID, c.Id).Updates(map[string]interface{}{
 		"name":                 c.Name,
 		"description":          c.Description,
 		"required_session_ids": c.RequiredSessionIDs,
@@ -117,11 +120,11 @@ func IssueComplianceCert(userId, certificationId int64) (*UserComplianceCert, er
 		return nil, err
 	}
 	uc := UserComplianceCert{
-		UserId:          userId,
-		CertificationId: certificationId,
+		UserId:           userId,
+		CertificationId:  certificationId,
 		VerificationCode: code,
-		IssuedDate:      time.Now().UTC(),
-		ExpiresDate:     time.Now().UTC().AddDate(1, 0, 0), // Expires in 1 year
+		IssuedDate:       time.Now().UTC(),
+		ExpiresDate:      time.Now().UTC().AddDate(1, 0, 0), // Expires in 1 year
 	}
 	if err := db.Save(&uc).Error; err != nil {
 		log.Error(err)
@@ -139,7 +142,7 @@ func CheckAndIssueComplianceCert(userId int64, cert ComplianceCertification) (*U
 	}
 	for _, sid := range sessionIDs {
 		session := AcademySession{}
-		if err := db.Where("id = ?", sid).First(&session).Error; err != nil {
+		if err := db.Where(queryWhereID, sid).First(&session).Error; err != nil {
 			return nil, false
 		}
 		cp := CourseProgress{}
@@ -164,7 +167,7 @@ func GetUserComplianceCerts(userId int64) ([]UserComplianceCert, error) {
 	}
 	for i := range certs {
 		cc := ComplianceCertification{}
-		if err := db.Where("id = ?", certs[i].CertificationId).First(&cc).Error; err == nil {
+		if err := db.Where(queryWhereID, certs[i].CertificationId).First(&cc).Error; err == nil {
 			certs[i].CertificationName = cc.Name
 			certs[i].CertificationSlug = cc.Slug
 		}
@@ -180,7 +183,7 @@ func VerifyComplianceCert(code string) (*UserComplianceCert, error) {
 		return nil, err
 	}
 	cc := ComplianceCertification{}
-	if err := db.Where("id = ?", uc.CertificationId).First(&cc).Error; err == nil {
+	if err := db.Where(queryWhereID, uc.CertificationId).First(&cc).Error; err == nil {
 		uc.CertificationName = cc.Name
 		uc.CertificationSlug = cc.Slug
 	}
@@ -193,4 +196,3 @@ func GetComplianceCertCount(userId int64) int {
 	db.Table("user_compliance_certs").Where("user_id = ?", userId).Count(&count)
 	return count
 }
-

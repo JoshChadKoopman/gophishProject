@@ -58,6 +58,7 @@ type BaseRecipient struct {
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
 	Position  string `json:"position"`
+	Phone     string `json:"phone"`
 }
 
 // FormatAddress returns the email address to use in the "To" header of the email
@@ -94,6 +95,9 @@ var ErrGroupNameNotSpecified = errors.New("Group name not specified")
 
 // ErrNoTargetsSpecified is thrown when no targets are specified by the user
 var ErrNoTargetsSpecified = errors.New("No targets specified")
+
+// queryWhereGroupID is the shared WHERE clause for group_id lookups.
+const queryWhereGroupID = "group_id=?"
 
 // Validate performs validation on a group given by the user
 func (g *Group) Validate() error {
@@ -135,7 +139,7 @@ func GetGroupSummaries(scope OrgScope) (GroupSummaries, error) {
 		return gs, err
 	}
 	for i := range gs.Groups {
-		query = db.Table("group_targets").Where("group_id=?", gs.Groups[i].Id)
+		query = db.Table("group_targets").Where(queryWhereGroupID, gs.Groups[i].Id)
 		err = query.Count(&gs.Groups[i].NumTargets).Error
 		if err != nil {
 			return gs, err
@@ -170,7 +174,7 @@ func GetGroupSummary(id int64, scope OrgScope) (GroupSummary, error) {
 		log.Error(err)
 		return g, err
 	}
-	query = db.Table("group_targets").Where("group_id=?", id)
+	query = db.Table("group_targets").Where(queryWhereGroupID, id)
 	err = query.Count(&g.NumTargets).Error
 	if err != nil {
 		return g, err
@@ -229,72 +233,66 @@ func PutGroup(g *Group) error {
 	if err := g.Validate(); err != nil {
 		return err
 	}
-	// Fetch group's existing targets from database.
 	ts, err := GetTargets(g.Id)
 	if err != nil {
-		log.WithFields(logrus.Fields{
-			"group_id": g.Id,
-		}).Error("Error getting targets from group")
+		log.WithFields(logrus.Fields{"group_id": g.Id}).Error("Error getting targets from group")
 		return err
 	}
-	// Preload the caches
-	cacheNew := make(map[string]int64, len(g.Targets))
-	for _, t := range g.Targets {
-		cacheNew[t.Email] = t.Id
-	}
 
-	cacheExisting := make(map[string]int64, len(ts))
-	for _, t := range ts {
-		cacheExisting[t.Email] = t.Id
-	}
+	cacheNew := buildEmailCache(g.Targets)
+	cacheExisting := buildEmailCache(ts)
 
 	tx := db.Begin()
-	// Check existing targets, removing any that are no longer in the group.
-	for _, t := range ts {
+	removeStaleTargets(tx, ts, cacheNew, g.Id)
+
+	if err := upsertNewTargets(tx, g.Targets, cacheExisting, g.Id); err != nil {
+		tx.Rollback()
+		return err
+	}
+	if err := tx.Save(g).Error; err != nil {
+		log.Error(err)
+		return err
+	}
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+	return nil
+}
+
+func buildEmailCache(targets []Target) map[string]int64 {
+	cache := make(map[string]int64, len(targets))
+	for _, t := range targets {
+		cache[t.Email] = t.Id
+	}
+	return cache
+}
+
+func removeStaleTargets(tx *gorm.DB, existing []Target, cacheNew map[string]int64, groupId int64) {
+	for _, t := range existing {
 		if _, ok := cacheNew[t.Email]; ok {
 			continue
 		}
-
-		// If the target does not exist in the group any longer, we delete it
-		err := tx.Where("group_id=? and target_id=?", g.Id, t.Id).Delete(&GroupTarget{}).Error
-		if err != nil {
-			tx.Rollback()
-			log.WithFields(logrus.Fields{
-				"email": t.Email,
-			}).Error("Error deleting email")
+		if err := tx.Where("group_id=? and target_id=?", groupId, t.Id).Delete(&GroupTarget{}).Error; err != nil {
+			log.WithFields(logrus.Fields{"email": t.Email}).Error("Error deleting email")
 		}
 	}
-	// Add any targets that are not in the database yet.
-	for _, nt := range g.Targets {
-		// If the target already exists in the database, we should just update
-		// the record with the latest information.
+}
+
+func upsertNewTargets(tx *gorm.DB, targets []Target, cacheExisting map[string]int64, groupId int64) error {
+	for _, nt := range targets {
 		if id, ok := cacheExisting[nt.Email]; ok {
 			nt.Id = id
-			err = UpdateTarget(tx, nt)
-			if err != nil {
+			if err := UpdateTarget(tx, nt); err != nil {
 				log.Error(err)
-				tx.Rollback()
 				return err
 			}
 			continue
 		}
-		// Otherwise, add target if not in database
-		err = insertTargetIntoGroup(tx, nt, g.Id)
-		if err != nil {
+		if err := insertTargetIntoGroup(tx, nt, groupId); err != nil {
 			log.Error(err)
-			tx.Rollback()
 			return err
 		}
-	}
-	err = tx.Save(g).Error
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-	err = tx.Commit().Error
-	if err != nil {
-		tx.Rollback()
-		return err
 	}
 	return nil
 }
@@ -302,7 +300,7 @@ func PutGroup(g *Group) error {
 // DeleteGroup deletes a given group by group ID and user ID
 func DeleteGroup(g *Group) error {
 	// Delete all the group_targets entries for this group
-	err := db.Where("group_id=?", g.Id).Delete(&GroupTarget{}).Error
+	err := db.Where(queryWhereGroupID, g.Id).Delete(&GroupTarget{}).Error
 	if err != nil {
 		log.Error(err)
 		return err
@@ -335,12 +333,6 @@ func insertTargetIntoGroup(tx *gorm.DB, t Target, gid int64) error {
 		log.Error(err)
 		return err
 	}
-	if err != nil {
-		log.WithFields(logrus.Fields{
-			"email": t.Email,
-		}).Error("Error adding many-many mapping")
-		return err
-	}
 	return nil
 }
 
@@ -350,6 +342,7 @@ func UpdateTarget(tx *gorm.DB, target Target) error {
 		"first_name": target.FirstName,
 		"last_name":  target.LastName,
 		"position":   target.Position,
+		"phone":      target.Phone,
 	}
 	err := tx.Model(&target).Where("id = ?", target.Id).Updates(targetInfo).Error
 	if err != nil {
@@ -363,6 +356,6 @@ func UpdateTarget(tx *gorm.DB, target Target) error {
 // GetTargets performs a many-to-many select to get all the Targets for a Group
 func GetTargets(gid int64) ([]Target, error) {
 	ts := []Target{}
-	err := db.Table("targets").Select("targets.id, targets.email, targets.first_name, targets.last_name, targets.position").Joins("left join group_targets gt ON targets.id = gt.target_id").Where("gt.group_id=?", gid).Scan(&ts).Error
+	err := db.Table("targets").Select("targets.id, targets.email, targets.first_name, targets.last_name, targets.position, targets.phone").Joins("left join group_targets gt ON targets.id = gt.target_id").Where("gt.group_id=?", gid).Scan(&ts).Error
 	return ts, err
 }

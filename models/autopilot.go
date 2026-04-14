@@ -11,21 +11,21 @@ import (
 
 // AutopilotConfig stores per-org autopilot settings.
 type AutopilotConfig struct {
-	Id                int64     `json:"id" gorm:"primary_key"`
-	OrgId             int64     `json:"org_id" gorm:"unique_index"`
-	Enabled           bool      `json:"enabled"`
-	CadenceDays       int       `json:"cadence_days"`        // Days between simulations per user (default 15)
-	ActiveHoursStart  int       `json:"active_hours_start"`  // 0-23, hour to start sending
-	ActiveHoursEnd    int       `json:"active_hours_end"`    // 0-23, hour to stop sending
-	Timezone          string    `json:"timezone"`            // IANA timezone (e.g. "Europe/Amsterdam")
-	TargetGroupIds    string    `json:"target_group_ids" gorm:"column:target_group_ids"` // JSON array of group IDs
-	SendingProfileId  int64     `json:"sending_profile_id"`
-	LandingPageId     int64     `json:"landing_page_id"`
-	PhishURL          string    `json:"phish_url"`           // Base phishing URL
-	LastRun           time.Time `json:"last_run"`
-	NextRun           time.Time `json:"next_run"`
-	CreatedDate       time.Time `json:"created_date"`
-	ModifiedDate      time.Time `json:"modified_date"`
+	Id               int64     `json:"id" gorm:"primary_key"`
+	OrgId            int64     `json:"org_id" gorm:"unique_index"`
+	Enabled          bool      `json:"enabled"`
+	CadenceDays      int       `json:"cadence_days"`                                    // Days between simulations per user (default 15)
+	ActiveHoursStart int       `json:"active_hours_start"`                              // 0-23, hour to start sending
+	ActiveHoursEnd   int       `json:"active_hours_end"`                                // 0-23, hour to stop sending
+	Timezone         string    `json:"timezone"`                                        // IANA timezone (e.g. "Europe/Amsterdam")
+	TargetGroupIds   string    `json:"target_group_ids" gorm:"column:target_group_ids"` // JSON array of group IDs
+	SendingProfileId int64     `json:"sending_profile_id"`
+	LandingPageId    int64     `json:"landing_page_id"`
+	PhishURL         string    `json:"phish_url"` // Base phishing URL
+	LastRun          time.Time `json:"last_run"`
+	NextRun          time.Time `json:"next_run"`
+	CreatedDate      time.Time `json:"created_date"`
+	ModifiedDate     time.Time `json:"modified_date"`
 }
 
 // AutopilotSchedule records each scheduled autopilot send.
@@ -51,10 +51,13 @@ type AutopilotBlackoutDate struct {
 
 var ErrAutopilotNotConfigured = errors.New("Autopilot is not configured for this organization")
 
+// queryWhereOrgID is the shared WHERE clause fragment for org_id lookups.
+const queryWhereOrgID = "org_id = ?"
+
 // GetAutopilotConfig returns the autopilot config for the given org.
 func GetAutopilotConfig(orgId int64) (AutopilotConfig, error) {
 	ac := AutopilotConfig{}
-	err := db.Where("org_id = ?", orgId).First(&ac).Error
+	err := db.Where(queryWhereOrgID, orgId).First(&ac).Error
 	if err != nil {
 		return ac, err
 	}
@@ -78,7 +81,7 @@ func SaveAutopilotConfig(ac *AutopilotConfig) error {
 	ac.ModifiedDate = time.Now().UTC()
 
 	existing := AutopilotConfig{}
-	err := db.Where("org_id = ?", ac.OrgId).First(&existing).Error
+	err := db.Where(queryWhereOrgID, ac.OrgId).First(&existing).Error
 	if err == gorm.ErrRecordNotFound {
 		ac.CreatedDate = time.Now().UTC()
 		return db.Save(ac).Error
@@ -104,7 +107,7 @@ func EnableAutopilot(orgId int64) error {
 
 // DisableAutopilot disables autopilot for an org.
 func DisableAutopilot(orgId int64) error {
-	return db.Model(&AutopilotConfig{}).Where("org_id = ?", orgId).
+	return db.Model(&AutopilotConfig{}).Where(queryWhereOrgID, orgId).
 		Updates(map[string]interface{}{"enabled": false}).Error
 }
 
@@ -164,7 +167,7 @@ func GetAutopilotSchedule(orgId int64, limit int) ([]AutopilotSchedule, error) {
 	if limit <= 0 {
 		limit = 50
 	}
-	err := db.Where("org_id = ?", orgId).
+	err := db.Where(queryWhereOrgID, orgId).
 		Order("scheduled_date desc").
 		Limit(limit).
 		Find(&entries).Error
@@ -180,7 +183,7 @@ func CreateAutopilotSchedule(s *AutopilotSchedule) error {
 // GetAutopilotBlackoutDates returns blackout dates for an org.
 func GetAutopilotBlackoutDates(orgId int64) ([]AutopilotBlackoutDate, error) {
 	dates := []AutopilotBlackoutDate{}
-	err := db.Where("org_id = ?", orgId).Order("date asc").Find(&dates).Error
+	err := db.Where(queryWhereOrgID, orgId).Order("date asc").Find(&dates).Error
 	return dates, err
 }
 
@@ -218,9 +221,23 @@ func GetUsersLastSentDate(orgId int64) (map[string]time.Time, error) {
 	defer rows.Close()
 	for rows.Next() {
 		var email string
-		var lastDate time.Time
-		if err := rows.Scan(&email, &lastDate); err == nil {
-			result[email] = lastDate
+		var lastDateStr string
+		if err := rows.Scan(&email, &lastDateStr); err == nil {
+			// Parse the date string; try common formats
+			for _, layout := range []string{
+				time.RFC3339Nano,
+				time.RFC3339,
+				"2006-01-02T15:04:05Z07:00",
+				"2006-01-02 15:04:05.999999999-07:00",
+				"2006-01-02 15:04:05.999999999+00:00",
+				"2006-01-02 15:04:05+00:00",
+				"2006-01-02 15:04:05",
+			} {
+				if parsed, err := time.Parse(layout, lastDateStr); err == nil {
+					result[email] = parsed
+					break
+				}
+			}
 		}
 	}
 	return result, nil

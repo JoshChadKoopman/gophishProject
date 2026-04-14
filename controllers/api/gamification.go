@@ -11,7 +11,7 @@ import (
 // GamificationLeaderboard handles GET /api/gamification/leaderboard.
 func (as *Server) GamificationLeaderboard(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	scope := getOrgScope(r)
@@ -32,7 +32,7 @@ func (as *Server) GamificationLeaderboard(w http.ResponseWriter, r *http.Request
 // GamificationMyPosition handles GET /api/gamification/my-position.
 func (as *Server) GamificationMyPosition(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	scope := getOrgScope(r)
@@ -52,7 +52,7 @@ func (as *Server) GamificationMyPosition(w http.ResponseWriter, r *http.Request)
 // GamificationBadges handles GET /api/gamification/badges — all available badges.
 func (as *Server) GamificationBadges(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	badges, err := models.GetAllBadges()
@@ -67,7 +67,7 @@ func (as *Server) GamificationBadges(w http.ResponseWriter, r *http.Request) {
 // GamificationMyBadges handles GET /api/gamification/my-badges — user's earned badges.
 func (as *Server) GamificationMyBadges(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	user := ctx.Get(r, "user").(models.User)
@@ -83,7 +83,7 @@ func (as *Server) GamificationMyBadges(w http.ResponseWriter, r *http.Request) {
 // GamificationMyStreak handles GET /api/gamification/my-streak.
 func (as *Server) GamificationMyStreak(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusMethodNotAllowed)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
 		return
 	}
 	user := ctx.Get(r, "user").(models.User)

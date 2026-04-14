@@ -48,7 +48,7 @@ func scopeQuery(query *gorm.DB, scope OrgScope) *gorm.DB {
 	if scope.IsSuperAdmin {
 		return query
 	}
-	return query.Where("org_id = ?", scope.OrgId)
+	return query.Where(queryWhereOrgID, scope.OrgId)
 }
 
 // scopeRawSQL returns a SQL fragment and value for org_id filtering.
@@ -111,7 +111,7 @@ func DeleteOrganization(id int64) error {
 // GetOrgUserCount returns the number of users in the given org.
 func GetOrgUserCount(orgId int64) (int, error) {
 	var count int
-	err := db.Model(&User{}).Where("org_id = ?", orgId).Count(&count).Error
+	err := db.Model(&User{}).Where(queryWhereOrgID, orgId).Count(&count).Error
 	if err != nil {
 		log.Error(err)
 	}
@@ -121,7 +121,7 @@ func GetOrgUserCount(orgId int64) (int, error) {
 // GetOrgCampaignCount returns the number of campaigns in the given org.
 func GetOrgCampaignCount(orgId int64) (int, error) {
 	var count int
-	err := db.Table("campaigns").Where("org_id = ?", orgId).Count(&count).Error
+	err := db.Table("campaigns").Where(queryWhereOrgID, orgId).Count(&count).Error
 	if err != nil {
 		log.Error(err)
 	}

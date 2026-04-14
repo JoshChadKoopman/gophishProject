@@ -6,7 +6,6 @@ import (
 
 	"github.com/gophish/gomail"
 	"github.com/gophish/gophish/config"
-	log "github.com/gophish/gophish/logger"
 	"github.com/gophish/gophish/mailer"
 )
 
@@ -40,6 +39,10 @@ func (s *EmailRequest) getBaseURL() string {
 
 func (s *EmailRequest) getFromAddress() string {
 	return s.FromAddress
+}
+
+func (s *EmailRequest) getOrgId() int64 {
+	return 0
 }
 
 // Validate ensures the SendTestEmailRequest structure
@@ -117,64 +120,48 @@ func (s *EmailRequest) Generate(msg *gomail.Message) error {
 	}
 	s.URL = url
 
-	// Add the transparency headers
+	setEmailRequestHeaders(msg, s, ptx)
+
+	msg.SetHeader("To", s.FormatAddress())
+	setEmailRequestBody(msg, s, ptx)
+
+	for _, a := range s.Template.Attachments {
+		addAttachment(msg, a, ptx)
+	}
+	return nil
+}
+
+// setEmailRequestHeaders adds transparency, custom, and subject headers for an email request.
+func setEmailRequestHeaders(msg *gomail.Message, s *EmailRequest, ptx PhishingTemplateContext) {
 	msg.SetHeader("X-Mailer", config.ServerName)
 	if conf.ContactAddress != "" {
 		msg.SetHeader("X-Gophish-Contact", conf.ContactAddress)
 	}
-
-	// Parse the customHeader templates
 	for _, header := range s.SMTP.Headers {
-		key, err := ExecuteTemplate(header.Key, ptx)
-		if err != nil {
-			log.Error(err)
-		}
-
-		value, err := ExecuteTemplate(header.Value, ptx)
-		if err != nil {
-			log.Error(err)
-		}
-
-		// Add our header immediately
+		key, _ := ExecuteTemplate(header.Key, ptx)
+		value, _ := ExecuteTemplate(header.Value, ptx)
 		msg.SetHeader(key, value)
 	}
-
-	// Parse remaining templates
-	subject, err := ExecuteTemplate(s.Template.Subject, ptx)
-	if err != nil {
-		log.Error(err)
-	}
-	// don't set the Subject header if it is blank
+	subject, _ := ExecuteTemplate(s.Template.Subject, ptx)
 	if subject != "" {
 		msg.SetHeader("Subject", subject)
 	}
+}
 
-	msg.SetHeader("To", s.FormatAddress())
+// setEmailRequestBody sets the plain text and/or HTML body for an email request.
+func setEmailRequestBody(msg *gomail.Message, s *EmailRequest, ptx PhishingTemplateContext) {
 	if s.Template.Text != "" {
-		text, err := ExecuteTemplate(s.Template.Text, ptx)
-		if err != nil {
-			log.Error(err)
-		}
+		text, _ := ExecuteTemplate(s.Template.Text, ptx)
 		msg.SetBody("text/plain", text)
 	}
 	if s.Template.HTML != "" {
-		html, err := ExecuteTemplate(s.Template.HTML, ptx)
-		if err != nil {
-			log.Error(err)
-		}
+		html, _ := ExecuteTemplate(s.Template.HTML, ptx)
 		if s.Template.Text == "" {
 			msg.SetBody("text/html", html)
 		} else {
 			msg.AddAlternative("text/html", html)
 		}
 	}
-
-	// Attach the files
-	for _, a := range s.Template.Attachments {
-		addAttachment(msg, a, ptx)
-	}
-
-	return nil
 }
 
 // GetDialer returns the mailer.Dialer for the underlying SMTP object

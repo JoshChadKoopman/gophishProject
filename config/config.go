@@ -2,7 +2,6 @@ package config
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 
 	log "github.com/gophish/gophish/logger"
@@ -12,10 +11,10 @@ import (
 // All fields can be overridden via environment variables at startup.
 type OIDCConfig struct {
 	Enabled      bool   `json:"enabled"`
-	ProviderURL  string `json:"provider_url"`   // e.g. http://keycloak:8080/realms/nivoxis
+	ProviderURL  string `json:"provider_url"` // e.g. http://keycloak:8080/realms/nivoxis
 	ClientID     string `json:"client_id"`
 	ClientSecret string `json:"client_secret"`
-	RedirectURL  string `json:"redirect_url"`   // e.g. https://app.example.com/auth/oidc/callback
+	RedirectURL  string `json:"redirect_url"` // e.g. https://app.example.com/auth/oidc/callback
 }
 
 // MFAConfig holds settings for the native TOTP / backup-code subsystem.
@@ -29,10 +28,11 @@ type MFAConfig struct {
 // AIConfig holds settings for AI-powered template generation.
 // Provider must be "claude" or "openai". API keys can be set via env vars.
 type AIConfig struct {
-	Provider          string `json:"provider"`            // "claude" or "openai"
-	APIKey            string `json:"api_key"`             // API key for the provider
-	Model             string `json:"model"`               // e.g. "claude-sonnet-4-20250514", "gpt-4o"
-	MonthlyTokenBudget int   `json:"monthly_token_budget"` // 0 = unlimited
+	Enabled            bool   `json:"enabled"`              // Whether AI features are enabled
+	Provider           string `json:"provider"`             // "claude" or "openai"
+	APIKey             string `json:"api_key"`              // API key for the provider
+	Model              string `json:"model"`                // e.g. "claude-sonnet-4-20250514", "gpt-4o"
+	MonthlyTokenBudget int    `json:"monthly_token_budget"` // 0 = unlimited
 }
 
 // AdminServer represents the Admin server configuration details
@@ -54,6 +54,18 @@ type PhishServer struct {
 	KeyPath   string `json:"key_path"`
 }
 
+// SAMLConfig holds settings for SAML 2.0 SSO with separate admin/user paths.
+type SAMLConfig struct {
+	Enabled         bool   `json:"enabled"`
+	IDPURL          string `json:"idp_url"`           // IdP SSO endpoint URL
+	IDPMetadataURL  string `json:"idp_metadata_url"`  // IdP Metadata URL
+	SPEntityID      string `json:"sp_entity_id"`      // e.g. https://app.example.com/saml
+	AdminGroupClaim string `json:"admin_group_claim"` // SAML attribute for admin group
+	AdminGroupValue string `json:"admin_group_value"` // Value that grants admin access
+	DefaultRoleSlug string `json:"default_role_slug"` // Default role for SSO-provisioned users
+	SplitAdminUser  bool   `json:"split_admin_user"`  // Enable separate admin/user SSO paths
+}
+
 // Config represents the configuration information.
 type Config struct {
 	AdminConf      AdminServer `json:"admin_server"`
@@ -66,6 +78,7 @@ type Config struct {
 	ContactAddress string      `json:"contact_address"`
 	Logging        *log.Config `json:"logging"`
 	OIDC           OIDCConfig  `json:"oidc"`
+	SAML           SAMLConfig  `json:"saml"`
 	MFA            MFAConfig   `json:"mfa"`
 	AI             AIConfig    `json:"ai"`
 }
@@ -79,7 +92,7 @@ const ServerName = "gophish"
 // LoadConfig loads the configuration from the specified filepath
 func LoadConfig(filepath string) (*Config, error) {
 	// Get the config file
-	configFile, err := ioutil.ReadFile(filepath)
+	configFile, err := os.ReadFile(filepath)
 	if err != nil {
 		return nil, err
 	}
@@ -96,8 +109,16 @@ func LoadConfig(filepath string) (*Config, error) {
 	// Explicitly set the TestFlag to false to prevent config.json overrides
 	config.TestFlag = false
 
-	// Apply OIDC environment variable overrides. Setting KEYCLOAK_URL enables
-	// OIDC regardless of what the config.json says.
+	applyOIDCEnvOverrides(config)
+	applySAMLEnvOverrides(config)
+	applyMFAEnvOverrides(config)
+	applyAIEnvOverrides(config)
+
+	return config, nil
+}
+
+// applyOIDCEnvOverrides applies OIDC/Keycloak environment variable overrides.
+func applyOIDCEnvOverrides(config *Config) {
 	if keycloakURL := os.Getenv("KEYCLOAK_URL"); keycloakURL != "" {
 		realm := os.Getenv("KEYCLOAK_REALM")
 		if realm == "" {
@@ -115,16 +136,37 @@ func LoadConfig(filepath string) (*Config, error) {
 	if redirectURL := os.Getenv("OIDC_REDIRECT_URL"); redirectURL != "" {
 		config.OIDC.RedirectURL = redirectURL
 	}
+}
 
-	// Apply MFA environment variable overrides.
+// applyMFAEnvOverrides applies MFA environment variable overrides.
+func applyMFAEnvOverrides(config *Config) {
 	if encKey := os.Getenv("MFA_TOTP_ENCRYPTION_KEY"); encKey != "" {
 		config.MFA.TOTPEncryptionKey = encKey
 	}
 	if config.MFA.BackupCodeCount <= 0 {
 		config.MFA.BackupCodeCount = 8
 	}
+}
 
-	// Apply AI environment variable overrides.
+// applySAMLEnvOverrides applies SAML environment variable overrides.
+func applySAMLEnvOverrides(config *Config) {
+	if idpURL := os.Getenv("SAML_IDP_URL"); idpURL != "" {
+		config.SAML.Enabled = true
+		config.SAML.IDPURL = idpURL
+	}
+	if entityID := os.Getenv("SAML_SP_ENTITY_ID"); entityID != "" {
+		config.SAML.SPEntityID = entityID
+	}
+	if adminGroup := os.Getenv("SAML_ADMIN_GROUP"); adminGroup != "" {
+		config.SAML.AdminGroupValue = adminGroup
+	}
+	if os.Getenv("SAML_SPLIT_ADMIN_USER") == "true" {
+		config.SAML.SplitAdminUser = true
+	}
+}
+
+// applyAIEnvOverrides applies AI provider environment variable overrides.
+func applyAIEnvOverrides(config *Config) {
 	if provider := os.Getenv("NIVOXIS_AI_PROVIDER"); provider != "" {
 		config.AI.Provider = provider
 	}
@@ -150,6 +192,4 @@ func LoadConfig(filepath string) (*Config, error) {
 	if config.AI.Model == "" && config.AI.Provider == "openai" {
 		config.AI.Model = "gpt-4o"
 	}
-
-	return config, nil
 }

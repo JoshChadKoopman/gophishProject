@@ -9,14 +9,20 @@ import (
 // ReportButtonConfig stores the per-org configuration for the email report
 // button plugin (Outlook add-in / Gmail add-on).
 type ReportButtonConfig struct {
-	Id                 int64     `json:"id" gorm:"primary_key;auto_increment"`
-	OrgId              int64     `json:"org_id"`
-	PluginApiKey       string    `json:"plugin_api_key"`
-	FeedbackSimulation string    `json:"feedback_simulation"`
-	FeedbackReal       string    `json:"feedback_real"`
-	Enabled            bool      `json:"enabled" gorm:"default:true"`
-	CreatedDate        time.Time `json:"created_date"`
-	ModifiedDate       time.Time `json:"modified_date"`
+	Id                       int64     `json:"id" gorm:"primary_key;auto_increment"`
+	OrgId                    int64     `json:"org_id"`
+	PluginApiKey             string    `json:"plugin_api_key"`
+	FeedbackSimulation       string    `json:"feedback_simulation"`
+	FeedbackReal             string    `json:"feedback_real"`
+	Enabled                  bool      `json:"enabled" gorm:"default:true"`
+	OutlookEnabled           bool      `json:"outlook_enabled" gorm:"default:true"`
+	GoogleEnabled            bool      `json:"google_enabled" gorm:"default:false"`
+	GoogleWorkspaceDomain    string    `json:"google_workspace_domain"`
+	GoogleServiceAccountJSON string    `json:"google_service_account_json,omitempty" gorm:"type:text"`
+	AutoAnalyze              bool      `json:"auto_analyze" gorm:"default:true"`
+	AutoRemediateThreshold   string    `json:"auto_remediate_threshold" gorm:"default:'confirmed_phishing'"`
+	CreatedDate              time.Time `json:"created_date"`
+	ModifiedDate             time.Time `json:"modified_date"`
 }
 
 // TableName overrides the default table name.
@@ -37,6 +43,12 @@ type ReportedEmail struct {
 	ResultId       int64     `json:"result_id"`
 	Classification string    `json:"classification" gorm:"default:'pending'"`
 	AdminNotes     string    `json:"admin_notes"`
+	RawHeaders     string    `json:"raw_headers,omitempty" gorm:"type:text"`
+	RawBody        string    `json:"raw_body,omitempty" gorm:"type:text"`
+	SourcePlatform string    `json:"source_platform" gorm:"default:'outlook'"`
+	AutoAnalyzed   bool      `json:"auto_analyzed"`
+	Remediated     bool      `json:"remediated"`
+	RemediatedDate time.Time `json:"remediated_date,omitempty"`
 	CreatedDate    time.Time `json:"created_date"`
 }
 

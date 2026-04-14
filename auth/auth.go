@@ -54,10 +54,13 @@ var ErrPasswordNoLower = errors.New("Password must contain at least one lowercas
 var ErrPasswordNoDigit = errors.New("Password must contain at least one digit")
 
 // GenerateSecureKey returns the hex representation of key generated from n
-// random bytes
+// random bytes. Panics if the system CSPRNG is unavailable, since this
+// indicates a fatal platform issue that cannot be recovered from.
 func GenerateSecureKey(n int) string {
 	k := make([]byte, n)
-	io.ReadFull(rand.Reader, k)
+	if _, err := io.ReadFull(rand.Reader, k); err != nil {
+		panic("auth: crypto/rand is unavailable: " + err.Error())
+	}
 	return fmt.Sprintf("%x", k)
 }
 

@@ -1,10 +1,25 @@
 package models
 
 import (
+	"encoding/json"
 	"errors"
 	"time"
 
 	log "github.com/gophish/gophish/logger"
+)
+
+// Question type constants for the quiz engine.
+const (
+	// QuestionTypeMultipleChoice is a single-answer multiple-choice question.
+	// The correct answer is stored in CorrectOption (0-based index).
+	QuestionTypeMultipleChoice = "multiple_choice"
+	// QuestionTypeTrueFalse is a true/false question. Options must be ["True","False"]
+	// or similar. CorrectOption is 0 or 1.
+	QuestionTypeTrueFalse = "true_false"
+	// QuestionTypeMultiSelect allows multiple correct answers. The correct answers
+	// are stored in CorrectOptions (JSON array of 0-based indices). Full credit
+	// requires the submitted set to match exactly.
+	QuestionTypeMultiSelect = "multi_select"
 )
 
 // Quiz represents a quiz attached to a training presentation.
@@ -19,16 +34,81 @@ type Quiz struct {
 	Questions      []QuizQuestion `json:"questions,omitempty" gorm:"-"`
 }
 
-// QuizQuestion represents a single multiple-choice question in a quiz.
-// Options is a JSON-encoded array of strings; CorrectOption is the 0-based index.
+// QuizQuestion represents a single quiz question. The QuestionType field
+// determines how the question is rendered and graded:
+//   - multiple_choice: single correct answer, CorrectOption holds the index
+//   - true_false: CorrectOption is 0 or 1
+//   - multi_select: multiple correct answers, CorrectOptions is a JSON-encoded
+//     array of 0-based indices that must all match for credit
+//
+// Explanation is shown to the user after the quiz is submitted and provides
+// educational reinforcement for right or wrong answers.
 type QuizQuestion struct {
-	Id            int64     `json:"id" gorm:"column:id; primary_key:yes"`
-	QuizId        int64     `json:"quiz_id" gorm:"column:quiz_id"`
-	QuestionText  string    `json:"question_text" gorm:"column:question_text"`
-	Options       string    `json:"options" gorm:"column:options;type:text"`
-	CorrectOption int       `json:"correct_option" gorm:"column:correct_option"`
-	SortOrder     int       `json:"sort_order" gorm:"column:sort_order"`
-	CreatedDate   time.Time `json:"created_date" gorm:"column:created_date"`
+	Id             int64     `json:"id" gorm:"column:id; primary_key:yes"`
+	QuizId         int64     `json:"quiz_id" gorm:"column:quiz_id"`
+	QuestionType   string    `json:"question_type" gorm:"column:question_type"`
+	QuestionText   string    `json:"question_text" gorm:"column:question_text"`
+	Options        string    `json:"options" gorm:"column:options;type:text"`
+	CorrectOption  int       `json:"correct_option" gorm:"column:correct_option"`
+	CorrectOptions string    `json:"correct_options" gorm:"column:correct_options;type:text"`
+	Explanation    string    `json:"explanation" gorm:"column:explanation;type:text"`
+	SortOrder      int       `json:"sort_order" gorm:"column:sort_order"`
+	CreatedDate    time.Time `json:"created_date" gorm:"column:created_date"`
+}
+
+// GetCorrectOptionsSet parses CorrectOptions JSON into a set of indices.
+// For multi_select questions this returns the expected correct answer set.
+// For other question types it falls back to a set containing CorrectOption.
+func (q *QuizQuestion) GetCorrectOptionsSet() map[int]bool {
+	set := make(map[int]bool)
+	if q.CorrectOptions != "" {
+		var indices []int
+		if err := json.Unmarshal([]byte(q.CorrectOptions), &indices); err == nil {
+			for _, idx := range indices {
+				set[idx] = true
+			}
+			return set
+		}
+	}
+	set[q.CorrectOption] = true
+	return set
+}
+
+// GradeAnswer compares a user's answer against the question's correct answer
+// and returns true if the answer is fully correct. Answer is a slice to
+// support multi_select; for single-answer questions it should contain one
+// element (or be empty for no-answer).
+func (q *QuizQuestion) GradeAnswer(answer []int) bool {
+	switch q.QuestionType {
+	case QuestionTypeMultiSelect:
+		expected := q.GetCorrectOptionsSet()
+		if len(answer) != len(expected) {
+			return false
+		}
+		for _, idx := range answer {
+			if !expected[idx] {
+				return false
+			}
+		}
+		return true
+	default:
+		// multiple_choice, true_false, and unset legacy questions
+		if len(answer) != 1 {
+			return false
+		}
+		return answer[0] == q.CorrectOption
+	}
+}
+
+// NormalizeQuestionType returns a valid question type, defaulting to
+// multiple_choice for empty or unknown values (preserves backward compatibility).
+func NormalizeQuestionType(t string) string {
+	switch t {
+	case QuestionTypeMultipleChoice, QuestionTypeTrueFalse, QuestionTypeMultiSelect:
+		return t
+	default:
+		return QuestionTypeMultipleChoice
+	}
 }
 
 // QuizAttempt records a user's quiz submission and score.
@@ -46,15 +126,18 @@ type QuizAttempt struct {
 var ErrQuizNotFound = errors.New("Quiz not found")
 var ErrNoQuestions = errors.New("Quiz must have at least one question")
 
+// queryWhereQuizID is the shared WHERE clause for quiz_id lookups.
+const queryWhereQuizID = "quiz_id=?"
+
 // GetQuizByPresentationId returns the quiz (with questions) for a presentation.
 func GetQuizByPresentationId(presentationId int64) (Quiz, error) {
 	q := Quiz{}
-	err := db.Where("presentation_id=?", presentationId).First(&q).Error
+	err := db.Where(queryWherePresentationID, presentationId).First(&q).Error
 	if err != nil {
 		return q, err
 	}
 	questions := []QuizQuestion{}
-	err = db.Where("quiz_id=?", q.Id).Order("sort_order asc").Find(&questions).Error
+	err = db.Where(queryWhereQuizID, q.Id).Order("sort_order asc").Find(&questions).Error
 	q.Questions = questions
 	return q, err
 }
@@ -75,15 +158,15 @@ func PutQuiz(q *Quiz) error {
 // DeleteQuiz deletes a quiz and its questions/attempts by presentation ID.
 func DeleteQuiz(presentationId int64) error {
 	q := Quiz{}
-	err := db.Where("presentation_id=?", presentationId).First(&q).Error
+	err := db.Where(queryWherePresentationID, presentationId).First(&q).Error
 	if err != nil {
 		return err
 	}
 	// Delete attempts first, then questions, then the quiz itself
-	if err := db.Where("quiz_id=?", q.Id).Delete(&QuizAttempt{}).Error; err != nil {
+	if err := db.Where(queryWhereQuizID, q.Id).Delete(&QuizAttempt{}).Error; err != nil {
 		log.Error(err)
 	}
-	if err := db.Where("quiz_id=?", q.Id).Delete(&QuizQuestion{}).Error; err != nil {
+	if err := db.Where(queryWhereQuizID, q.Id).Delete(&QuizQuestion{}).Error; err != nil {
 		log.Error(err)
 	}
 	return db.Where("id=?", q.Id).Delete(&Quiz{}).Error
@@ -94,7 +177,7 @@ func DeleteQuiz(presentationId int64) error {
 func SaveQuizQuestions(quizId int64, questions []QuizQuestion) error {
 	tx := db.Begin()
 	// Delete existing questions
-	if err := tx.Where("quiz_id=?", quizId).Delete(&QuizQuestion{}).Error; err != nil {
+	if err := tx.Where(queryWhereQuizID, quizId).Delete(&QuizQuestion{}).Error; err != nil {
 		tx.Rollback()
 		return err
 	}
@@ -136,6 +219,6 @@ func GetLatestPassedAttempt(userId, quizId int64) (QuizAttempt, error) {
 // QuizExistsForPresentation returns true if a quiz is attached to the presentation.
 func QuizExistsForPresentation(presentationId int64) bool {
 	q := Quiz{}
-	err := db.Where("presentation_id=?", presentationId).First(&q).Error
+	err := db.Where(queryWherePresentationID, presentationId).First(&q).Error
 	return err == nil
 }

@@ -32,42 +32,31 @@ func (p *Page) parseHTML() error {
 	if err != nil {
 		return err
 	}
-	forms := d.Find("form")
-	forms.Each(func(i int, f *goquery.Selection) {
-		// We always want the submitted events to be
-		// sent to our server
+	d.Find("form").Each(func(i int, f *goquery.Selection) {
 		f.SetAttr("action", "")
-		if p.CaptureCredentials {
-			// If we don't want to capture passwords,
-			// find all the password fields and remove the "name" attribute.
-			if !p.CapturePasswords {
-				inputs := f.Find("input")
-				inputs.Each(func(j int, input *goquery.Selection) {
-					if t, _ := input.Attr("type"); strings.EqualFold(t, "password") {
-						input.RemoveAttr("name")
-					}
-				})
-			} else {
-				// If the user chooses to re-enable the capture passwords setting,
-				// we need to re-add the name attribute
-				inputs := f.Find("input")
-				inputs.Each(func(j int, input *goquery.Selection) {
-					if t, _ := input.Attr("type"); strings.EqualFold(t, "password") {
-						input.SetAttr("name", "password")
-					}
-				})
-			}
-		} else {
-			// Otherwise, remove the name from all
-			// inputs.
-			inputFields := f.Find("input")
-			inputFields.Each(func(j int, input *goquery.Selection) {
-				input.RemoveAttr("name")
-			})
-		}
+		processFormInputs(f, p.CaptureCredentials, p.CapturePasswords)
 	})
 	p.HTML, err = d.Html()
 	return err
+}
+
+// processFormInputs adjusts input name attributes based on credential capture settings.
+func processFormInputs(f *goquery.Selection, captureCredentials, capturePasswords bool) {
+	if !captureCredentials {
+		f.Find("input").Each(func(j int, input *goquery.Selection) {
+			input.RemoveAttr("name")
+		})
+		return
+	}
+	f.Find("input").Each(func(j int, input *goquery.Selection) {
+		if t, _ := input.Attr("type"); strings.EqualFold(t, "password") {
+			if capturePasswords {
+				input.SetAttr("name", "password")
+			} else {
+				input.RemoveAttr("name")
+			}
+		}
+	})
 }
 
 // Validate ensures that a page contains the appropriate details

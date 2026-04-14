@@ -15,6 +15,10 @@ import (
 
 const errUserNotAuthenticated = "User not authenticated"
 
+// trainingFallbackPath is the UI path learners are redirected to when they
+// attempt to access a resource they lack permissions for.
+const trainingFallbackPath = "/training"
+
 // getUserFromContext safely extracts the authenticated user from the request
 // context. Returns the user and true on success, or a zero-value User and
 // false if the context value is nil or not a models.User.
@@ -170,41 +174,45 @@ func isWriteExempt(path string) bool {
 	return false
 }
 
+// isSafeMethod returns true for HTTP methods that do not modify resources.
+func isSafeMethod(method string) bool {
+	return method == http.MethodGet || method == http.MethodHead || method == http.MethodOptions
+}
+
+// hasWritePermission returns true if the user has PermissionModifyObjects
+// or PermissionManageTraining. Returns an error if the permission check fails.
+func hasWritePermission(user models.User) (bool, error) {
+	canModify, err := user.HasPermission(models.PermissionModifyObjects)
+	if err != nil {
+		return false, err
+	}
+	if canModify {
+		return true, nil
+	}
+	return user.HasPermission(models.PermissionManageTraining)
+}
+
 // EnforceViewOnly is a global middleware that limits the ability to edit
 // objects to accounts with at least one write permission.
-// A user may write if they have PermissionModifyObjects (campaigns, groups, etc.)
-// OR PermissionManageTraining (training routes only). The per-route handlers
-// perform the finer-grained check; this middleware just gates the outer layer.
-// Paths under writeExemptPrefixes are exempt so that learners can interact
-// with training endpoints (progress, quizzes, etc.).
 func EnforceViewOnly(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Only non-safe methods need write permission.
-		if r.Method != http.MethodGet && r.Method != http.MethodHead && r.Method != http.MethodOptions {
-			// Training paths are exempt — handlers do their own permission checks
-			if isWriteExempt(r.URL.Path) {
-				next.ServeHTTP(w, r)
-				return
-			}
-			user, ok := getUserFromContext(r)
-			if !ok {
-				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-				return
-			}
-			canModify, err := user.HasPermission(models.PermissionModifyObjects)
-			if err != nil {
-				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-				return
-			}
-			canTraining, err := user.HasPermission(models.PermissionManageTraining)
-			if err != nil {
-				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-				return
-			}
-			if !canModify && !canTraining {
-				http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
-				return
-			}
+		if isSafeMethod(r.Method) || isWriteExempt(r.URL.Path) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		user, ok := getUserFromContext(r)
+		if !ok {
+			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			return
+		}
+		allowed, err := hasWritePermission(user)
+		if err != nil {
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
+		if !allowed {
+			http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+			return
 		}
 		next.ServeHTTP(w, r)
 	})
@@ -254,6 +262,16 @@ func RequireMFAVerified(handler http.Handler) http.HandlerFunc {
 	}
 }
 
+// respondForbidOrRedirect sends a JSON error for API paths or redirects
+// non-API requests to the training fallback path.
+func respondForbidOrRedirect(w http.ResponseWriter, r *http.Request, status int, message string) {
+	if strings.HasPrefix(r.URL.Path, "/api") {
+		JSONError(w, status, message)
+	} else {
+		http.Redirect(w, r, trainingFallbackPath, http.StatusTemporaryRedirect)
+	}
+}
+
 // RequirePermission checks to see if the user has the requested permission
 // before executing the handler. If the request is unauthorized, a JSONError
 // is returned.
@@ -267,19 +285,11 @@ func RequirePermission(perm string) func(http.Handler) http.HandlerFunc {
 			}
 			access, err := user.HasPermission(perm)
 			if err != nil {
-				if strings.HasPrefix(r.URL.Path, "/api") {
-					JSONError(w, http.StatusInternalServerError, err.Error())
-				} else {
-					http.Redirect(w, r, "/training", http.StatusTemporaryRedirect)
-				}
+				respondForbidOrRedirect(w, r, http.StatusInternalServerError, err.Error())
 				return
 			}
 			if !access {
-				if strings.HasPrefix(r.URL.Path, "/api") {
-					JSONError(w, http.StatusForbidden, http.StatusText(http.StatusForbidden))
-				} else {
-					http.Redirect(w, r, "/training", http.StatusTemporaryRedirect)
-				}
+				respondForbidOrRedirect(w, r, http.StatusForbidden, http.StatusText(http.StatusForbidden))
 				return
 			}
 			next.ServeHTTP(w, r)
@@ -299,15 +309,29 @@ func RequireReportAccess(next http.Handler) http.HandlerFunc {
 		canView, _ := user.HasPermission(models.PermissionViewReports)
 		canModify, _ := user.HasPermission(models.PermissionModifyObjects)
 		if !canView && !canModify {
-			if strings.HasPrefix(r.URL.Path, "/api") {
-				JSONError(w, http.StatusForbidden, http.StatusText(http.StatusForbidden))
-			} else {
-				http.Redirect(w, r, "/training", http.StatusTemporaryRedirect)
-			}
+			respondForbidOrRedirect(w, r, http.StatusForbidden, http.StatusText(http.StatusForbidden))
 			return
 		}
 		next.ServeHTTP(w, r)
 	}
+}
+
+// checkTierLimit checks whether the org has exceeded its quota for the given
+// resource type. Returns a non-empty message if the limit is reached.
+func checkTierLimit(resourceType string, org models.Organization, tier models.SubscriptionTier) string {
+	switch resourceType {
+	case "campaign":
+		count, _ := models.GetOrgCampaignCount(org.Id)
+		if count >= tier.MaxCampaigns {
+			return "Campaign limit reached for your organization tier"
+		}
+	case "user":
+		count, _ := models.GetOrgUserCount(org.Id)
+		if count >= tier.MaxUsers {
+			return "User limit reached for your organization tier"
+		}
+	}
+	return ""
 }
 
 // EnforceTierLimits checks org-level quotas before allowing resource creation.
@@ -335,19 +359,9 @@ func EnforceTierLimits(resourceType string) func(http.Handler) http.HandlerFunc 
 				JSONError(w, http.StatusInternalServerError, "Error loading subscription tier")
 				return
 			}
-			switch resourceType {
-			case "campaign":
-				count, _ := models.GetOrgCampaignCount(org.Id)
-				if count >= tier.MaxCampaigns {
-					JSONError(w, http.StatusForbidden, "Campaign limit reached for your organization tier")
-					return
-				}
-			case "user":
-				count, _ := models.GetOrgUserCount(org.Id)
-				if count >= tier.MaxUsers {
-					JSONError(w, http.StatusForbidden, "User limit reached for your organization tier")
-					return
-				}
+			if msg := checkTierLimit(resourceType, org, tier); msg != "" {
+				JSONError(w, http.StatusForbidden, msg)
+				return
 			}
 			next.ServeHTTP(w, r)
 		}
@@ -374,8 +388,11 @@ func ApplySecurityHeaders(next http.Handler) http.HandlerFunc {
 // JSONError returns an error in JSON format with the given
 // status code and message
 func JSONError(w http.ResponseWriter, c int, m string) {
-	cj, _ := json.MarshalIndent(models.Response{Success: false, Message: m}, "", "  ")
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(c)
-	fmt.Fprintf(w, "%s", cj)
+	// Use json.NewEncoder for safe serialisation; if encoding fails the
+	// status code has already been written, so we just write a fallback.
+	if err := json.NewEncoder(w).Encode(models.Response{Success: false, Message: m}); err != nil {
+		fmt.Fprintf(w, `{"success":false,"message":"internal encoding error"}`)
+	}
 }

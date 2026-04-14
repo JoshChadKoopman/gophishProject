@@ -53,7 +53,7 @@ func (as *Server) ImportGroup(w http.ResponseWriter, r *http.Request) {
 // Returns a Message object
 func (as *Server) ImportEmail(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusBadRequest)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusBadRequest)
 		return
 	}
 	ir := struct {
@@ -102,7 +102,7 @@ func (as *Server) ImportEmail(w http.ResponseWriter, r *http.Request) {
 func (as *Server) ImportSite(w http.ResponseWriter, r *http.Request) {
 	cr := cloneRequest{}
 	if r.Method != "POST" {
-		JSONResponse(w, models.Response{Success: false, Message: "Method not allowed"}, http.StatusBadRequest)
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusBadRequest)
 		return
 	}
 	err := json.NewDecoder(r.Body).Decode(&cr)
