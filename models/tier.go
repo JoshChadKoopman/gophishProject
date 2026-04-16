@@ -60,6 +60,16 @@ const (
 	FeatureDomainPool = "domain_pool"
 	// FeatureRealtimeDashboard gates the WebSocket-powered real-time dashboard.
 	FeatureRealtimeDashboard = "realtime_dashboard"
+	// FeatureScheduledReports gates admin-configurable recurring report delivery.
+	FeatureScheduledReports = "scheduled_reports"
+	// FeatureUnifiedExport gates the unified export API for all report types.
+	FeatureUnifiedExport = "unified_export"
+	// FeatureABTesting gates A/B template variant testing per user.
+	FeatureABTesting = "ab_testing"
+	// FeatureSendTimeOptimization gates per-user send-time optimization.
+	FeatureSendTimeOptimization = "send_time_optimization"
+	// FeatureProactiveInboxScanning gates webhook/push notification integration for near-real-time detection.
+	FeatureProactiveInboxScanning = "proactive_inbox_scanning"
 )
 
 // SubscriptionTier represents a pricing tier with associated limits.

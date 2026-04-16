@@ -16,7 +16,7 @@
                 <div class="panel panel-primary text-center">
                     <div class="panel-body">
                         <h2 id="myRank" style="margin:5px 0;">#--</h2>
-                        <p style="margin:0;">Your Rank</p>
+                        <p style="margin:0;">{{T .Locale "leaderboard.your_rank"}}</p>
                     </div>
                 </div>
             </div>
@@ -24,7 +24,7 @@
                 <div class="panel panel-default text-center">
                     <div class="panel-body">
                         <h2 id="myScore" style="margin:5px 0;">0</h2>
-                        <p style="margin:0;">Your Score</p>
+                        <p style="margin:0;">{{T .Locale "leaderboard.your_score"}}</p>
                     </div>
                 </div>
             </div>
@@ -32,7 +32,7 @@
                 <div class="panel panel-default text-center">
                     <div class="panel-body">
                         <h2 id="myBadges" style="margin:5px 0;">0</h2>
-                        <p style="margin:0;">Badges Earned</p>
+                        <p style="margin:0;">{{T .Locale "leaderboard.badges_earned"}}</p>
                     </div>
                 </div>
             </div>
@@ -42,9 +42,9 @@
         <div class="row" style="margin-bottom:15px;">
             <div class="col-md-6">
                 <div class="form-inline">
-                    <label>Department: </label>
+                    <label>{{T .Locale "common.department"}}: </label>
                     <select class="form-control" id="filterDepartment" style="margin-left:5px;">
-                        <option value="">All Departments</option>
+                        <option value="">{{T .Locale "leaderboard.all_departments"}}</option>
                     </select>
                 </div>
             </div>
@@ -55,24 +55,24 @@
             <div class="col-md-12">
                 <div class="panel panel-default">
                     <div class="panel-heading">
-                        <h3 class="panel-title"><i class="fa fa-list-ol"></i> Rankings</h3>
+                        <h3 class="panel-title"><i class="fa fa-list-ol"></i> {{T .Locale "leaderboard.rankings"}}</h3>
                     </div>
                     <div class="panel-body">
                         <table class="table table-striped" id="leaderboardTable">
                             <thead>
                                 <tr>
-                                    <th style="width:60px;">Rank</th>
-                                    <th>Name</th>
-                                    <th>Email</th>
-                                    <th style="width:120px;">Score</th>
-                                    <th style="width:100px;">Badges</th>
+                                    <th style="width:60px;">{{T .Locale "leaderboard.rank"}}</th>
+                                    <th>{{T .Locale "common.name"}}</th>
+                                    <th>{{T .Locale "common.email"}}</th>
+                                    <th style="width:120px;">{{T .Locale "leaderboard.score"}}</th>
+                                    <th style="width:100px;">{{T .Locale "leaderboard.badges"}}</th>
                                 </tr>
                             </thead>
                             <tbody id="leaderboardBody">
                             </tbody>
                         </table>
                         <p id="noLeaderboard" style="color:#888;display:none;">
-                            Leaderboard data is being calculated. Check back soon!
+                            {{T .Locale "leaderboard.empty"}}
                         </p>
                     </div>
                 </div>

@@ -1,0 +1,429 @@
+{{define "body"}}
+<div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+    <div class="page-header">
+        <h1>
+            <i class="fa fa-commenting"></i> AI Admin Assistant
+            <button class="btn btn-default pull-right" id="newConversationBtn">
+                <i class="fa fa-plus"></i> New Conversation
+            </button>
+        </h1>
+    </div>
+    <div id="flashes" class="row"></div>
+
+    <!-- Onboarding Wizard -->
+    <div id="onboardingSection" class="row" style="display:none; margin-bottom:25px;">
+        <div class="col-lg-12">
+            <div class="panel panel-info" style="border-left:4px solid #1a73e8;">
+                <div class="panel-heading" style="background:#1a73e8; color:#fff;">
+                    <h3 class="panel-title"><i class="fa fa-rocket"></i> Getting Started — Onboarding Checklist</h3>
+                </div>
+                <div class="panel-body">
+                    <p class="text-muted" style="margin-bottom:15px;">
+                        Complete these steps to get the most out of the Nivoxis CyberAwareness Platform. 
+                        Your AI assistant can guide you through each one.
+                    </p>
+                    <div class="progress" style="height:24px; margin-bottom:15px;">
+                        <div class="progress-bar progress-bar-success" id="onboardingProgress" role="progressbar" style="min-width:2em; line-height:24px; font-weight:600;">
+                            0%
+                        </div>
+                    </div>
+                    <div id="onboardingSteps" class="row"></div>
+                    <div class="text-right" style="margin-top:10px;">
+                        <button class="btn btn-sm btn-default" id="dismissOnboarding">
+                            <i class="fa fa-times"></i> Dismiss
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Conversation Sidebar -->
+        <div class="col-md-3">
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <h3 class="panel-title"><i class="fa fa-comments-o"></i> Conversations</h3>
+                </div>
+                <div class="panel-body" style="padding:0; max-height:600px; overflow-y:auto;">
+                    <div id="conversationList">
+                        <p class="text-center text-muted" style="padding:20px;">
+                            <i class="fa fa-spinner fa-spin"></i> Loading…
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <h3 class="panel-title"><i class="fa fa-lightbulb-o"></i> Quick Actions</h3>
+                </div>
+                <div class="panel-body" style="padding:8px;">
+                    <button class="btn btn-sm btn-block btn-default quick-ask" data-q="How do I create my first phishing campaign?" style="text-align:left; margin-bottom:4px;">
+                        <i class="fa fa-paper-plane text-primary"></i> Create a campaign
+                    </button>
+                    <button class="btn btn-sm btn-block btn-default quick-ask" data-q="How do I set up user groups and import employees?" style="text-align:left; margin-bottom:4px;">
+                        <i class="fa fa-users text-primary"></i> Set up groups
+                    </button>
+                    <button class="btn btn-sm btn-block btn-default quick-ask" data-q="How do I configure training assignments and content?" style="text-align:left; margin-bottom:4px;">
+                        <i class="fa fa-graduation-cap text-primary"></i> Configure training
+                    </button>
+                    <button class="btn btn-sm btn-block btn-default quick-ask" data-q="Explain the ROI reporting features and how to interpret the results" style="text-align:left; margin-bottom:4px;">
+                        <i class="fa fa-line-chart text-primary"></i> Understand ROI
+                    </button>
+                    <button class="btn btn-sm btn-block btn-default quick-ask" data-q="How do I read and use the board-ready reports for executives?" style="text-align:left; margin-bottom:4px;">
+                        <i class="fa fa-briefcase text-primary"></i> Board reports
+                    </button>
+                    <button class="btn btn-sm btn-block btn-default quick-ask" data-q="How do I configure the MITRE ATT&CK mapping and network event correlation?" style="text-align:left; margin-bottom:4px;">
+                        <i class="fa fa-shield text-primary"></i> Network events
+                    </button>
+                    <button class="btn btn-sm btn-block btn-default quick-ask" data-q="What compliance frameworks are supported and how do I enable them?" style="text-align:left; margin-bottom:4px;">
+                        <i class="fa fa-check-square text-primary"></i> Compliance
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Area -->
+        <div class="col-md-9">
+            <div class="panel panel-default" id="chatPanel">
+                <div class="panel-heading" style="background:#f8f9fa;">
+                    <h3 class="panel-title" id="chatTitle">
+                        <i class="fa fa-commenting text-primary"></i> <span id="chatTitleText">New Conversation</span>
+                    </h3>
+                </div>
+                <div class="panel-body" id="chatMessages" style="height:480px; overflow-y:auto; background:#fdfdfe; padding:20px;">
+                    <!-- Welcome Message -->
+                    <div id="welcomeMessage" class="text-center" style="padding-top:80px;">
+                        <div style="font-size:64px; color:#1a73e8; margin-bottom:15px;">
+                            <i class="fa fa-commenting-o"></i>
+                        </div>
+                        <h3 style="color:#444;">Hi! I'm your Nivoxis AI Assistant</h3>
+                        <p class="text-muted" style="max-width:500px; margin:0 auto; line-height:1.7;">
+                            I can help you navigate the platform, set up campaigns, configure training, 
+                            understand reports, and answer questions about cybersecurity awareness best practices.
+                        </p>
+                        <p class="text-muted" style="margin-top:15px;">
+                            <i class="fa fa-keyboard-o"></i> Type a question below or use a Quick Action to get started.
+                        </p>
+                    </div>
+                </div>
+                <div class="panel-footer" style="background:#f8f9fa;">
+                    <form id="chatForm">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="chatInput" placeholder="Ask me anything about the platform…" autocomplete="off" style="border-radius:4px 0 0 4px;">
+                            <span class="input-group-btn">
+                                <button class="btn btn-primary" type="submit" id="sendBtn">
+                                    <i class="fa fa-paper-plane"></i> Send
+                                </button>
+                            </span>
+                        </div>
+                        <div class="text-right" style="margin-top:5px;">
+                            <small class="text-muted">
+                                <i class="fa fa-info-circle"></i> 
+                                Powered by AI — Responses are contextual to your platform configuration.
+                            </small>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{{end}}
+
+{{define "scripts"}}
+<script>
+$(document).ready(function () {
+    var currentConversationId = null;
+    var isTyping = false;
+
+    // Load onboarding and conversations on page load
+    loadOnboarding();
+    loadConversations();
+
+    // ── Onboarding ──────────────────────────────────────────────
+    function loadOnboarding() {
+        api.adminAssistant.getOnboarding()
+            .success(function (data) {
+                if (!data || !data.steps || data.steps.length === 0) return;
+                // If all complete, hide
+                var allDone = data.steps.every(function (s) { return s.completed; });
+                if (allDone && localStorage.getItem('nivoxis-onboarding-dismissed') === '1') return;
+
+                renderOnboarding(data);
+                $("#onboardingSection").show();
+            })
+            .error(function () {
+                // Silently skip — AI assistant feature may not be fully configured
+            });
+    }
+
+    function renderOnboarding(data) {
+        var total = data.steps.length;
+        var completed = data.steps.filter(function (s) { return s.completed; }).length;
+        var pct = Math.round((completed / total) * 100);
+        $("#onboardingProgress").css("width", pct + "%").text(pct + "%");
+
+        var container = $("#onboardingSteps");
+        container.empty();
+
+        var icons = {
+            "create_group": "fa-users",
+            "create_campaign": "fa-paper-plane",
+            "create_template": "fa-envelope",
+            "configure_smtp": "fa-server",
+            "assign_training": "fa-graduation-cap",
+            "view_reports": "fa-bar-chart",
+            "configure_compliance": "fa-check-square",
+            "enable_autopilot": "fa-rocket",
+            "setup_roi": "fa-line-chart"
+        };
+
+        $.each(data.steps, function (i, step) {
+            var icon = icons[step.key] || "fa-check";
+            var statusClass = step.completed ? "text-success" : "text-muted";
+            var btnHtml = step.completed
+                ? '<span class="label label-success"><i class="fa fa-check"></i> Done</span>'
+                : '<button class="btn btn-xs btn-primary mark-complete-step" data-step="' + step.key + '"><i class="fa fa-check"></i> Mark Done</button>' +
+                  ' <button class="btn btn-xs btn-default quick-ask" data-q="Walk me through: ' + escapeHtml(step.label) + '" style="margin-left:3px;"><i class="fa fa-question-circle"></i> Help</button>';
+            container.append(
+                '<div class="col-md-4" style="margin-bottom:10px;">' +
+                '<div class="well" style="margin:0; padding:10px; min-height:80px;">' +
+                '<i class="fa ' + icon + ' ' + statusClass + '" style="font-size:18px; margin-right:6px;"></i> ' +
+                '<strong>' + escapeHtml(step.label) + '</strong><br>' +
+                '<div style="margin-top:6px;">' + btnHtml + '</div>' +
+                '</div></div>'
+            );
+        });
+    }
+
+    $(document).on("click", ".mark-complete-step", function () {
+        var step = $(this).data("step");
+        api.adminAssistant.completeOnboardingStep(step)
+            .success(function (data) {
+                renderOnboarding(data);
+                successFlashFade("Step completed!", 2);
+            })
+            .error(function () {
+                errorFlash("Could not mark step as complete.");
+            });
+    });
+
+    $("#dismissOnboarding").on("click", function () {
+        localStorage.setItem('nivoxis-onboarding-dismissed', '1');
+        $("#onboardingSection").slideUp();
+    });
+
+    // ── Conversations ───────────────────────────────────────────
+    function loadConversations() {
+        api.adminAssistant.getConversations()
+            .success(function (convs) {
+                renderConversations(convs);
+            })
+            .error(function () {
+                $("#conversationList").html('<p class="text-center text-muted" style="padding:15px;">Could not load conversations.</p>');
+            });
+    }
+
+    function renderConversations(convs) {
+        var list = $("#conversationList");
+        list.empty();
+
+        if (!convs || convs.length === 0) {
+            list.html('<p class="text-center text-muted" style="padding:15px;">No conversations yet.<br>Start one by typing a question!</p>');
+            return;
+        }
+
+        var ul = $('<div class="list-group" style="margin:0;"></div>');
+        $.each(convs, function (i, c) {
+            var active = c.id === currentConversationId ? ' active' : '';
+            var title = c.title || ("Conversation #" + c.id);
+            var date = c.updated_at ? moment(c.updated_at).fromNow() : '';
+            ul.append(
+                '<a href="#" class="list-group-item conv-item' + active + '" data-id="' + c.id + '" style="padding:10px 12px;">' +
+                '<strong style="font-size:13px;">' + escapeHtml(title) + '</strong>' +
+                '<br><small class="text-muted">' + date + '</small>' +
+                '</a>'
+            );
+        });
+        list.append(ul);
+    }
+
+    $(document).on("click", ".conv-item", function (e) {
+        e.preventDefault();
+        var id = $(this).data("id");
+        loadConversation(id);
+    });
+
+    function loadConversation(id) {
+        currentConversationId = id;
+        $(".conv-item").removeClass("active");
+        $(".conv-item[data-id='" + id + "']").addClass("active");
+
+        api.adminAssistant.getConversation(id)
+            .success(function (conv) {
+                $("#welcomeMessage").hide();
+                var title = conv.title || ("Conversation #" + conv.id);
+                $("#chatTitleText").text(title);
+
+                var container = $("#chatMessages");
+                container.empty();
+
+                if (conv.messages && conv.messages.length > 0) {
+                    $.each(conv.messages, function (i, msg) {
+                        appendMessage(msg.role, msg.content, false);
+                    });
+                    scrollToBottom();
+                }
+            })
+            .error(function () {
+                errorFlash("Could not load conversation.");
+            });
+    }
+
+    // ── New Conversation ────────────────────────────────────────
+    $("#newConversationBtn").on("click", function () {
+        currentConversationId = null;
+        $(".conv-item").removeClass("active");
+        $("#chatTitleText").text("New Conversation");
+        $("#chatMessages").empty();
+        $("#welcomeMessage").show().appendTo("#chatMessages");
+        $("#chatInput").focus();
+    });
+
+    // ── Chat ────────────────────────────────────────────────────
+    $("#chatForm").on("submit", function (e) {
+        e.preventDefault();
+        var question = $.trim($("#chatInput").val());
+        if (!question || isTyping) return;
+        sendMessage(question);
+    });
+
+    $(document).on("click", ".quick-ask", function () {
+        var q = $(this).data("q");
+        if (q && !isTyping) sendMessage(q);
+    });
+
+    function sendMessage(question) {
+        $("#welcomeMessage").hide();
+        isTyping = true;
+        $("#sendBtn").prop("disabled", true).html('<i class="fa fa-spinner fa-spin"></i>');
+        $("#chatInput").val("").prop("disabled", true);
+
+        // Append user bubble
+        appendMessage("user", question, true);
+
+        // Append typing indicator
+        var typingId = "typing-" + Date.now();
+        appendTypingIndicator(typingId);
+        scrollToBottom();
+
+        var payload = {
+            question: question,
+            conversation_id: currentConversationId || 0
+        };
+
+        api.adminAssistant.chat(payload)
+            .success(function (data) {
+                removeTypingIndicator(typingId);
+                if (data.answer) {
+                    appendMessage("assistant", data.answer, true);
+                }
+                if (data.conversation_id && !currentConversationId) {
+                    currentConversationId = data.conversation_id;
+                    loadConversations();
+                }
+                scrollToBottom();
+            })
+            .error(function (xhr) {
+                removeTypingIndicator(typingId);
+                var msg = "Sorry, I encountered an error. Please try again.";
+                try {
+                    var resp = JSON.parse(xhr.responseText);
+                    if (resp.message) msg = resp.message;
+                } catch(e) {}
+                appendMessage("assistant", msg, true);
+                scrollToBottom();
+            })
+            .always(function () {
+                isTyping = false;
+                $("#sendBtn").prop("disabled", false).html('<i class="fa fa-paper-plane"></i> Send');
+                $("#chatInput").prop("disabled", false).focus();
+            });
+    }
+
+    // ── Message Rendering ───────────────────────────────────────
+    function appendMessage(role, content, animate) {
+        var isUser = role === "user";
+        var align = isUser ? "text-right" : "text-left";
+        var bgColor = isUser ? "#1a73e8" : "#f1f3f4";
+        var textColor = isUser ? "#fff" : "#333";
+        var icon = isUser ? "fa-user" : "fa-robot";
+        var label = isUser ? "You" : "AI Assistant";
+
+        // Convert markdown-like formatting
+        var formatted = formatContent(content);
+
+        var bubble = $(
+            '<div class="chat-bubble ' + align + '" style="margin-bottom:12px; animation: ' + (animate ? 'fadeInUp 0.3s' : 'none') + ';">' +
+            '<div style="display:inline-block; max-width:80%; text-align:left;">' +
+            '<small class="text-muted"><i class="fa ' + icon + '"></i> ' + label + '</small>' +
+            '<div style="background:' + bgColor + '; color:' + textColor + '; padding:12px 16px; border-radius:12px; margin-top:3px; line-height:1.6; word-wrap:break-word;">' +
+            formatted +
+            '</div>' +
+            '</div>' +
+            '</div>'
+        );
+        $("#chatMessages").append(bubble);
+    }
+
+    function appendTypingIndicator(id) {
+        var html = '<div id="' + id + '" class="chat-bubble text-left" style="margin-bottom:12px;">' +
+            '<div style="display:inline-block;">' +
+            '<small class="text-muted"><i class="fa fa-robot"></i> AI Assistant</small>' +
+            '<div style="background:#f1f3f4; color:#333; padding:12px 16px; border-radius:12px; margin-top:3px;">' +
+            '<i class="fa fa-circle-o-notch fa-spin"></i> Thinking…' +
+            '</div></div></div>';
+        $("#chatMessages").append(html);
+    }
+
+    function removeTypingIndicator(id) {
+        $("#" + id).remove();
+    }
+
+    function scrollToBottom() {
+        var el = document.getElementById("chatMessages");
+        if (el) el.scrollTop = el.scrollHeight;
+    }
+
+    function formatContent(text) {
+        if (!text) return '';
+        // Escape HTML first
+        var safe = escapeHtml(text);
+        // Bold: **text**
+        safe = safe.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        // Italic: *text*
+        safe = safe.replace(/\*(.*?)\*/g, '<em>$1</em>');
+        // Code blocks: ```code```
+        safe = safe.replace(/```([\s\S]*?)```/g, '<pre style="background:#263238; color:#eee; padding:10px; border-radius:6px; font-size:12px; overflow-x:auto;">$1</pre>');
+        // Inline code: `code`
+        safe = safe.replace(/`([^`]+)`/g, '<code style="background:#e8eaf6; padding:2px 5px; border-radius:3px; font-size:12px;">$1</code>');
+        // Headings: ### text
+        safe = safe.replace(/^### (.+)$/gm, '<h5 style="margin-top:10px; font-weight:600;">$1</h5>');
+        safe = safe.replace(/^## (.+)$/gm, '<h4 style="margin-top:10px; font-weight:600;">$1</h4>');
+        // Lists: - item
+        safe = safe.replace(/^- (.+)$/gm, '• $1');
+        // Numbered lists: 1. item
+        safe = safe.replace(/^(\d+)\. (.+)$/gm, '<strong>$1.</strong> $2');
+        // Line breaks
+        safe = safe.replace(/\n/g, '<br>');
+        return safe;
+    }
+});
+
+/* Keyframe animation for chat bubbles */
+var style = document.createElement('style');
+style.textContent = '@keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }';
+document.head.appendChild(style);
+</script>
+{{end}}

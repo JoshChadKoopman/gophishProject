@@ -2,13 +2,13 @@
 <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
     <div class="page-header">
         <h1>
-            <i class="fa fa-briefcase"></i> Board Reports
+            <i class="fa fa-briefcase"></i> {{T .Locale "board.title"}}
             {{if .ViewReports}}
             <button class="btn btn-primary pull-right" id="newReportBtn">
-                <i class="fa fa-plus"></i> New Board Report
+                <i class="fa fa-plus"></i> {{T .Locale "board.new"}}
             </button>
             <button class="btn btn-default pull-right" id="previewBtn" style="margin-right:8px;">
-                <i class="fa fa-eye"></i> Quick Preview
+                <i class="fa fa-eye"></i> {{T .Locale "board.quick_preview"}}
             </button>
             {{end}}
         </h1>
@@ -19,12 +19,27 @@
     <div id="previewPanel" style="display:none;">
         <div class="panel panel-info">
             <div class="panel-heading">
-                <h3 class="panel-title"><i class="fa fa-eye"></i> Live Preview — Executive Summary
+                <h3 class="panel-title"><i class="fa fa-eye"></i> {{T .Locale "board.live_preview"}}
                     <button class="btn btn-xs btn-default pull-right" id="closePreview"><i class="fa fa-times"></i></button>
                 </h3>
             </div>
             <div class="panel-body" id="previewContent">
-                <p class="text-muted"><i class="fa fa-spinner fa-spin"></i> Generating snapshot...</p>
+                <p class="text-muted"><i class="fa fa-spinner fa-spin"></i> {{T .Locale "board.generating_snapshot"}}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Department Risk Heatmap -->
+    <div class="panel panel-default" id="heatmapPanel">
+        <div class="panel-heading">
+            <h3 class="panel-title"><i class="fa fa-th"></i> {{T .Locale "board.heatmap"}}
+                <span class="text-muted" style="font-size:12px; font-weight:normal;"> {{T .Locale "board.heatmap_note"}}</span>
+                <button class="btn btn-xs btn-info pull-right" id="refreshHeatmap"><i class="fa fa-refresh"></i> {{T .Locale "common.refresh"}}</button>
+            </h3>
+        </div>
+        <div class="panel-body" style="padding:0; overflow-x:auto;">
+            <div id="heatmapContent">
+                <p class="text-muted text-center" style="padding:30px;"><i class="fa fa-spinner fa-spin"></i> {{T .Locale "board.heatmap_loading"}}</p>
             </div>
         </div>
     </div>
@@ -32,17 +47,17 @@
     <!-- Saved Reports Table -->
     <div class="panel panel-default">
         <div class="panel-heading">
-            <h3 class="panel-title"><i class="fa fa-list"></i> Saved Reports</h3>
+            <h3 class="panel-title"><i class="fa fa-list"></i> {{T .Locale "board.saved"}}</h3>
         </div>
         <div class="panel-body" style="padding:0;">
             <table class="table table-hover table-striped" id="reportsTable" style="margin:0;">
                 <thead>
                     <tr>
-                        <th>Title</th>
-                        <th>Period</th>
-                        <th>Status</th>
-                        <th>Created</th>
-                        <th>Actions</th>
+                        <th>{{T .Locale "board.col_title"}}</th>
+                        <th>{{T .Locale "board.col_period"}}</th>
+                        <th>{{T .Locale "common.status"}}</th>
+                        <th>{{T .Locale "common.created"}}</th>
+                        <th>{{T .Locale "board.col_actions"}}</th>
                     </tr>
                 </thead>
                 <tbody id="reportsBody"></tbody>
@@ -51,28 +66,29 @@
     </div>
     <div id="reportsEmpty" style="display:none; text-align:center; padding:40px 0; color:#999;">
         <i class="fa fa-briefcase fa-3x"></i>
-        <h3>No board reports yet.</h3>
-        <p>Create a new board report to generate executive-level summaries of your security posture.</p>
+        <h3>{{T .Locale "board.empty_heading"}}</h3>
+        <p>{{T .Locale "board.empty_body"}}</p>
     </div>
 
-    <!-- Report Detail Modal -->
+    <!-- Enhanced Report Detail Modal -->
     <div class="modal fade" id="reportDetailModal" tabindex="-1" role="dialog">
-        <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-dialog modal-lg" role="document" style="width:90%; max-width:1100px;">
             <div class="modal-content">
                 <div class="modal-header">
                     <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
-                    <h4 class="modal-title" id="reportDetailTitle">Board Report</h4>
+                    <h4 class="modal-title" id="reportDetailTitle">{{T .Locale "board.modal_title"}}</h4>
+                    <div id="reportStatusBadge" style="display:inline-block; margin-left:12px;"></div>
                 </div>
-                <div class="modal-body" id="reportDetailBody">
-                    <p class="text-muted"><i class="fa fa-spinner fa-spin"></i> Loading...</p>
+                <div class="modal-body" id="reportDetailBody" style="max-height:70vh; overflow-y:auto;">
+                    <p class="text-muted"><i class="fa fa-spinner fa-spin"></i> {{T .Locale "common.loading"}}</p>
                 </div>
                 <div class="modal-footer">
-                    <div class="btn-group">
-                        <a class="btn btn-primary" id="exportPDF" target="_blank"><i class="fa fa-file-pdf-o"></i> Export PDF</a>
-                        <a class="btn btn-success" id="exportXLSX" target="_blank"><i class="fa fa-file-excel-o"></i> Export XLSX</a>
-                        <a class="btn btn-default" id="exportCSV" target="_blank"><i class="fa fa-download"></i> Export CSV</a>
+                    <div class="btn-group" style="margin-right:10px;">
+                        <a class="btn btn-primary btn-sm" id="exportPDF" target="_blank"><i class="fa fa-file-pdf-o"></i> PDF</a>
+                        <a class="btn btn-success btn-sm" id="exportXLSX" target="_blank"><i class="fa fa-file-excel-o"></i> XLSX</a>
+                        <a class="btn btn-default btn-sm" id="exportCSV" target="_blank"><i class="fa fa-download"></i> CSV</a>
                     </div>
-                    <button class="btn btn-default" data-dismiss="modal">Close</button>
+                    <button class="btn btn-default" data-dismiss="modal">{{T .Locale "common.close"}}</button>
                 </div>
             </div>
         </div>
@@ -84,24 +100,24 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
-                    <h4 class="modal-title"><i class="fa fa-plus"></i> Create Board Report</h4>
+                    <h4 class="modal-title"><i class="fa fa-plus"></i> {{T .Locale "board.create"}}</h4>
                 </div>
                 <div class="modal-body">
                     <form id="newReportForm">
                         <div class="form-group">
-                            <label for="reportTitle">Report Title</label>
-                            <input type="text" class="form-control" id="reportTitle" placeholder="e.g. Q1 2026 Security Posture Report" required>
+                            <label for="reportTitle">{{T .Locale "board.report_title"}}</label>
+                            <input type="text" class="form-control" id="reportTitle" placeholder="{{T .Locale "board.report_title_placeholder"}}" required>
                         </div>
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label for="reportStart">Period Start</label>
+                                    <label for="reportStart">{{T .Locale "board.period_start"}}</label>
                                     <input type="date" class="form-control" id="reportStart">
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label for="reportEnd">Period End</label>
+                                    <label for="reportEnd">{{T .Locale "board.period_end"}}</label>
                                     <input type="date" class="form-control" id="reportEnd">
                                 </div>
                             </div>
@@ -109,8 +125,76 @@
                     </form>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn btn-default" data-dismiss="modal">Cancel</button>
-                    <button class="btn btn-primary" id="saveReportBtn"><i class="fa fa-save"></i> Create Report</button>
+                    <button class="btn btn-default" data-dismiss="modal">{{T .Locale "common.cancel"}}</button>
+                    <button class="btn btn-primary" id="saveReportBtn"><i class="fa fa-save"></i> {{T .Locale "board.create_btn"}}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Narrative Editor Modal -->
+    <div class="modal fade" id="narrativeModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-lg" role="document" style="width:80%; max-width:900px;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                    <h4 class="modal-title"><i class="fa fa-pencil-square-o"></i> {{T .Locale "board.edit_narrative"}}</h4>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted" style="margin-bottom:12px;">
+                        <i class="fa fa-info-circle"></i> {{T .Locale "board.narrative_hint"}}
+                    </p>
+                    <div class="form-group">
+                        <label><strong>{{T .Locale "board.para1"}}</strong></label>
+                        <textarea class="form-control" id="editParagraph1" rows="5"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label><strong>{{T .Locale "board.para2"}}</strong></label>
+                        <textarea class="form-control" id="editParagraph2" rows="5"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label><strong>{{T .Locale "board.para3"}}</strong></label>
+                        <textarea class="form-control" id="editParagraph3" rows="5"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-default" data-dismiss="modal">{{T .Locale "common.cancel"}}</button>
+                    <button class="btn btn-primary" id="saveNarrativeBtn"><i class="fa fa-save"></i> {{T .Locale "board.save_changes"}}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Approval Workflow Modal -->
+    <div class="modal fade" id="approvalModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                    <h4 class="modal-title"><i class="fa fa-check-circle"></i> {{T .Locale "board.change_status"}}</h4>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>{{T .Locale "board.current_status"}}</label>
+                        <p id="approvalCurrentStatus" style="font-weight:700;"></p>
+                    </div>
+                    <div class="form-group">
+                        <label for="approvalNewStatus">{{T .Locale "board.new_status"}}</label>
+                        <select class="form-control" id="approvalNewStatus"></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="approvalComment">{{T .Locale "board.comment_optional"}}</label>
+                        <textarea class="form-control" id="approvalComment" rows="3" placeholder="{{T .Locale "board.comment_placeholder"}}"></textarea>
+                    </div>
+                    <hr>
+                    <h5><i class="fa fa-history"></i> {{T .Locale "board.approval_history"}}</h5>
+                    <div id="approvalHistory" style="max-height:200px; overflow-y:auto;">
+                        <p class="text-muted">{{T .Locale "board.no_history"}}</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-default" data-dismiss="modal">{{T .Locale "common.cancel"}}</button>
+                    <button class="btn btn-success" id="submitTransitionBtn"><i class="fa fa-check"></i> {{T .Locale "common.submit"}}</button>
                 </div>
             </div>
         </div>

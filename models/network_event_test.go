@@ -21,10 +21,14 @@ func setupNetworkEventTest(t *testing.T) func() {
 	db.Exec("DELETE FROM network_events")
 	db.Exec("DELETE FROM network_event_notes")
 	db.Exec("DELETE FROM network_event_rules")
+	db.Exec("DELETE FROM network_incidents")
+	db.Exec("DELETE FROM playbook_execution_logs")
 	return func() {
 		db.Exec("DELETE FROM network_events")
 		db.Exec("DELETE FROM network_event_notes")
 		db.Exec("DELETE FROM network_event_rules")
+		db.Exec("DELETE FROM network_incidents")
+		db.Exec("DELETE FROM playbook_execution_logs")
 	}
 }
 
@@ -562,5 +566,257 @@ func TestNetworkEventFilterDefaults(t *testing.T) {
 	f := NetworkEventFilter{}
 	if f.Limit != 0 || f.Source != "" || f.Status != "" {
 		t.Error("default filter should have zero values")
+	}
+}
+
+// ---- MITRE ATT&CK ----
+
+func TestMitreTacticTechniqueMapping(t *testing.T) {
+	if len(MitreTacticTechnique) != 12 {
+		t.Fatalf("expected 12 tactics, got %d", len(MitreTacticTechnique))
+	}
+	if len(MitreTacticOrder) != 12 {
+		t.Fatalf("expected 12 ordered tactics, got %d", len(MitreTacticOrder))
+	}
+	for _, tactic := range MitreTacticOrder {
+		if _, ok := MitreTacticTechnique[tactic]; !ok {
+			t.Errorf("tactic %q not found in MitreTacticTechnique", tactic)
+		}
+	}
+}
+
+func TestMitreTechniqueNamesCompleteness(t *testing.T) {
+	for _, techniques := range MitreTacticTechnique {
+		for _, tid := range techniques {
+			if _, ok := MitreTechniqueNames[tid]; !ok {
+				t.Errorf("technique %s missing from MitreTechniqueNames", tid)
+			}
+		}
+	}
+}
+
+func TestGetMitreHeatmap_Empty(t *testing.T) {
+	teardown := setupNetworkEventTest(t)
+	defer teardown()
+
+	data, err := GetMitreHeatmap(1)
+	if err != nil {
+		t.Fatalf("GetMitreHeatmap: %v", err)
+	}
+	if data.TotalMapped != 0 {
+		t.Fatalf("expected 0 mapped, got %d", data.TotalMapped)
+	}
+	if len(data.Rows) != 12 {
+		t.Fatalf("expected 12 tactic rows, got %d", len(data.Rows))
+	}
+}
+
+func TestGetMitreHeatmap_WithData(t *testing.T) {
+	teardown := setupNetworkEventTest(t)
+	defer teardown()
+
+	PostNetworkEvent(&NetworkEvent{OrgId: 1, Source: "siem", MitreTechniqueId: "T1566", Title: "Phishing 1"})
+	PostNetworkEvent(&NetworkEvent{OrgId: 1, Source: "siem", MitreTechniqueId: "T1566", Title: "Phishing 2"})
+	PostNetworkEvent(&NetworkEvent{OrgId: 1, Source: "endpoint", MitreTechniqueId: "T1110", Title: "Brute Force"})
+	PostNetworkEvent(&NetworkEvent{OrgId: 1, Source: "firewall", Title: "No MITRE"})
+
+	data, err := GetMitreHeatmap(1)
+	if err != nil {
+		t.Fatalf("GetMitreHeatmap: %v", err)
+	}
+	if data.TotalMapped != 3 {
+		t.Fatalf("expected 3 mapped, got %d", data.TotalMapped)
+	}
+	if data.TotalUnmapped != 1 {
+		t.Fatalf("expected 1 unmapped, got %d", data.TotalUnmapped)
+	}
+	if len(data.TopTechniques) < 1 {
+		t.Fatal("expected at least 1 top technique")
+	}
+	if data.TopTechniques[0].TechniqueId != "T1566" {
+		t.Fatalf("expected top technique T1566, got %s", data.TopTechniques[0].TechniqueId)
+	}
+}
+
+// ---- Network Event with new fields ----
+
+func TestNetworkEventMitreField(t *testing.T) {
+	teardown := setupNetworkEventTest(t)
+	defer teardown()
+
+	e := &NetworkEvent{OrgId: 1, Source: "siem", MitreTechniqueId: "T1566", Title: "Phish"}
+	PostNetworkEvent(e)
+
+	fetched, err := GetNetworkEvent(e.Id, 1)
+	if err != nil {
+		t.Fatalf("GetNetworkEvent: %v", err)
+	}
+	if fetched.MitreTechniqueId != "T1566" {
+		t.Fatalf("expected mitre_technique_id='T1566', got '%s'", fetched.MitreTechniqueId)
+	}
+}
+
+func TestNetworkEventsFilterByMitre(t *testing.T) {
+	teardown := setupNetworkEventTest(t)
+	defer teardown()
+
+	PostNetworkEvent(&NetworkEvent{OrgId: 1, Source: "siem", MitreTechniqueId: "T1566", Title: "Phish"})
+	PostNetworkEvent(&NetworkEvent{OrgId: 1, Source: "siem", MitreTechniqueId: "T1110", Title: "Brute"})
+	PostNetworkEvent(&NetworkEvent{OrgId: 1, Source: "siem", Title: "No MITRE"})
+
+	events, err := GetNetworkEvents(1, NetworkEventFilter{MitreTechniqueId: "T1566"})
+	if err != nil {
+		t.Fatalf("GetNetworkEvents: %v", err)
+	}
+	if len(events) != 1 {
+		t.Fatalf("expected 1 event with T1566, got %d", len(events))
+	}
+}
+
+// ---- Incident Correlation ----
+
+func TestCorrelateNetworkEvents_NoEvents(t *testing.T) {
+	teardown := setupNetworkEventTest(t)
+	defer teardown()
+
+	count, err := CorrelateNetworkEvents(1)
+	if err != nil {
+		t.Fatalf("CorrelateNetworkEvents: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected 0 incidents, got %d", count)
+	}
+}
+
+func TestCorrelateNetworkEvents_CreatesIncident(t *testing.T) {
+	teardown := setupNetworkEventTest(t)
+	defer teardown()
+	db.Exec("DELETE FROM network_incidents")
+
+	now := time.Now().UTC()
+	// Two events from same IP + same user within 1 hour
+	PostNetworkEvent(&NetworkEvent{OrgId: 1, Source: "siem", SourceIP: "10.0.0.1", UserEmail: "alice@test.com", Title: "E1", EventDate: now})
+	PostNetworkEvent(&NetworkEvent{OrgId: 1, Source: "siem", SourceIP: "10.0.0.1", UserEmail: "alice@test.com", Title: "E2", EventDate: now.Add(30 * time.Minute)})
+	// One event from a different IP (should not correlate)
+	PostNetworkEvent(&NetworkEvent{OrgId: 1, Source: "endpoint", SourceIP: "10.0.0.99", UserEmail: "bob@test.com", Title: "E3", EventDate: now})
+
+	count, err := CorrelateNetworkEvents(1)
+	if err != nil {
+		t.Fatalf("CorrelateNetworkEvents: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected 1 incident, got %d", count)
+	}
+
+	incidents, err := GetNetworkIncidents(1, "", 50, 0)
+	if err != nil {
+		t.Fatalf("GetNetworkIncidents: %v", err)
+	}
+	if len(incidents) != 1 {
+		t.Fatalf("expected 1 incident in DB, got %d", len(incidents))
+	}
+	if incidents[0].EventCount != 2 {
+		t.Fatalf("expected 2 events in incident, got %d", incidents[0].EventCount)
+	}
+
+	// Verify events are linked
+	inc, err := GetNetworkIncident(incidents[0].Id, 1)
+	if err != nil {
+		t.Fatalf("GetNetworkIncident: %v", err)
+	}
+	if len(inc.Events) != 2 {
+		t.Fatalf("expected 2 events hydrated on incident, got %d", len(inc.Events))
+	}
+}
+
+func TestNetworkIncidentStatusUpdate(t *testing.T) {
+	teardown := setupNetworkEventTest(t)
+	defer teardown()
+	db.Exec("DELETE FROM network_incidents")
+
+	inc := NetworkIncident{OrgId: 1, Title: "Test", Status: "open", CreatedDate: time.Now().UTC(), ModifiedDate: time.Now().UTC()}
+	db.Create(&inc)
+
+	err := UpdateNetworkIncidentStatus(inc.Id, 1, "resolved")
+	if err != nil {
+		t.Fatalf("UpdateNetworkIncidentStatus: %v", err)
+	}
+
+	fetched, _ := GetNetworkIncident(inc.Id, 1)
+	if fetched.Status != "resolved" {
+		t.Fatalf("expected status 'resolved', got '%s'", fetched.Status)
+	}
+}
+
+// ---- Playbook / Extended Rules ----
+
+func TestNetworkEventRuleWithSeverityMatch(t *testing.T) {
+	teardown := setupNetworkEventTest(t)
+	defer teardown()
+
+	PostNetworkEventRule(&NetworkEventRule{
+		OrgId: 1, Name: "Critical email gateway",
+		SourceMatch: "email_gateway", SeverityMatch: "critical",
+		AutoAssign: 99, Enabled: true,
+	})
+
+	// Should match
+	e := &NetworkEvent{OrgId: 1, Source: "email_gateway", Severity: "critical", Title: "Match"}
+	PostNetworkEvent(e)
+	if e.AssignedTo != 99 {
+		t.Fatalf("expected assigned_to=99, got %d", e.AssignedTo)
+	}
+
+	// Should NOT match (different severity)
+	e2 := &NetworkEvent{OrgId: 1, Source: "email_gateway", Severity: "low", Title: "No Match"}
+	PostNetworkEvent(e2)
+	if e2.AssignedTo != 0 {
+		t.Fatalf("expected assigned_to=0, got %d", e2.AssignedTo)
+	}
+}
+
+func TestPlaybookExecution(t *testing.T) {
+	teardown := setupNetworkEventTest(t)
+	defer teardown()
+	db.Exec("DELETE FROM playbook_execution_logs")
+
+	actions := `[{"type":"set_severity","value":"critical"},{"type":"add_note","value":"Auto-escalated by playbook"}]`
+	PostNetworkEventRule(&NetworkEventRule{
+		OrgId: 1, Name: "Escalate email gateway critical",
+		SourceMatch: "email_gateway", SeverityMatch: "high",
+		IsPlaybook: true, PlaybookActions: actions, Enabled: true,
+	})
+
+	e := &NetworkEvent{OrgId: 1, Source: "email_gateway", Severity: "high", Title: "Test Playbook"}
+	PostNetworkEvent(e)
+
+	if e.Severity != "critical" {
+		t.Fatalf("expected severity='critical' from playbook, got '%s'", e.Severity)
+	}
+
+	// Check execution log was created
+	logs, err := GetPlaybookExecutionLogs(1, 10)
+	if err != nil {
+		t.Fatalf("GetPlaybookExecutionLogs: %v", err)
+	}
+	if len(logs) < 1 {
+		t.Fatal("expected at least 1 playbook execution log")
+	}
+	if logs[0].RuleName != "Escalate email gateway critical" {
+		t.Fatalf("expected rule name in log, got '%s'", logs[0].RuleName)
+	}
+}
+
+func TestNetworkIncidentTableName(t *testing.T) {
+	inc := NetworkIncident{}
+	if inc.TableName() != "network_incidents" {
+		t.Errorf("expected 'network_incidents', got '%s'", inc.TableName())
+	}
+}
+
+func TestPlaybookExecutionLogTableName(t *testing.T) {
+	l := PlaybookExecutionLog{}
+	if l.TableName() != "playbook_execution_logs" {
+		t.Errorf("expected 'playbook_execution_logs', got '%s'", l.TableName())
 	}
 }

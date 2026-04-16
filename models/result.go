@@ -34,6 +34,7 @@ type Result struct {
 	Longitude    float64   `json:"longitude"`
 	SendDate     time.Time `json:"send_date"`
 	Reported     bool      `json:"reported" sql:"not null"`
+	VariantId    string    `json:"variant_id,omitempty" gorm:"column:variant_id;default:''"` // A/B test variant tracking
 	ModifiedDate time.Time `json:"modified_date"`
 	BaseRecipient
 }
@@ -190,6 +191,8 @@ func (r *Result) HandleFeedbackViewed(details EventDetails) error {
 
 // HandleEmailReport updates a Result in the case where they report a simulated
 // phishing email using the HTTP handler.
+// It also awards a category-aware BRS bonus if the simulation's template
+// had a known phishing category (Feedback loop closure — Gap 4).
 func (r *Result) HandleEmailReport(details EventDetails) error {
 	event, err := r.createEvent(EventReported, details)
 	if err != nil {
@@ -202,8 +205,44 @@ func (r *Result) HandleEmailReport(details EventDetails) error {
 		PublishResultEvent(r.CampaignId, WSEventEmailReported, map[string]interface{}{
 			"campaign_id": r.CampaignId, "email": r.Email, "rid": r.RId,
 		})
+		// Category-aware reward: award BRS bonus based on what category the user detected
+		go awardCategoryReportBonusAsync(r.CampaignId, r.Email)
 	}
 	return err
+}
+
+// awardCategoryReportBonusAsync looks up the campaign's template category and
+// awards a BRS bonus to the reporting user. Runs in a goroutine.
+func awardCategoryReportBonusAsync(campaignId int64, email string) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			log.Errorf("panic in awardCategoryReportBonusAsync: %v", rec)
+		}
+	}()
+
+	// Look up the template category for this campaign
+	var category string
+	err := db.Raw(`
+		SELECT t.category FROM templates t
+		JOIN campaigns c ON c.template_id = t.id
+		WHERE c.id = ? AND t.category != '' AND t.category IS NOT NULL
+	`, campaignId).Row().Scan(&category)
+	if err != nil || category == "" {
+		return
+	}
+
+	// Find the user
+	user, err := GetUserByEmail(email)
+	if err != nil || user.Id == 0 {
+		return
+	}
+
+	AwardCategoryReportBonus(user.Id, category)
+
+	// Also update A/B test result if one exists
+	db.Model(&ABTestResult{}).
+		Where("campaign_id = ? AND email = ? AND reported = ?", campaignId, email, false).
+		Updates(map[string]interface{}{"reported": true})
 }
 
 // UpdateGeo updates the latitude and longitude of the result in

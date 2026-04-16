@@ -1,20 +1,20 @@
 {{define "body"}}
 <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
     <h1 class="page-header">
-        Dashboard
+        {{T .Locale "dashboard.title"}}
         <!-- WebSocket connection indicator -->
-        <span id="wsIndicator" class="label label-default" style="font-size:11px; vertical-align:middle; margin-left:12px;" title="Real-time updates">
-            <i class="fa fa-circle-o"></i> Connecting…
+        <span id="wsIndicator" class="label label-default" style="font-size:11px; vertical-align:middle; margin-left:12px;" title="{{T .Locale "dashboard.ws_realtime"}}">
+            <i class="fa fa-circle-o"></i> {{T .Locale "dashboard.ws_connecting"}}
         </span>
     </h1>
 
     <!-- Time Window Selector (applies to all cards) -->
     <div style="margin-bottom:16px;">
         <div class="btn-group btn-group-sm" id="timeWindowSelector">
-            <button class="btn btn-default" data-window="7d">7 Days</button>
-            <button class="btn btn-default active" data-window="30d">30 Days</button>
-            <button class="btn btn-default" data-window="90d">90 Days</button>
-            <button class="btn btn-default" data-window="ytd">YTD</button>
+            <button class="btn btn-default" data-window="7d">{{T .Locale "dashboard.window_7d"}}</button>
+            <button class="btn btn-default active" data-window="30d">{{T .Locale "dashboard.window_30d"}}</button>
+            <button class="btn btn-default" data-window="90d">{{T .Locale "dashboard.window_90d"}}</button>
+            <button class="btn btn-default" data-window="ytd">{{T .Locale "dashboard.window_ytd"}}</button>
         </div>
         <span id="metricsTimestamp" style="font-size:11px; color:#999; margin-left:12px;"></span>
     </div>
@@ -25,7 +25,7 @@
     {{template "flashes" .Flashes}}
     <div id="emptyMessage" style="display:none;">
         <div class="alert alert-info">
-            No campaigns created yet. Let's create one!
+            {{T .Locale "dashboard.empty"}}
         </div>
     </div>
     <div id="dashboard" style="display:none;">
@@ -38,7 +38,7 @@
                     <div class="panel-body text-center" style="padding:12px;">
                         <i class="fa fa-bullhorn fa-lg" style="color:#3498db;"></i>
                         <div class="rt-value" id="rtActiveCampaigns">–</div>
-                        <div class="rt-label">Active Campaigns</div>
+                        <div class="rt-label">{{T .Locale "dashboard.active_campaigns"}}</div>
                         <div class="rt-sparkline" id="sparkCampaigns"></div>
                         <div class="rt-trend" id="trendCampaigns"></div>
                     </div>
@@ -50,7 +50,7 @@
                     <div class="panel-body text-center" style="padding:12px;">
                         <i class="fa fa-envelope fa-lg" style="color:#1abc9c;"></i>
                         <div class="rt-value" id="rtEmailsSent">–</div>
-                        <div class="rt-label">Emails Sent Today</div>
+                        <div class="rt-label">{{T .Locale "dashboard.emails_sent_today"}}</div>
                         <div class="rt-sparkline" id="sparkEmailsSent"></div>
                         <div class="rt-trend" id="trendEmailsSent"></div>
                     </div>
@@ -62,7 +62,7 @@
                     <div class="panel-body text-center" style="padding:12px;">
                         <i class="fa fa-mouse-pointer fa-lg" style="color:#e74c3c;"></i>
                         <div class="rt-value" id="rtClickRate">–</div>
-                        <div class="rt-label">Avg Click Rate</div>
+                        <div class="rt-label">{{T .Locale "dashboard.avg_click_rate"}}</div>
                         <div class="rt-sparkline" id="sparkClickRate"></div>
                         <div class="rt-trend" id="trendClickRate"></div>
                     </div>
@@ -74,7 +74,7 @@
                     <div class="panel-body text-center" style="padding:12px;">
                         <i class="fa fa-flag fa-lg" style="color:#2ecc71;"></i>
                         <div class="rt-value" id="rtReportRate">–</div>
-                        <div class="rt-label">Avg Report Rate</div>
+                        <div class="rt-label">{{T .Locale "dashboard.avg_report_rate"}}</div>
                         <div class="rt-sparkline" id="sparkReportRate"></div>
                         <div class="rt-trend" id="trendReportRate"></div>
                     </div>
@@ -86,7 +86,7 @@
                     <div class="panel-body text-center" style="padding:12px;">
                         <i class="fa fa-ticket fa-lg" style="color:#9b59b6;"></i>
                         <div class="rt-value" id="rtOpenTickets">–</div>
-                        <div class="rt-label">Open Tickets</div>
+                        <div class="rt-label">{{T .Locale "dashboard.open_tickets"}}</div>
                         <div class="rt-sparkline" id="sparkTickets"></div>
                         <div class="rt-trend" id="trendTickets"></div>
                     </div>
@@ -98,7 +98,7 @@
                     <div class="panel-body text-center" style="padding:12px;">
                         <i class="fa fa-graduation-cap fa-lg" style="color:#f39c12;"></i>
                         <div class="rt-value" id="rtTrainingCompletion">–</div>
-                        <div class="rt-label">Training Completion</div>
+                        <div class="rt-label">{{T .Locale "dashboard.training_completion"}}</div>
                         <div class="rt-sparkline" id="sparkTraining"></div>
                         <div class="rt-trend" id="trendTraining"></div>
                     </div>
@@ -111,12 +111,12 @@
             <div class="col-lg-12">
                 <div class="panel panel-default">
                     <div class="panel-heading">
-                        <strong><i class="fa fa-bolt"></i> Live Activity</strong>
+                        <strong><i class="fa fa-bolt"></i> {{T .Locale "dashboard.live_activity"}}</strong>
                         <span id="liveActivityCount" class="badge" style="margin-left:6px;">0</span>
-                        <button class="btn btn-xs btn-default pull-right" id="clearActivity"><i class="fa fa-trash-o"></i> Clear</button>
+                        <button class="btn btn-xs btn-default pull-right" id="clearActivity"><i class="fa fa-trash-o"></i> {{T .Locale "dashboard.clear"}}</button>
                     </div>
                     <div class="panel-body" style="max-height:160px; overflow-y:auto; padding:8px 12px;" id="liveActivityFeed">
-                        <p class="text-muted" style="margin:0; font-size:12px;">Waiting for events…</p>
+                        <p class="text-muted" style="margin:0; font-size:12px;">{{T .Locale "dashboard.waiting_events"}}</p>
                     </div>
                 </div>
             </div>
@@ -143,7 +143,7 @@
         <div class="row" style="margin-top:20px;">
             <div class="col-md-4">
                 <div class="panel panel-default">
-                    <div class="panel-heading"><strong><i class="fa fa-tachometer"></i> Organization Risk</strong></div>
+                    <div class="panel-heading"><strong><i class="fa fa-tachometer"></i> {{T .Locale "dashboard.org_risk"}}</strong></div>
                     <div class="panel-body" style="text-align:center;">
                         <div id="riskGauge" style="height:200px;"></div>
                     </div>
@@ -151,7 +151,7 @@
             </div>
             <div class="col-md-4">
                 <div class="panel panel-default">
-                    <div class="panel-heading"><strong><i class="fa fa-graduation-cap"></i> Training Completion</strong></div>
+                    <div class="panel-heading"><strong><i class="fa fa-graduation-cap"></i> {{T .Locale "dashboard.training_completion"}}</strong></div>
                     <div class="panel-body" id="trainingWidget">
                         <div style="text-align:center; padding:20px;">
                             <i class="fa fa-spinner fa-spin"></i>
@@ -161,10 +161,10 @@
             </div>
             <div class="col-md-4">
                 <div class="panel panel-default">
-                    <div class="panel-heading"><strong><i class="fa fa-exclamation-triangle"></i> Top Vulnerable Users</strong></div>
+                    <div class="panel-heading"><strong><i class="fa fa-exclamation-triangle"></i> {{T .Locale "dashboard.top_vulnerable"}}</strong></div>
                     <div class="panel-body" style="padding:0;">
                         <table class="table table-condensed" style="margin:0;" id="topRiskTable">
-                            <thead><tr><th>Email</th><th>Risk</th></tr></thead>
+                            <thead><tr><th>{{T .Locale "common.email"}}</th><th>{{T .Locale "dashboard.risk"}}</th></tr></thead>
                             <tbody id="topRiskBody"></tbody>
                         </table>
                     </div>
@@ -185,11 +185,11 @@
 
         <!-- Recent Campaigns -->
         <div class="row">
-            <h2>Recent Campaigns</h2>
+            <h2>{{T .Locale "dashboard.recent_campaigns"}}</h2>
         </div>
         <div class="row">
             <a href="/campaigns">
-                <button type="button" class="btn btn-primary">View All</button>
+                <button type="button" class="btn btn-primary">{{T .Locale "dashboard.view_all"}}</button>
             </a>
         </div>
         &nbsp;&nbsp;
@@ -197,8 +197,8 @@
             <table id="campaignTable" class="table">
                 <thead>
                     <tr>
-                        <th class="col-md-2 col-sm-2">Name</th>
-                        <th class="col-md-2 col-sm-2">Created Date</th>
+                        <th class="col-md-2 col-sm-2">{{T .Locale "dashboard.campaign_name"}}</th>
+                        <th class="col-md-2 col-sm-2">{{T .Locale "dashboard.created_date"}}</th>
                         <th class="col-md-1 col-sm-1">
                             <i class="fa fa-envelope-o"></i>
                         </th>
@@ -214,7 +214,7 @@
                         <th class="col-md-1 col-sm-1">
                             <i class="fa fa-bullhorn"></i>
                         </th>
-                        <th class="col-md-1 col-sm-1">Status</th>
+                        <th class="col-md-1 col-sm-1">{{T .Locale "common.status"}}</th>
                         <th class="col-md-2 col-sm-2 no-sort"></th>
                     </tr>
                 </thead>

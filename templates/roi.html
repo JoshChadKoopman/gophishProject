@@ -2,15 +2,16 @@
 <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
     <div class="page-header">
         <h1>
-            <i class="fa fa-line-chart"></i> ROI Reporting
+            <i class="fa fa-line-chart"></i> {{T .Locale "roi.title"}}
             <div class="btn-group pull-right">
                 <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">
-                    <i class="fa fa-download"></i> Export <span class="caret"></span>
+                    <i class="fa fa-download"></i> {{T .Locale "roi.export"}} <span class="caret"></span>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-right">
-                    <li><a href="#" id="exportPdf"><i class="fa fa-file-pdf-o"></i> PDF Report</a></li>
-                    <li><a href="#" id="exportXlsx"><i class="fa fa-file-excel-o"></i> Excel (XLSX)</a></li>
-                    <li><a href="#" id="exportCsv"><i class="fa fa-file-text-o"></i> CSV</a></li>
+                    <li><a href="#" id="exportEnhancedPdf"><i class="fa fa-file-pdf-o"></i> {{T .Locale "roi.export_enhanced_pdf"}}</a></li>
+                    <li><a href="#" id="exportPdf"><i class="fa fa-file-pdf-o"></i> {{T .Locale "roi.export_standard_pdf"}}</a></li>
+                    <li><a href="#" id="exportXlsx"><i class="fa fa-file-excel-o"></i> {{T .Locale "roi.export_xlsx"}}</a></li>
+                    <li><a href="#" id="exportCsv"><i class="fa fa-file-text-o"></i> {{T .Locale "roi.export_csv"}}</a></li>
                 </ul>
             </div>
         </h1>
@@ -22,20 +23,23 @@
         <div class="col-md-8">
             <div class="panel panel-default">
                 <div class="panel-heading">
-                    <h3 class="panel-title"><i class="fa fa-calendar"></i> Reporting Period</h3>
+                    <h3 class="panel-title"><i class="fa fa-calendar"></i> {{T .Locale "roi.period"}}</h3>
                 </div>
                 <div class="panel-body">
                     <form class="form-inline" id="roiPeriodForm">
                         <div class="form-group" style="margin-right:15px;">
-                            <label>From</label>
+                            <label>{{T .Locale "roi.from"}}</label>
                             <input type="date" class="form-control" id="roiStart" />
                         </div>
                         <div class="form-group" style="margin-right:15px;">
-                            <label>To</label>
+                            <label>{{T .Locale "roi.to"}}</label>
                             <input type="date" class="form-control" id="roiEnd" />
                         </div>
                         <button class="btn btn-primary" type="submit">
-                            <i class="fa fa-refresh"></i> Generate Report
+                            <i class="fa fa-refresh"></i> {{T .Locale "roi.generate"}}
+                        </button>
+                        <button class="btn btn-success" type="button" id="generateAndSaveBtn" style="margin-left:8px;">
+                            <i class="fa fa-save"></i> {{T .Locale "roi.generate_and_save"}}
                         </button>
                     </form>
                 </div>
@@ -44,12 +48,12 @@
         <div class="col-md-4">
             <div class="panel panel-info">
                 <div class="panel-heading">
-                    <h3 class="panel-title"><i class="fa fa-cog"></i> Cost Assumptions
+                    <h3 class="panel-title"><i class="fa fa-cog"></i> {{T .Locale "roi.cost_assumptions"}}
                         <button class="btn btn-xs btn-default pull-right" id="editConfigBtn"><i class="fa fa-pencil"></i></button>
                     </h3>
                 </div>
                 <div class="panel-body" id="configSummary">
-                    <p class="text-muted"><i class="fa fa-spinner fa-spin"></i> Loading...</p>
+                    <p class="text-muted"><i class="fa fa-spinner fa-spin"></i> {{T .Locale "common.loading"}}</p>
                 </div>
             </div>
         </div>
@@ -62,7 +66,8 @@
                 <div class="panel panel-success text-center">
                     <div class="panel-body">
                         <h2 id="roiPct" style="margin:5px 0;color:#27ae60;">—</h2>
-                        <p style="color:#888;margin:0;font-size:13px;">Return on Investment</p>
+                        <p style="color:#888;margin:0;font-size:13px;">{{T .Locale "roi.return_on_investment"}}</p>
+                        <div id="roiPctCI" style="font-size:11px;color:#999;"></div>
                     </div>
                 </div>
             </div>
@@ -70,7 +75,8 @@
                 <div class="panel panel-primary text-center">
                     <div class="panel-body">
                         <h2 id="costAvoidance" style="margin:5px 0;color:#2980b9;">—</h2>
-                        <p style="color:#888;margin:0;font-size:13px;">Cost Avoidance</p>
+                        <p style="color:#888;margin:0;font-size:13px;">{{T .Locale "roi.cost_avoidance"}}</p>
+                        <div id="costAvoidanceCI" style="font-size:11px;color:#999;"></div>
                     </div>
                 </div>
             </div>
@@ -78,7 +84,7 @@
                 <div class="panel panel-warning text-center">
                     <div class="panel-body">
                         <h2 id="riskReduction" style="margin:5px 0;color:#e67e22;">—</h2>
-                        <p style="color:#888;margin:0;font-size:13px;">Risk Reduction</p>
+                        <p style="color:#888;margin:0;font-size:13px;">{{T .Locale "roi.risk_reduction"}}</p>
                     </div>
                 </div>
             </div>
@@ -86,23 +92,93 @@
                 <div class="panel panel-default text-center">
                     <div class="panel-body">
                         <h2 id="incidentsAvoided" style="margin:5px 0;">—</h2>
-                        <p style="color:#888;margin:0;font-size:13px;">Incidents Avoided</p>
+                        <p style="color:#888;margin:0;font-size:13px;">{{T .Locale "roi.incidents_avoided"}}</p>
+                        <div id="incidentsAvoidedCI" style="font-size:11px;color:#999;"></div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Detailed Sections -->
+        <!-- ═══ Monte Carlo Confidence Intervals ═══ -->
+        <div class="panel panel-info" id="monteCarloPanel" style="display:none;">
+            <div class="panel-heading">
+                <h3 class="panel-title"><i class="fa fa-random"></i> {{T .Locale "roi.monte_carlo"}}</h3>
+            </div>
+            <div class="panel-body">
+                <div class="row">
+                    <div class="col-md-3 text-center">
+                        <strong>{{T .Locale "roi.incidents_avoided"}}</strong>
+                        <div id="mcIncidents" style="font-size:20px; font-weight:700; color:#2c3e50;"></div>
+                        <div id="mcIncidentsDetail" style="font-size:11px; color:#888;"></div>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <strong>{{T .Locale "roi.cost_avoidance"}}</strong>
+                        <div id="mcCost" style="font-size:20px; font-weight:700; color:#2980b9;"></div>
+                        <div id="mcCostDetail" style="font-size:11px; color:#888;"></div>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <strong>{{T .Locale "roi.roi_range"}}</strong>
+                        <div id="mcROI" style="font-size:20px; font-weight:700; color:#27ae60;"></div>
+                        <div id="mcROIDetail" style="font-size:11px; color:#888;"></div>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <strong>{{T .Locale "roi.breach_risk_reduction"}}</strong>
+                        <div id="mcBreach" style="font-size:20px; font-weight:700; color:#e67e22;"></div>
+                        <div id="mcBreachDetail" style="font-size:11px; color:#888;"></div>
+                    </div>
+                </div>
+                <p class="text-muted" style="margin:10px 0 0; font-size:11px;">
+                    <i class="fa fa-info-circle"></i> {{T .Locale "roi.monte_carlo_note"}}
+                </p>
+            </div>
+        </div>
+
+        <!-- ═══ Industry Benchmark Comparison ═══ -->
+        <div class="panel panel-default" id="benchmarkPanel" style="display:none;">
+            <div class="panel-heading">
+                <h3 class="panel-title">
+                    <i class="fa fa-bar-chart"></i> {{T .Locale "roi.benchmark_comparison"}}
+                    <button class="btn btn-xs btn-info pull-right" id="seedBenchmarksBtn"><i class="fa fa-database"></i> {{T .Locale "roi.reset_defaults"}}</button>
+                </h3>
+            </div>
+            <div class="panel-body">
+                <table class="table table-condensed table-striped" id="benchmarkTable">
+                    <thead>
+                        <tr>
+                            <th>{{T .Locale "roi.metric"}}</th>
+                            <th style="text-align:right;">{{T .Locale "roi.your_value"}}</th>
+                            <th style="text-align:right;">{{T .Locale "roi.industry_avg"}}</th>
+                            <th style="text-align:right;">{{T .Locale "roi.delta"}}</th>
+                            <th>{{T .Locale "roi.quartile"}}</th>
+                            <th>{{T .Locale "roi.source"}}</th>
+                        </tr>
+                    </thead>
+                    <tbody id="benchmarkBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ═══ Quarterly ROI Trend ═══ -->
+        <div class="panel panel-default" id="trendPanel" style="display:none;">
+            <div class="panel-heading">
+                <h3 class="panel-title"><i class="fa fa-area-chart"></i> {{T .Locale "roi.trend_over_time"}}</h3>
+            </div>
+            <div class="panel-body">
+                <div id="roiTrendChart" style="height:320px;"></div>
+            </div>
+        </div>
+
+        <!-- Detailed Sections (existing) -->
         <div class="row">
             <div class="col-md-6">
                 <div class="panel panel-default">
-                    <div class="panel-heading"><h3 class="panel-title"><i class="fa fa-envelope"></i> Phishing ROI</h3></div>
+                    <div class="panel-heading"><h3 class="panel-title"><i class="fa fa-envelope"></i> {{T .Locale "roi.phishing_roi"}}</h3></div>
                     <div class="panel-body" id="phishingROI"></div>
                 </div>
             </div>
             <div class="col-md-6">
                 <div class="panel panel-default">
-                    <div class="panel-heading"><h3 class="panel-title"><i class="fa fa-graduation-cap"></i> Training ROI</h3></div>
+                    <div class="panel-heading"><h3 class="panel-title"><i class="fa fa-graduation-cap"></i> {{T .Locale "roi.training_roi"}}</h3></div>
                     <div class="panel-body" id="trainingROI"></div>
                 </div>
             </div>
@@ -110,13 +186,13 @@
         <div class="row">
             <div class="col-md-6">
                 <div class="panel panel-default">
-                    <div class="panel-heading"><h3 class="panel-title"><i class="fa fa-medkit"></i> Remediation ROI</h3></div>
+                    <div class="panel-heading"><h3 class="panel-title"><i class="fa fa-medkit"></i> {{T .Locale "roi.remediation_roi"}}</h3></div>
                     <div class="panel-body" id="remediationROI"></div>
                 </div>
             </div>
             <div class="col-md-6">
                 <div class="panel panel-default">
-                    <div class="panel-heading"><h3 class="panel-title"><i class="fa fa-shield"></i> Hygiene & Compliance</h3></div>
+                    <div class="panel-heading"><h3 class="panel-title"><i class="fa fa-shield"></i> {{T .Locale "roi.hygiene_compliance"}}</h3></div>
                     <div class="panel-body" id="hygieneCompROI"></div>
                 </div>
             </div>
@@ -124,7 +200,7 @@
 
         <!-- Key Findings -->
         <div class="panel panel-success">
-            <div class="panel-heading"><h3 class="panel-title"><i class="fa fa-lightbulb-o"></i> Key Findings</h3></div>
+            <div class="panel-heading"><h3 class="panel-title"><i class="fa fa-lightbulb-o"></i> {{T .Locale "roi.key_findings"}}</h3></div>
             <div class="panel-body">
                 <ol id="keyFindings"></ol>
             </div>
@@ -132,16 +208,40 @@
 
         <!-- Recommendations -->
         <div class="panel panel-warning">
-            <div class="panel-heading"><h3 class="panel-title"><i class="fa fa-exclamation-triangle"></i> Recommendations</h3></div>
+            <div class="panel-heading"><h3 class="panel-title"><i class="fa fa-exclamation-triangle"></i> {{T .Locale "roi.recommendations"}}</h3></div>
             <div class="panel-body">
                 <ol id="roiRecommendations"></ol>
+            </div>
+        </div>
+
+        <!-- ═══ Report History ═══ -->
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h3 class="panel-title"><i class="fa fa-history"></i> {{T .Locale "roi.report_history"}}</h3>
+            </div>
+            <div class="panel-body">
+                <table class="table table-condensed table-striped" id="historyTable">
+                    <thead>
+                        <tr>
+                            <th>{{T .Locale "roi.col_period"}}</th>
+                            <th>{{T .Locale "roi.col_quarter"}}</th>
+                            <th style="text-align:right;">{{T .Locale "roi.col_roi"}}</th>
+                            <th style="text-align:right;">{{T .Locale "roi.col_cost_avoidance"}}</th>
+                            <th style="text-align:right;">{{T .Locale "roi.col_click_rate"}}</th>
+                            <th>{{T .Locale "roi.col_generated"}}</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyBody"></tbody>
+                </table>
+                <p class="text-muted" id="historyEmpty" style="display:none;">{{T .Locale "roi.history_empty"}}</p>
             </div>
         </div>
     </div>
 
     <div id="roiLoading" style="text-align:center; padding:40px; display:none;">
         <i class="fa fa-spinner fa-spin fa-3x"></i>
-        <p class="text-muted" style="margin-top:10px;">Generating ROI analysis...</p>
+        <p class="text-muted" style="margin-top:10px;">{{T .Locale "roi.loading"}}</p>
     </div>
 </div>
 
@@ -151,32 +251,32 @@
         <div class="modal-content">
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal">&times;</button>
-                <h4 class="modal-title"><i class="fa fa-cog"></i> ROI Cost Assumptions</h4>
+                <h4 class="modal-title"><i class="fa fa-cog"></i> {{T .Locale "roi.config_title"}}</h4>
             </div>
             <div class="modal-body">
                 <form id="configForm">
                     <div class="form-group">
-                        <label>Annual Programme Cost ($)</label>
+                        <label>{{T .Locale "roi.cfg_program_cost"}}</label>
                         <input type="number" class="form-control" id="cfgProgramCost" step="1000" />
                     </div>
                     <div class="form-group">
-                        <label>Average Breach Cost ($)</label>
+                        <label>{{T .Locale "roi.cfg_breach_cost"}}</label>
                         <input type="number" class="form-control" id="cfgBreachCost" step="10000" />
                     </div>
                     <div class="form-group">
-                        <label>Average Incident Cost ($)</label>
+                        <label>{{T .Locale "roi.cfg_incident_cost"}}</label>
                         <input type="number" class="form-control" id="cfgIncidentCost" step="100" />
                     </div>
                     <div class="form-group">
-                        <label>Employee Count</label>
+                        <label>{{T .Locale "roi.cfg_employee_count"}}</label>
                         <input type="number" class="form-control" id="cfgEmployeeCount" />
                     </div>
                     <div class="form-group">
-                        <label>Average Employee Salary ($/hr)</label>
+                        <label>{{T .Locale "roi.cfg_salary_hr"}}</label>
                         <input type="number" class="form-control" id="cfgSalaryHr" step="5" />
                     </div>
                     <div class="form-group">
-                        <label>Currency</label>
+                        <label>{{T .Locale "roi.cfg_currency"}}</label>
                         <select class="form-control" id="cfgCurrency">
                             <option value="USD">USD ($)</option>
                             <option value="EUR">EUR (€)</option>
@@ -186,14 +286,27 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="saveConfigBtn"><i class="fa fa-save"></i> Save</button>
+                <button type="button" class="btn btn-default" data-dismiss="modal">{{T .Locale "common.cancel"}}</button>
+                <button type="button" class="btn btn-primary" id="saveConfigBtn"><i class="fa fa-save"></i> {{T .Locale "roi.save"}}</button>
             </div>
         </div>
     </div>
 </div>
 
 <script>
+// Helper for API calls (safe for pages that don't have api.APIRequest)
+function roiQuery(method, url, data) {
+    var opts = {
+        url: url,
+        method: method,
+        dataType: 'json',
+        contentType: 'application/json',
+        beforeSend: function(xhr) { xhr.setRequestHeader('Authorization', 'Bearer ' + user.api_key); }
+    };
+    if (data) opts.data = (typeof data === 'string') ? data : JSON.stringify(data);
+    return $.ajax(opts);
+}
+
 $(function(){
     // Set default dates (last 12 months)
     var end = new Date(), start = new Date();
@@ -202,19 +315,26 @@ $(function(){
     $('#roiEnd').val(end.toISOString().split('T')[0]);
 
     loadConfig();
+    loadHistory();
+    loadQuarterlyTrend();
 
     // Generate report
     $('#roiPeriodForm').on('submit', function(e){
         e.preventDefault();
-        generateROI();
+        generateROI(false);
+    });
+
+    // Generate + save
+    $('#generateAndSaveBtn').on('click', function(){
+        generateROI(true);
     });
 
     // Auto-generate on page load
-    generateROI();
+    generateROI(false);
 
     // Config modal
     $('#editConfigBtn').on('click', function(){
-        api.APIRequest('GET', '/api/roi/config').done(function(cfg){
+        roiQuery('GET', '/api/roi/config').done(function(cfg){
             $('#cfgProgramCost').val(cfg.program_cost);
             $('#cfgBreachCost').val(cfg.avg_breach_cost);
             $('#cfgIncidentCost').val(cfg.avg_incident_cost);
@@ -234,14 +354,26 @@ $(function(){
             avg_salary_hr: parseFloat($('#cfgSalaryHr').val())||0,
             currency: $('#cfgCurrency').val()
         };
-        api.APIRequest('PUT', '/api/roi/config', JSON.stringify(cfg)).done(function(){
+        roiQuery('PUT', '/api/roi/config', cfg).done(function(){
             $('#configModal').modal('hide');
             loadConfig();
-            generateROI();
+            generateROI(false);
+        });
+    });
+
+    // Seed benchmarks
+    $('#seedBenchmarksBtn').on('click', function(){
+        roiQuery('POST', '/api/roi/benchmarks/seed').done(function(){
+            successFlash('Industry benchmarks reset to defaults');
+            generateROI(false);
         });
     });
 
     // Export handlers
+    $('#exportEnhancedPdf').on('click', function(e){
+        e.preventDefault();
+        window.location = '/api/roi/export-pdf?start='+$('#roiStart').val()+'&end='+$('#roiEnd').val();
+    });
     $('#exportPdf').on('click', function(e){
         e.preventDefault();
         window.location = '/api/roi/export?format=pdf&start='+$('#roiStart').val()+'&end='+$('#roiEnd').val();
@@ -257,7 +389,7 @@ $(function(){
 });
 
 function loadConfig(){
-    api.APIRequest('GET', '/api/roi/config').done(function(cfg){
+    roiQuery('GET', '/api/roi/config').done(function(cfg){
         var sym = cfg.currency==='EUR'?'€':cfg.currency==='GBP'?'£':'$';
         $('#configSummary').html(
             '<table class="table table-condensed" style="margin:0;font-size:12px;">' +
@@ -270,14 +402,16 @@ function loadConfig(){
     });
 }
 
-function generateROI(){
+function generateROI(saveToHistory){
     $('#roiContent').hide();
     $('#roiLoading').show();
-    var payload = JSON.stringify({
+    var payload = {
         period_start: $('#roiStart').val(),
         period_end: $('#roiEnd').val()
-    });
-    api.APIRequest('POST', '/api/roi/generate', payload).done(function(rpt){
+    };
+    var endpoint = saveToHistory ? '/api/roi/generate-and-save' : '/api/roi/generate';
+
+    roiQuery('POST', endpoint, payload).done(function(rpt){
         $('#roiLoading').hide();
         $('#roiContent').show();
 
@@ -286,6 +420,52 @@ function generateROI(){
         $('#costAvoidance').text('$'+Number(m.cost_avoidance.toFixed(0)).toLocaleString());
         $('#riskReduction').text(m.overall_risk_reduction.toFixed(1)+'%');
         $('#incidentsAvoided').text(m.est_incidents_avoided);
+
+        // ── Monte Carlo Confidence Intervals ──
+        if (rpt.monte_carlo) {
+            var mc = rpt.monte_carlo;
+            $('#monteCarloPanel').show();
+
+            $('#mcIncidents').text(Math.round(mc.incidents_avoided.lower) + ' – ' + Math.round(mc.incidents_avoided.upper));
+            $('#mcIncidentsDetail').text('Median: ' + Math.round(mc.incidents_avoided.median) + ' | Mean: ' + Math.round(mc.incidents_avoided.mean));
+
+            $('#mcCost').text('$' + fmtK(mc.cost_avoidance.lower) + ' – $' + fmtK(mc.cost_avoidance.upper));
+            $('#mcCostDetail').text('Median: $' + fmtK(mc.cost_avoidance.median));
+
+            $('#mcROI').text(mc.roi_percentage.lower.toFixed(0) + '% – ' + mc.roi_percentage.upper.toFixed(0) + '%');
+            $('#mcROIDetail').text('Median: ' + mc.roi_percentage.median.toFixed(0) + '%');
+
+            $('#mcBreach').text(mc.breach_prob_reduction.lower.toFixed(1) + '% – ' + mc.breach_prob_reduction.upper.toFixed(1) + '%');
+            $('#mcBreachDetail').text('Median: ' + mc.breach_prob_reduction.median.toFixed(1) + '%');
+
+            // Inline CI annotations on score cards
+            $('#roiPctCI').text('90% CI: ' + mc.roi_percentage.lower.toFixed(0) + '% – ' + mc.roi_percentage.upper.toFixed(0) + '%');
+            $('#costAvoidanceCI').text('90% CI: $' + fmtK(mc.cost_avoidance.lower) + ' – $' + fmtK(mc.cost_avoidance.upper));
+            $('#incidentsAvoidedCI').text('90% CI: ' + Math.round(mc.incidents_avoided.lower) + ' – ' + Math.round(mc.incidents_avoided.upper));
+        }
+
+        // ── Industry Benchmark Comparisons ──
+        if (rpt.benchmarks && rpt.benchmarks.length > 0) {
+            $('#benchmarkPanel').show();
+            var tbody = $('#benchmarkBody');
+            tbody.empty();
+            rpt.benchmarks.forEach(function(b) {
+                var deltaColor = b.favorable ? '#27ae60' : '#e74c3c';
+                var quartileLabel = b.percentile === 'top_quartile' ? '<span class="label label-success">Top Quartile</span>' :
+                                   b.percentile === 'below_average' ? '<span class="label label-danger">Below Avg</span>' :
+                                   '<span class="label label-default">Average</span>';
+                tbody.append(
+                    '<tr>' +
+                    '<td>' + escapeHtml(b.metric_label) + '</td>' +
+                    '<td style="text-align:right; font-weight:700;">' + fmtBenchVal(b.org_value) + '</td>' +
+                    '<td style="text-align:right;">' + fmtBenchVal(b.industry_avg) + '</td>' +
+                    '<td style="text-align:right; color:' + deltaColor + '; font-weight:600;">' + (b.delta > 0 ? '+' : '') + fmtBenchVal(b.delta) + '</td>' +
+                    '<td>' + quartileLabel + '</td>' +
+                    '<td style="font-size:11px; color:#888;">' + escapeHtml(b.source) + '</td>' +
+                    '</tr>'
+                );
+            });
+        }
 
         // Phishing section
         var ph = rpt.phishing;
@@ -344,9 +524,84 @@ function generateROI(){
         var recHtml = '';
         (rpt.recommendations||[]).forEach(function(r){ recHtml += '<li>'+escapeHtml(r)+'</li>'; });
         $('#roiRecommendations').html(recHtml);
+
+        // Reload history if we just saved
+        if (saveToHistory) {
+            loadHistory();
+            loadQuarterlyTrend();
+            successFlash('Report saved to history');
+        }
     }).fail(function(){
         $('#roiLoading').hide();
         errorFlash('Error generating ROI report');
+    });
+}
+
+function loadHistory(){
+    roiQuery('GET', '/api/roi/history').done(function(records){
+        var tbody = $('#historyBody');
+        tbody.empty();
+        if (!records || records.length === 0) {
+            $('#historyEmpty').show();
+            return;
+        }
+        $('#historyEmpty').hide();
+        records.forEach(function(r){
+            var periodLabel = moment(r.period_start).format('MMM D, YYYY') + ' — ' + moment(r.period_end).format('MMM D, YYYY');
+            tbody.append(
+                '<tr>' +
+                '<td style="font-size:12px;">' + periodLabel + '</td>' +
+                '<td>' + escapeHtml(r.quarter) + '</td>' +
+                '<td style="text-align:right; font-weight:700;">' + r.roi_percentage.toFixed(0) + '%</td>' +
+                '<td style="text-align:right;">$' + Number(r.cost_avoidance.toFixed(0)).toLocaleString() + '</td>' +
+                '<td style="text-align:right;">' + r.click_rate.toFixed(1) + '%</td>' +
+                '<td style="font-size:11px; color:#888;">' + moment(r.generated_at).format('MMM D, YYYY HH:mm') + '</td>' +
+                '<td><button class="btn btn-xs btn-danger" onclick="deleteHistoryItem(' + r.id + ')"><i class="fa fa-trash-o"></i></button></td>' +
+                '</tr>'
+            );
+        });
+    });
+}
+
+function deleteHistoryItem(id){
+    if (!confirm('Delete this historical report?')) return;
+    roiQuery('DELETE', '/api/roi/history/' + id).done(function(){
+        loadHistory();
+        loadQuarterlyTrend();
+    });
+}
+
+function loadQuarterlyTrend(){
+    roiQuery('GET', '/api/roi/trend').done(function(points){
+        if (!points || points.length < 2) {
+            $('#trendPanel').hide();
+            return;
+        }
+        $('#trendPanel').show();
+        var categories = [], roiData = [], costData = [], clickData = [];
+        points.forEach(function(p){
+            categories.push(p.quarter);
+            roiData.push(p.roi_percentage);
+            costData.push(p.cost_avoidance);
+            clickData.push(p.click_rate);
+        });
+        Highcharts.chart('roiTrendChart', {
+            chart: { zoomType: 'x' },
+            title: { text: 'ROI Trend by Quarter' },
+            xAxis: { categories: categories, crosshair: true },
+            yAxis: [
+                { title: { text: 'ROI (%) / Click Rate (%)' }, labels: { format: '{value}%' } },
+                { title: { text: 'Cost Avoidance ($)' }, opposite: true, labels: { format: '${value:,.0f}' } }
+            ],
+            tooltip: { shared: true },
+            credits: { enabled: false },
+            legend: { enabled: true },
+            series: [
+                { name: 'ROI %', type: 'column', data: roiData, color: '#27ae60', yAxis: 0 },
+                { name: 'Click Rate %', type: 'spline', data: clickData, color: '#e74c3c', yAxis: 0, dashStyle: 'ShortDash' },
+                { name: 'Cost Avoidance', type: 'spline', data: costData, color: '#2980b9', yAxis: 1 }
+            ]
+        });
     });
 }
 
@@ -354,6 +609,18 @@ function metricTable(rows){
     var h = '<table class="table table-condensed table-striped" style="margin:0;">';
     rows.forEach(function(r){ h+='<tr><td>'+r[0]+'</td><td style="text-align:right;"><strong>'+r[1]+'</strong></td></tr>'; });
     return h+'</table>';
+}
+
+function fmtK(n) {
+    if (n >= 1000000) return (n/1000000).toFixed(1) + 'M';
+    if (n >= 1000) return (n/1000).toFixed(1) + 'K';
+    return n.toFixed(0);
+}
+
+function fmtBenchVal(v) {
+    if (Math.abs(v) >= 1000000) return (v/1000000).toFixed(1) + 'M';
+    if (Math.abs(v) >= 1000) return (v/1000).toFixed(1) + 'K';
+    return v.toFixed(1);
 }
 </script>
 {{end}}

@@ -1,0 +1,111 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/teams/vDevPreview/MicrosoftTeams.schema.json",
+  "manifestVersion": "devPreview",
+  "version": "1.0.0",
+  "id": "{{ADDIN_UUID}}",
+  "packageName": "com.nivoxis.outlook.securityassistant",
+  "developer": {
+    "name": "Nivoxis",
+    "websiteUrl": "https://nivoxis.com",
+    "privacyUrl": "https://nivoxis.com/privacy",
+    "termsOfUseUrl": "https://nivoxis.com/terms"
+  },
+  "name": {
+    "short": "Nivoxis Security",
+    "full": "Nivoxis Email Security Assistant"
+  },
+  "description": {
+    "short": "Real-time email threat analysis and one-click phishing reporting",
+    "full": "Nivoxis Email Security Assistant provides AI-powered real-time threat analysis for every email. It shows a sidebar with threat scores, allows one-click report-to-Nivoxis, and displays a banner on suspicious emails before you interact with them."
+  },
+  "icons": {
+    "outline": "assets/icon-outline.png",
+    "color": "assets/icon-color.png"
+  },
+  "accentColor": "#1A73E8",
+  "authorization": {
+    "permissions": {
+      "resourceSpecific": [
+        {
+          "name": "MailboxItem.Read.User",
+          "type": "Delegated"
+        }
+      ]
+    }
+  },
+  "extensions": [
+    {
+      "requirements": {
+        "scopes": ["mail"],
+        "capabilities": [
+          { "name": "Mailbox", "minVersion": "1.1" }
+        ]
+      },
+      "runtimes": [
+        {
+          "requirements": { "capabilities": [{ "name": "Mailbox", "minVersion": "1.1" }] },
+          "id": "TaskPaneRuntime",
+          "type": "general",
+          "code": { "page": "https://{{NIVOXIS_HOST}}/static/addin/outlook/taskpane.html" },
+          "lifetime": "short",
+          "actions": [
+            { "id": "TaskPaneAction", "type": "openPage", "pinnable": true }
+          ]
+        }
+      ],
+      "ribbons": [
+        {
+          "contexts": ["mailRead"],
+          "tabs": [
+            {
+              "builtInTabId": "TabDefault",
+              "groups": [
+                {
+                  "id": "NivoxisGroup",
+                  "label": "Nivoxis Security",
+                  "icons": [
+                    { "size": 16, "url": "https://{{NIVOXIS_HOST}}/static/addin/assets/icon-16.png" },
+                    { "size": 32, "url": "https://{{NIVOXIS_HOST}}/static/addin/assets/icon-32.png" },
+                    { "size": 80, "url": "https://{{NIVOXIS_HOST}}/static/addin/assets/icon-80.png" }
+                  ],
+                  "controls": [
+                    {
+                      "id": "AnalyzeButton",
+                      "type": "button",
+                      "label": "Analyze Email",
+                      "icons": [
+                        { "size": 16, "url": "https://{{NIVOXIS_HOST}}/static/addin/assets/analyze-16.png" },
+                        { "size": 32, "url": "https://{{NIVOXIS_HOST}}/static/addin/assets/analyze-32.png" },
+                        { "size": 80, "url": "https://{{NIVOXIS_HOST}}/static/addin/assets/analyze-80.png" }
+                      ],
+                      "supertip": {
+                        "title": "Analyze Email",
+                        "description": "Run AI threat analysis on this email"
+                      },
+                      "actionId": "TaskPaneAction"
+                    },
+                    {
+                      "id": "ReportButton",
+                      "type": "button",
+                      "label": "Report Phishing",
+                      "icons": [
+                        { "size": 16, "url": "https://{{NIVOXIS_HOST}}/static/addin/assets/report-16.png" },
+                        { "size": 32, "url": "https://{{NIVOXIS_HOST}}/static/addin/assets/report-32.png" },
+                        { "size": 80, "url": "https://{{NIVOXIS_HOST}}/static/addin/assets/report-80.png" }
+                      ],
+                      "supertip": {
+                        "title": "Report Phishing",
+                        "description": "Report this email as suspicious to your security team"
+                      },
+                      "actionId": "TaskPaneAction"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

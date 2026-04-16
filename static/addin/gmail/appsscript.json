@@ -1,0 +1,37 @@
+{
+  "timeZone": "UTC",
+  "dependencies": {},
+  "exceptionLogging": "STACKDRIVER",
+  "runtimeVersion": "V8",
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/gmail.addons.current.message.readonly",
+    "https://www.googleapis.com/auth/gmail.addons.current.action.compose",
+    "https://www.googleapis.com/auth/script.external_request",
+    "https://www.googleapis.com/auth/userinfo.email"
+  ],
+  "addOns": {
+    "common": {
+      "name": "Nivoxis Security Assistant",
+      "logoUrl": "{{NIVOXIS_HOST}}/static/images/nivoxis-icon.png",
+      "layoutProperties": {
+        "primaryColor": "#1A73E8"
+      }
+    },
+    "gmail": {
+      "contextualTriggers": [
+        {
+          "unconditional": {},
+          "onTriggerFunction": "onEmailOpen"
+        }
+      ],
+      "composeTrigger": {
+        "selectActions": [
+          {
+            "text": "Check Email Safety",
+            "runFunction": "onEmailOpen"
+          }
+        ]
+      }
+    }
+  }
+}

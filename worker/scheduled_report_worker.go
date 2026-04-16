@@ -1,0 +1,609 @@
+package worker
+
+import (
+	"bytes"
+	"encoding/csv"
+	"fmt"
+	"io"
+	"math"
+	"strconv"
+	"time"
+
+	"github.com/gophish/gomail"
+	log "github.com/gophish/gophish/logger"
+	"github.com/gophish/gophish/models"
+	"github.com/jung-kurt/gofpdf"
+	"github.com/xuri/excelize/v2"
+)
+
+// ScheduledReportCheckInterval is how often we check for due reports.
+const ScheduledReportCheckInterval = 1 * time.Minute
+
+// StartScheduledReportWorker launches a goroutine that checks for
+// scheduled reports that are due and executes them.
+func StartScheduledReportWorker() {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Errorf("ScheduledReport Worker: recovered from panic: %v", r)
+		}
+	}()
+	log.Info("ScheduledReport Worker Started — checking every minute for due reports")
+
+	for range time.Tick(ScheduledReportCheckInterval) {
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Errorf("ScheduledReport Worker: recovered from panic in cycle: %v", r)
+				}
+			}()
+			processDueReports()
+		}()
+	}
+}
+
+// processDueReports queries for all active reports where next_run_at <= now
+// and generates + delivers each one.
+func processDueReports() {
+	due, err := models.GetDueScheduledReports()
+	if err != nil {
+		log.Errorf("ScheduledReport Worker: error fetching due reports: %v", err)
+		return
+	}
+	if len(due) == 0 {
+		return
+	}
+
+	log.Infof("ScheduledReport Worker: %d report(s) due for execution", len(due))
+
+	for _, sr := range due {
+		executeScheduledReport(&sr)
+	}
+}
+
+// executeScheduledReport generates the report file, then emails it to all
+// configured recipients.
+func executeScheduledReport(sr *models.ScheduledReport) {
+	log.Infof("ScheduledReport Worker: executing report %d (%s) for org %d",
+		sr.Id, sr.Name, sr.OrgId)
+
+	models.MarkScheduledReportRunning(sr.Id)
+
+	// Determine lookback period
+	filters := sr.ParseFilters()
+	lookbackDays := sr.DefaultLookbackDays()
+	if filters.PeriodDays > 0 {
+		lookbackDays = filters.PeriodDays
+	}
+
+	end := time.Now().UTC()
+	start := end.AddDate(0, 0, -lookbackDays)
+
+	// Generate the report content
+	filename, contentType, buf, err := generateReport(sr, start, end)
+	if err != nil {
+		models.MarkScheduledReportFailed(sr, fmt.Sprintf("generation failed: %v", err))
+		return
+	}
+
+	// Send to all recipients
+	if err := deliverReport(sr, filename, contentType, buf); err != nil {
+		models.MarkScheduledReportFailed(sr, fmt.Sprintf("delivery failed: %v", err))
+		return
+	}
+
+	models.MarkScheduledReportComplete(sr)
+	log.Infof("ScheduledReport Worker: report %d (%s) delivered successfully to %d recipients",
+		sr.Id, sr.Name, len(sr.RecipientList()))
+}
+
+// generateReport produces the file bytes for the requested report type + format.
+func generateReport(sr *models.ScheduledReport, start, end time.Time) (string, string, *bytes.Buffer, error) {
+	scope := models.OrgScope{OrgId: sr.OrgId}
+
+	dateStr := time.Now().Format("2006-01-02")
+	baseName := fmt.Sprintf("nivoxis-%s-%s", sr.ReportType, dateStr)
+
+	switch sr.Format {
+	case "pdf":
+		buf, err := generatePDFReport(sr, scope, start, end)
+		if err != nil {
+			return "", "", nil, err
+		}
+		return baseName + ".pdf", "application/pdf", buf, nil
+
+	case "xlsx":
+		buf, err := generateXLSXReport(sr, scope, start, end)
+		if err != nil {
+			return "", "", nil, err
+		}
+		return baseName + ".xlsx",
+			"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buf, nil
+
+	case "csv":
+		buf, err := generateCSVReport(sr, scope, start, end)
+		if err != nil {
+			return "", "", nil, err
+		}
+		return baseName + ".csv", "text/csv", buf, nil
+
+	default:
+		return "", "", nil, fmt.Errorf("unsupported format: %s", sr.Format)
+	}
+}
+
+// ── PDF Generation ──
+
+func generatePDFReport(sr *models.ScheduledReport, scope models.OrgScope, start, end time.Time) (*bytes.Buffer, error) {
+	pdf := gofpdf.New("P", "mm", "A4", "")
+	pdf.SetAutoPageBreak(true, 15)
+	pdf.AddPage()
+
+	// Title
+	pdf.SetFont("Arial", "B", 22)
+	pdf.CellFormat(0, 16, reportTitle(sr.ReportType), "", 1, "C", false, 0, "")
+	pdf.SetFont("Arial", "", 11)
+	pdf.CellFormat(0, 8, fmt.Sprintf("%s — %s", start.Format("Jan 2, 2006"), end.Format("Jan 2, 2006")), "", 1, "C", false, 0, "")
+	if sr.Name != "" {
+		pdf.SetFont("Arial", "I", 10)
+		pdf.CellFormat(0, 7, sr.Name, "", 1, "C", false, 0, "")
+	}
+	pdf.Ln(10)
+
+	// Build data sections based on report type
+	data := collectReportData(sr, scope, start, end)
+	for _, section := range data {
+		pdf.SetFont("Arial", "B", 14)
+		pdf.CellFormat(0, 10, section.Title, "", 1, "", false, 0, "")
+		pdf.Ln(2)
+
+		if len(section.Rows) > 0 && len(section.Headers) > 0 {
+			// Table
+			colW := 190.0 / float64(len(section.Headers))
+			colWidths := make([]float64, len(section.Headers))
+			for i := range colWidths {
+				colWidths[i] = colW
+			}
+			scheduledPDFTable(pdf, section.Headers, section.Rows, colWidths)
+		}
+		pdf.Ln(6)
+	}
+
+	// Footer
+	pdf.SetFont("Arial", "I", 8)
+	pdf.CellFormat(0, 6, fmt.Sprintf("Generated by Nivoxis at %s", time.Now().UTC().Format(time.RFC3339)), "", 1, "C", false, 0, "")
+
+	var buf bytes.Buffer
+	if err := pdf.Output(&buf); err != nil {
+		return nil, err
+	}
+	return &buf, nil
+}
+
+// scheduledPDFTable renders a simple table to a PDF.
+func scheduledPDFTable(pdf *gofpdf.Fpdf, headers []string, rows [][]string, colWidths []float64) {
+	pdf.SetFillColor(52, 152, 219)
+	pdf.SetTextColor(255, 255, 255)
+	pdf.SetFont("Arial", "B", 10)
+	for i, h := range headers {
+		pdf.CellFormat(colWidths[i], 8, h, "1", 0, "C", true, 0, "")
+	}
+	pdf.Ln(-1)
+
+	pdf.SetTextColor(0, 0, 0)
+	pdf.SetFont("Arial", "", 9)
+	for _, row := range rows {
+		for i, cell := range row {
+			if i < len(colWidths) {
+				pdf.CellFormat(colWidths[i], 7, cell, "1", 0, "", false, 0, "")
+			}
+		}
+		pdf.Ln(-1)
+	}
+}
+
+// ── XLSX Generation ──
+
+func generateXLSXReport(sr *models.ScheduledReport, scope models.OrgScope, start, end time.Time) (*bytes.Buffer, error) {
+	f := excelize.NewFile()
+	defer f.Close()
+
+	headerStyle, _ := f.NewStyle(&excelize.Style{
+		Font:      &excelize.Font{Bold: true, Color: "FFFFFF", Size: 11},
+		Fill:      excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{"3498DB"}},
+		Alignment: &excelize.Alignment{Horizontal: "center"},
+	})
+
+	data := collectReportData(sr, scope, start, end)
+	firstSheet := true
+	for _, section := range data {
+		sheetName := section.Title
+		if len(sheetName) > 31 {
+			sheetName = sheetName[:31]
+		}
+		if firstSheet {
+			f.SetSheetName("Sheet1", sheetName)
+			firstSheet = false
+		} else {
+			f.NewSheet(sheetName)
+		}
+
+		for i, h := range section.Headers {
+			cell := xlsxCellRef(i+1, 1)
+			f.SetCellValue(sheetName, cell, h)
+			f.SetCellStyle(sheetName, cell, cell, headerStyle)
+		}
+
+		for i, row := range section.Rows {
+			for j, val := range row {
+				f.SetCellValue(sheetName, xlsxCellRef(j+1, i+2), val)
+			}
+		}
+
+		// Auto-width first few columns
+		for _, c := range []string{"A", "B", "C", "D", "E"} {
+			f.SetColWidth(sheetName, c, c, 20)
+		}
+	}
+
+	var buf bytes.Buffer
+	if err := f.Write(&buf); err != nil {
+		return nil, err
+	}
+	return &buf, nil
+}
+
+// xlsxCellRef converts 1-based col,row to Excel cell reference (e.g., 1,1 -> "A1").
+func xlsxCellRef(col, row int) string {
+	colStr := ""
+	for col > 0 {
+		col--
+		colStr = string(rune('A'+col%26)) + colStr
+		col /= 26
+	}
+	return colStr + strconv.Itoa(row)
+}
+
+// ── CSV Generation ──
+
+func generateCSVReport(sr *models.ScheduledReport, scope models.OrgScope, start, end time.Time) (*bytes.Buffer, error) {
+	var buf bytes.Buffer
+	cw := csv.NewWriter(&buf)
+	defer cw.Flush()
+
+	data := collectReportData(sr, scope, start, end)
+	for _, section := range data {
+		cw.Write([]string{section.Title})
+		if len(section.Headers) > 0 {
+			cw.Write(section.Headers)
+		}
+		for _, row := range section.Rows {
+			cw.Write(row)
+		}
+		cw.Write([]string{}) // blank line between sections
+	}
+
+	cw.Flush()
+	return &buf, nil
+}
+
+// ── Report Data Collection ──
+
+// reportSection represents a named table of data.
+type reportSection struct {
+	Title   string
+	Headers []string
+	Rows    [][]string
+}
+
+// collectReportData gathers all sections for the given report type.
+func collectReportData(sr *models.ScheduledReport, scope models.OrgScope, start, end time.Time) []reportSection {
+	switch sr.ReportType {
+	case models.ReportTypeExecutiveSummary:
+		return collectExecutiveSummary(scope, start, end)
+	case models.ReportTypeCampaigns:
+		return collectCampaignReport(scope, start, end)
+	case models.ReportTypeTraining:
+		return collectTrainingReport(scope, start, end)
+	case models.ReportTypePhishingTickets:
+		return collectTicketReport(scope, start, end)
+	case models.ReportTypeRiskScores:
+		return collectRiskScoreReport(scope)
+	case models.ReportTypeROI:
+		return collectROIReport(scope, start, end)
+	default:
+		return collectExecutiveSummary(scope, start, end)
+	}
+}
+
+func collectExecutiveSummary(scope models.OrgScope, start, end time.Time) []reportSection {
+	days := int(end.Sub(start).Hours()/24) + 1
+	if days < 1 {
+		days = 30
+	}
+
+	// Campaign metrics
+	emailsSent := models.GetDailyMetricSum(scope, "emails_sent", days)
+	linksClicked := models.GetDailyMetricSum(scope, "links_clicked", days)
+	reported := models.GetDailyMetricSum(scope, "emails_reported", days)
+	campaignsLaunched := models.GetDailyMetricSum(scope, "campaigns_launched", days)
+	clickRate := models.GetDailyMetricAvg(scope, "click_rate", days)
+	reportRate := models.GetDailyMetricAvg(scope, "report_rate", days)
+
+	// Training
+	trainingCompleted := models.GetDailyMetricSum(scope, "training_completed", days)
+	completionRate := models.GetDailyMetricAvg(scope, "training_completion_rate", days)
+	overdue := models.GetDailyMetricSum(scope, "training_overdue", 1)
+
+	// Tickets
+	ticketsOpened := models.GetDailyMetricSum(scope, "tickets_opened", days)
+	ticketsResolved := models.GetDailyMetricSum(scope, "tickets_resolved", days)
+
+	// Risk
+	avgRisk := models.GetDailyMetricAvg(scope, "avg_risk_score", 1)
+	highRiskUsers := models.GetDailyMetricSum(scope, "high_risk_user_count", 1)
+
+	return []reportSection{
+		{
+			Title:   "Executive Summary",
+			Headers: []string{"Metric", "Value"},
+			Rows: [][]string{
+				{"Period", fmt.Sprintf("%s to %s", start.Format("Jan 2, 2006"), end.Format("Jan 2, 2006"))},
+				{"Campaigns Launched", fmtInt(campaignsLaunched)},
+				{"Emails Sent", fmtInt(emailsSent)},
+				{"Links Clicked", fmtInt(linksClicked)},
+				{"Click Rate", fmt.Sprintf("%.1f%%", clickRate)},
+				{"Emails Reported", fmtInt(reported)},
+				{"Report Rate", fmt.Sprintf("%.1f%%", reportRate)},
+				{"Training Completed", fmtInt(trainingCompleted)},
+				{"Training Completion Rate", fmt.Sprintf("%.1f%%", completionRate)},
+				{"Training Overdue", fmtInt(overdue)},
+				{"Tickets Opened", fmtInt(ticketsOpened)},
+				{"Tickets Resolved", fmtInt(ticketsResolved)},
+				{"Avg Risk Score", fmt.Sprintf("%.1f", avgRisk)},
+				{"High Risk Users", fmtInt(highRiskUsers)},
+			},
+		},
+	}
+}
+
+func collectCampaignReport(scope models.OrgScope, start, end time.Time) []reportSection {
+	var campaigns []models.Campaign
+	q := models.GetDB().Table("campaigns").Where("created_date BETWEEN ? AND ?", start, end)
+	if !scope.IsSuperAdmin {
+		q = q.Where("org_id = ?", scope.OrgId)
+	}
+	q.Order("created_date DESC").Find(&campaigns)
+
+	rows := make([][]string, 0, len(campaigns))
+	for _, c := range campaigns {
+		rows = append(rows, []string{
+			c.Name,
+			c.Status,
+			c.CreatedDate.Format("2006-01-02"),
+			c.CompletedDate.Format("2006-01-02"),
+		})
+	}
+
+	return []reportSection{
+		{
+			Title:   "Campaigns",
+			Headers: []string{"Name", "Status", "Created", "Completed"},
+			Rows:    rows,
+		},
+	}
+}
+
+func collectTrainingReport(scope models.OrgScope, start, end time.Time) []reportSection {
+	days := int(end.Sub(start).Hours()/24) + 1
+
+	rows := [][]string{
+		{"Assigned (period)", fmtInt(models.GetDailyMetricSum(scope, "training_assigned", days))},
+		{"Completed (period)", fmtInt(models.GetDailyMetricSum(scope, "training_completed", days))},
+		{"Overdue (current)", fmtInt(models.GetDailyMetricSum(scope, "training_overdue", 1))},
+		{"Completion Rate", fmt.Sprintf("%.1f%%", models.GetDailyMetricAvg(scope, "training_completion_rate", 1))},
+		{"Avg Quiz Score", fmt.Sprintf("%.1f", models.GetDailyMetricAvg(scope, "avg_quiz_score", days))},
+		{"Certificates Issued", fmtInt(models.GetDailyMetricSum(scope, "certificates_issued", days))},
+	}
+
+	return []reportSection{
+		{
+			Title:   "Training Summary",
+			Headers: []string{"Metric", "Value"},
+			Rows:    rows,
+		},
+	}
+}
+
+func collectTicketReport(scope models.OrgScope, start, end time.Time) []reportSection {
+	days := int(end.Sub(start).Hours()/24) + 1
+
+	rows := [][]string{
+		{"Tickets Opened (period)", fmtInt(models.GetDailyMetricSum(scope, "tickets_opened", days))},
+		{"Tickets Resolved (period)", fmtInt(models.GetDailyMetricSum(scope, "tickets_resolved", days))},
+		{"Incidents Created", fmtInt(models.GetDailyMetricSum(scope, "incidents_created", days))},
+		{"Incidents Resolved", fmtInt(models.GetDailyMetricSum(scope, "incidents_resolved", days))},
+	}
+
+	return []reportSection{
+		{
+			Title:   "Phishing Tickets & Incidents",
+			Headers: []string{"Metric", "Value"},
+			Rows:    rows,
+		},
+	}
+}
+
+func collectRiskScoreReport(scope models.OrgScope) []reportSection {
+	rows := [][]string{
+		{"Avg Risk Score", fmt.Sprintf("%.1f", models.GetDailyMetricAvg(scope, "avg_risk_score", 1))},
+		{"High Risk Users", fmtInt(models.GetDailyMetricSum(scope, "high_risk_user_count", 1))},
+		{"Compliance Score", fmt.Sprintf("%.1f%%", models.GetDailyMetricAvg(scope, "compliance_score", 1))},
+		{"Avg Hygiene Score", fmt.Sprintf("%.1f%%", models.GetDailyMetricAvg(scope, "avg_hygiene_score", 1))},
+	}
+
+	return []reportSection{
+		{
+			Title:   "Risk & Compliance Scores",
+			Headers: []string{"Metric", "Value"},
+			Rows:    rows,
+		},
+	}
+}
+
+func collectROIReport(scope models.OrgScope, start, end time.Time) []reportSection {
+	report, err := models.GenerateROIReport(scope.OrgId, start, end)
+	if err != nil {
+		return []reportSection{{
+			Title:   "ROI Report",
+			Headers: []string{"Error"},
+			Rows:    [][]string{{err.Error()}},
+		}}
+	}
+
+	m := report.Metrics
+	rows := [][]string{
+		{"Programme Cost", fmt.Sprintf("$%.0f", report.ProgramCost)},
+		{"Cost Avoidance", fmt.Sprintf("$%.0f", m.CostAvoidance)},
+		{"ROI (%)", fmt.Sprintf("%.0f%%", m.ROIPercentage)},
+		{"Payback Period", fmt.Sprintf("%.1f months", m.PaybackPeriodMonths)},
+		{"Incidents Avoided", strconv.Itoa(m.EstIncidentsAvoided)},
+		{"Click Rate Reduction", fmt.Sprintf("%.1f%%", m.ClickRateReduction)},
+		{"Breach Risk Reduction", fmt.Sprintf("%.1f%%", m.BreachRiskReduction)},
+	}
+
+	return []reportSection{
+		{
+			Title:   "ROI Summary",
+			Headers: []string{"Metric", "Value"},
+			Rows:    rows,
+		},
+	}
+}
+
+// ── Email Delivery ──
+
+// deliverReport sends the generated report file as an email attachment
+// to all configured recipients using the org's first available SMTP profile.
+func deliverReport(sr *models.ScheduledReport, filename, contentType string, buf *bytes.Buffer) error {
+	// Find an SMTP profile for this org
+	smtp, err := findOrgSMTP(sr.OrgId, sr.UserId)
+	if err != nil {
+		return fmt.Errorf("no SMTP profile found for org %d: %w", sr.OrgId, err)
+	}
+
+	dialer, err := smtp.GetDialer()
+	if err != nil {
+		return fmt.Errorf("failed to create SMTP dialer: %w", err)
+	}
+
+	sender, err := dialer.Dial()
+	if err != nil {
+		return fmt.Errorf("failed to connect to SMTP: %w", err)
+	}
+	defer sender.Close()
+
+	subject := sr.Subject
+	if subject == "" {
+		subject = fmt.Sprintf("[Nivoxis] %s — %s", reportTitle(sr.ReportType), time.Now().Format("Jan 2, 2006"))
+	}
+
+	recipients := sr.RecipientList()
+	for _, recipient := range recipients {
+		m := gomail.NewMessage()
+		m.SetHeader("From", smtp.FromAddress)
+		m.SetHeader("To", recipient)
+		m.SetHeader("Subject", subject)
+		m.SetBody("text/html", buildScheduledReportEmailBody(sr, filename))
+		m.Attach(filename, gomail.SetCopyFunc(func(w io.Writer) error {
+			_, err := w.Write(buf.Bytes())
+			return err
+		}))
+
+		// Add custom SMTP headers
+		for _, h := range smtp.Headers {
+			m.SetHeader(h.Key, h.Value)
+		}
+
+		if err := gomail.Send(sender, m); err != nil {
+			log.Errorf("ScheduledReport Worker: failed to send to %s: %v", recipient, err)
+			// Continue to other recipients
+		}
+	}
+
+	return nil
+}
+
+// findOrgSMTP looks up an SMTP sending profile for the org/user.
+func findOrgSMTP(orgId, userId int64) (*models.SMTP, error) {
+	var smtp models.SMTP
+	// Try to find user's own profile first, then any org profile
+	err := models.GetDB().Where("user_id = ? AND org_id = ?", userId, orgId).First(&smtp).Error
+	if err != nil {
+		// Fallback: any profile in the org
+		err = models.GetDB().Where("org_id = ?", orgId).First(&smtp).Error
+		if err != nil {
+			// Final fallback: any profile from the user
+			err = models.GetDB().Where("user_id = ?", userId).First(&smtp).Error
+		}
+	}
+	return &smtp, err
+}
+
+// buildScheduledReportEmailBody creates an HTML email body for the report delivery.
+func buildScheduledReportEmailBody(sr *models.ScheduledReport, filename string) string {
+	return fmt.Sprintf(`<!DOCTYPE html>
+<html>
+<head><style>
+body { font-family: Arial, sans-serif; color: #333; }
+.header { background: #1a73e8; color: white; padding: 20px; text-align: center; }
+.body { padding: 20px; }
+.footer { padding: 15px; text-align: center; font-size: 12px; color: #888; }
+</style></head>
+<body>
+<div class="header">
+  <h2>%s</h2>
+  <p>Scheduled Report Delivery</p>
+</div>
+<div class="body">
+  <p>Hello,</p>
+  <p>Please find attached your scheduled <strong>%s</strong> report: <strong>%s</strong>.</p>
+  <p>This report covers the %s period and was generated automatically on %s.</p>
+  <p>If you no longer wish to receive this report, please contact your administrator to update the schedule.</p>
+</div>
+<div class="footer">
+  <p>Powered by Nivoxis Security Awareness Platform</p>
+</div>
+</body>
+</html>`,
+		reportTitle(sr.ReportType),
+		sr.ReportType,
+		sr.Name,
+		sr.Frequency,
+		time.Now().UTC().Format("January 2, 2006 at 15:04 UTC"),
+	)
+}
+
+// ── Helpers ──
+
+func reportTitle(rt string) string {
+	titles := map[string]string{
+		models.ReportTypeExecutiveSummary: "Executive Summary Report",
+		models.ReportTypeCampaigns:        "Campaign Report",
+		models.ReportTypeTraining:         "Training Report",
+		models.ReportTypePhishingTickets:  "Phishing Tickets Report",
+		models.ReportTypeEmailSecurity:    "Email Security Report",
+		models.ReportTypeNetworkEvents:    "Network Events Report",
+		models.ReportTypeROI:              "ROI Report",
+		models.ReportTypeCompliance:       "Compliance Report",
+		models.ReportTypeHygiene:          "Cyber Hygiene Report",
+		models.ReportTypeRiskScores:       "Risk Scores Report",
+	}
+	if t, ok := titles[rt]; ok {
+		return t
+	}
+	return "Report"
+}
+
+func fmtInt(v float64) string {
+	return strconv.Itoa(int(math.Round(v)))
+}

@@ -790,6 +790,7 @@ func (as *Server) EmailSecurityDashboard(w http.ResponseWriter, r *http.Request)
 		Remediation   models.RemediationSummaryStats `json:"remediation"`
 		Tickets       models.PhishingTicketSummary   `json:"tickets"`
 		EmailAnalysis models.EmailAnalysisSummary    `json:"email_analysis"`
+		Ops           models.EmailSecurityOps        `json:"ops"`
 	}
 
 	var dashboard Dashboard
@@ -799,6 +800,24 @@ func (as *Server) EmailSecurityDashboard(w http.ResponseWriter, r *http.Request)
 	dashboard.Remediation, _ = models.GetRemediationSummaryStats(scope.OrgId)
 	dashboard.Tickets, _ = models.GetPhishingTicketSummary(scope.OrgId)
 	dashboard.EmailAnalysis, _ = models.GetEmailAnalysisSummary(scope.OrgId)
+	dashboard.Ops, _ = models.GetEmailSecurityOps(scope.OrgId)
 
 	JSONResponse(w, dashboard, http.StatusOK)
+}
+
+// EmailSecurityOps handles GET /api/email-security/ops — returns just the
+// operational-quality panels (MTTR, false-positive rate, top senders,
+// SLA compliance) for dashboards that refresh these widgets independently.
+func (as *Server) EmailSecurityOps(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
+		return
+	}
+	scope := getOrgScope(r)
+	ops, err := models.GetEmailSecurityOps(scope.OrgId)
+	if err != nil {
+		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+	JSONResponse(w, ops, http.StatusOK)
 }

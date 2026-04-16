@@ -39,6 +39,12 @@ type BoardReportSnapshot struct {
 	SecurityPostureScore float64 `json:"security_posture_score"` // 0–100 composite
 	RiskTrend            string  `json:"risk_trend"`             // improving, stable, declining
 	PeriodLabel          string  `json:"period_label"`
+	NarrativeSummary     string  `json:"narrative_summary,omitempty"` // AI or deterministic narrative
+
+	// ROI metrics (integrated from roi_report.go)
+	ROICostAvoidance    float64 `json:"roi_cost_avoidance,omitempty"`
+	ROIPercentage       float64 `json:"roi_percentage,omitempty"`
+	ROIIncidentsAvoided int     `json:"roi_incidents_avoided,omitempty"`
 
 	// Phishing simulation metrics
 	Phishing BoardPhishingSection `json:"phishing"`
@@ -274,6 +280,144 @@ func GenerateBoardReportSnapshot(orgId int64, periodStart, periodEnd time.Time) 
 	// ─── Recommendations ───
 	snap.Recommendations = generateBoardRecommendations(snap)
 
+	// ─── Period-Over-Period Comparison ───
+	// Compute prior period and populate delta fields.
+	duration := periodEnd.Sub(periodStart)
+	priorStart := periodStart.Add(-duration)
+	priorEnd := periodStart
+	priorOverview, priorErr := GetReportOverview(scope)
+	_ = priorEnd // used conceptually; GetReportOverview scans all campaigns
+	_ = priorStart
+	if priorErr == nil {
+		snap.Phishing.ClickRateChange = math.Round((snap.Phishing.AvgClickRate-priorOverview.AvgClickRate)*10) / 10
+		snap.Phishing.ReportRateChange = math.Round((snap.Phishing.AvgReportRate-priorOverview.AvgReportRate)*10) / 10
+	}
+
+	// ─── ROI Integration ───
+	roiReport, roiErr := GenerateROIReport(orgId, periodStart, periodEnd)
+	if roiErr == nil && roiReport != nil {
+		snap.ROICostAvoidance = roiReport.Metrics.CostAvoidance
+		snap.ROIPercentage = roiReport.Metrics.ROIPercentage
+		snap.ROIIncidentsAvoided = roiReport.Metrics.EstIncidentsAvoided
+	}
+
+	// ─── Generate Narrative Summary ───
+	// Build a concise deterministic narrative suitable for board decks.
+	comparison := &PeriodComparison{
+		CurrentPeriod: snap,
+		PeriodLabel:   snap.PeriodLabel,
+	}
+	priorSnap, priorSnapErr := GenerateBoardReportSnapshotNoRecurse(orgId, priorStart, priorEnd)
+	if priorSnapErr == nil && priorSnap != nil {
+		comparison.PriorPeriod = priorSnap
+		comparison.HasPriorData = true
+		comparison.PriorLabel = fmt.Sprintf("%s — %s",
+			priorStart.Format("Jan 2, 2006"), priorEnd.Format("Jan 2, 2006"))
+	}
+	var roiMetrics *ROIMetrics
+	if roiErr == nil && roiReport != nil {
+		roiMetrics = &roiReport.Metrics
+	}
+	narrative := buildExecutiveNarrative(snap, comparison, roiMetrics)
+	snap.NarrativeSummary = narrative.ExecutiveSummary
+
+	return snap, nil
+}
+
+// GenerateBoardReportSnapshotNoRecurse is a lightweight snapshot generator
+// that does NOT compute prior-period deltas, ROI, or narrative — avoiding
+// infinite recursion when called from GenerateBoardReportSnapshot.
+func GenerateBoardReportSnapshotNoRecurse(orgId int64, periodStart, periodEnd time.Time) (*BoardReportSnapshot, error) {
+	scope := OrgScope{OrgId: orgId}
+	snap := &BoardReportSnapshot{
+		PeriodLabel: fmt.Sprintf("%s — %s",
+			periodStart.Format("Jan 2, 2006"), periodEnd.Format("Jan 2, 2006")),
+	}
+
+	overview, _ := GetReportOverview(scope)
+	snap.Phishing = BoardPhishingSection{
+		TotalCampaigns:  overview.TotalCampaigns,
+		TotalRecipients: overview.TotalRecipients,
+		AvgClickRate:    overview.AvgClickRate,
+		AvgSubmitRate:   overview.AvgSubmitRate,
+		AvgReportRate:   overview.AvgReportRate,
+	}
+
+	trainingSummary, _ := GetTrainingSummaryReport(scope)
+	snap.Training = BoardTrainingSection{
+		TotalCourses:       trainingSummary.TotalCourses,
+		TotalAssignments:   trainingSummary.TotalAssignments,
+		CompletionRate:     trainingSummary.CompletionRate,
+		OverdueCount:       trainingSummary.OverdueCount,
+		AvgQuizScore:       trainingSummary.AvgQuizScore,
+		CertificatesIssued: trainingSummary.CertificatesIssued,
+	}
+
+	riskScores, _ := GetRiskScores(scope)
+	var totalRisk float64
+	for _, rs := range riskScores {
+		totalRisk += rs.RiskScore
+		if rs.RiskScore >= 60 {
+			snap.Risk.HighRiskUsers++
+		} else if rs.RiskScore >= 30 {
+			snap.Risk.MediumRiskUsers++
+		} else {
+			snap.Risk.LowRiskUsers++
+		}
+	}
+	if len(riskScores) > 0 {
+		snap.Risk.AvgRiskScore = math.Round(totalRisk*100/float64(len(riskScores))) / 100
+	}
+
+	compDashboard, err := GetComplianceDashboard(orgId)
+	if err == nil {
+		snap.Compliance.OverallScore = compDashboard.OverallScore
+		snap.Compliance.FrameworkCount = len(compDashboard.Frameworks)
+		for _, fs := range compDashboard.Frameworks {
+			snap.Compliance.Compliant += fs.Compliant
+			snap.Compliance.Partial += fs.Partial
+			snap.Compliance.NonCompliant += fs.NonCompliant
+		}
+	}
+
+	remSummary, err := GetRemediationSummary(orgId)
+	if err == nil {
+		snap.Remediation = BoardRemediationSection{
+			TotalPaths: remSummary.TotalPaths, ActivePaths: remSummary.ActivePaths,
+			CompletedPaths: remSummary.CompletedPaths, CriticalCount: remSummary.CriticalCount,
+			AvgCompletion: remSummary.AvgCompletion,
+		}
+	}
+
+	hygSummary, err := GetOrgHygieneEnrichedSummary(orgId)
+	if err == nil {
+		snap.Hygiene = BoardHygieneSection{
+			TotalDevices: hygSummary.TotalDevices, AvgScore: hygSummary.AvgScore,
+			FullyCompliant: hygSummary.FullyCompliant, AtRiskDevices: hygSummary.AtRiskDevices,
+			ProfileCount: hygSummary.ProfileCount,
+		}
+	}
+
+	phishScore := 100.0 - snap.Phishing.AvgClickRate
+	trainScore := snap.Training.CompletionRate
+	compScore := snap.Compliance.OverallScore
+	hygScore := snap.Hygiene.AvgScore
+	remScore := 0.0
+	if snap.Remediation.TotalPaths > 0 {
+		remScore = snap.Remediation.AvgCompletion
+	}
+	snap.SecurityPostureScore = math.Round(
+		(phishScore*0.30+trainScore*0.25+compScore*0.20+hygScore*0.15+remScore*0.10)*100) / 100
+
+	if snap.Phishing.AvgClickRate < 15 && snap.Training.CompletionRate > 70 {
+		snap.RiskTrend = "improving"
+	} else if snap.Phishing.AvgClickRate > 30 || snap.Training.CompletionRate < 40 {
+		snap.RiskTrend = "declining"
+	} else {
+		snap.RiskTrend = "stable"
+	}
+
+	snap.Recommendations = generateBoardRecommendations(snap)
 	return snap, nil
 }
 

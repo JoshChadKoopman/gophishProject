@@ -126,6 +126,9 @@ func (w *DefaultWorker) Start() {
 	go StartReminderWorker()
 	go StartAdaptiveEngineWorker()
 	go StartContentLibraryUpdater()
+	go StartReportRollupWorker()
+	go StartScheduledReportWorker()
+	go StartWebhookSubscriptionWorker()
 	for t := range time.Tick(1 * time.Minute) {
 		err := w.processCampaigns(t)
 		if err != nil {

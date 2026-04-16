@@ -64,6 +64,125 @@
                 </div>
             </div>
         </div>
+
+        <!-- ── Advanced Analytics Section ── -->
+        <div class="row" id="advancedAnalytics" style="display:none; margin-top:30px;">
+            <div class="col-lg-12">
+                <h2><i class="fa fa-bar-chart"></i> Advanced Analytics</h2>
+                <hr />
+
+                <!-- Funnel Visualization -->
+                <div class="row" style="margin-bottom:30px;">
+                    <div class="col-lg-12">
+                        <div class="panel panel-default">
+                            <div class="panel-heading">
+                                <h3 class="panel-title"><i class="fa fa-filter"></i> Phishing Funnel</h3>
+                            </div>
+                            <div class="panel-body">
+                                <div id="funnelChart" style="height:320px;"></div>
+                                <div id="funnelTable" style="margin-top:15px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Time-to-Click Distribution -->
+                <div class="row" style="margin-bottom:30px;">
+                    <div class="col-lg-8">
+                        <div class="panel panel-default">
+                            <div class="panel-heading">
+                                <h3 class="panel-title"><i class="fa fa-clock-o"></i> Time-to-Click Distribution</h3>
+                            </div>
+                            <div class="panel-body">
+                                <div id="timeToClickChart" style="height:300px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="panel panel-default">
+                            <div class="panel-heading">
+                                <h3 class="panel-title"><i class="fa fa-bolt"></i> Click Behavior</h3>
+                            </div>
+                            <div class="panel-body" id="clickBehaviorStats">
+                                <div class="text-center text-muted"><i class="fa fa-spinner fa-spin"></i> Loading...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Device / Browser / OS Breakdown -->
+                <div class="row" style="margin-bottom:30px;">
+                    <div class="col-lg-4">
+                        <div class="panel panel-default">
+                            <div class="panel-heading">
+                                <h3 class="panel-title"><i class="fa fa-globe"></i> Browser Breakdown</h3>
+                            </div>
+                            <div class="panel-body">
+                                <div id="browserChart" style="height:260px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="panel panel-default">
+                            <div class="panel-heading">
+                                <h3 class="panel-title"><i class="fa fa-desktop"></i> OS Breakdown</h3>
+                            </div>
+                            <div class="panel-body">
+                                <div id="osChart" style="height:260px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="panel panel-default">
+                            <div class="panel-heading">
+                                <h3 class="panel-title"><i class="fa fa-mobile"></i> Device Type</h3>
+                            </div>
+                            <div class="panel-body">
+                                <div id="deviceTypeChart" style="height:260px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Repeat Offenders -->
+                <div class="row" style="margin-bottom:30px;">
+                    <div class="col-lg-12">
+                        <div class="panel panel-default">
+                            <div class="panel-heading">
+                                <h3 class="panel-title"><i class="fa fa-exclamation-triangle"></i> Repeat Offenders
+                                    <small class="text-muted">(Users who clicked in 2+ campaigns)</small>
+                                </h3>
+                            </div>
+                            <div class="panel-body">
+                                <div id="repeatOffendersLoading" class="text-center"><i class="fa fa-spinner fa-spin fa-2x"></i></div>
+                                <table id="repeatOffendersTable" class="table table-striped table-hover" style="display:none;">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Email</th>
+                                            <th>Position</th>
+                                            <th>Campaigns Failed</th>
+                                            <th>Total Clicks</th>
+                                            <th>Risk Level</th>
+                                            <th>Last Click</th>
+                                            <th>In This Campaign</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="repeatOffendersBody">
+                                    </tbody>
+                                </table>
+                                <div id="repeatOffendersEmpty" class="text-center text-muted" style="display:none;">
+                                    <i class="fa fa-check-circle fa-2x text-success"></i>
+                                    <p style="margin-top:10px;">No repeat offenders found — great news!</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="row">
             <h2>Details</h2>
             <table id="resultsTable" class="table">

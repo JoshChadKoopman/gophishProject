@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	ctx "github.com/gophish/gophish/context"
 	log "github.com/gophish/gophish/logger"
@@ -396,6 +397,127 @@ func (as *Server) MSPSwitchOrg(w http.ResponseWriter, r *http.Request) {
 		Message: "Switched to organization context",
 		Org:     org,
 	}, http.StatusOK)
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Cross-Client Benchmarking: Ranking, Comparison, Billing, PDF
+// ──────────────────────────────────────────────────────────────────────────────
+
+// MSPClientRanking returns clients sorted by risk score (worst-first) with
+// traffic-light indicators.
+// Route: GET /api/msp/portal/ranking
+func (as *Server) MSPClientRanking(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
+		return
+	}
+
+	user := ctx.Get(r, "user").(models.User)
+	partner, err := models.GetPartnerForUser(user.Id)
+	if err != nil {
+		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusForbidden)
+		return
+	}
+
+	rankings, err := models.GetMSPClientRanking(partner.Id)
+	if err != nil {
+		log.Error(err)
+		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+	JSONResponse(w, rankings, http.StatusOK)
+}
+
+// MSPClientComparison returns radar chart data for comparing 2-3 selected clients.
+// Route: GET /api/msp/portal/comparison?org_ids=1,2,3
+func (as *Server) MSPClientComparison(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
+		return
+	}
+
+	user := ctx.Get(r, "user").(models.User)
+	partner, err := models.GetPartnerForUser(user.Id)
+	if err != nil {
+		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusForbidden)
+		return
+	}
+
+	orgIdsStr := r.URL.Query().Get("org_ids")
+	if orgIdsStr == "" {
+		JSONResponse(w, models.Response{Success: false, Message: "org_ids query parameter is required (comma-separated)"}, http.StatusBadRequest)
+		return
+	}
+
+	parts := strings.Split(orgIdsStr, ",")
+	var orgIds []int64
+	for _, p := range parts {
+		id, pErr := strconv.ParseInt(strings.TrimSpace(p), 10, 64)
+		if pErr != nil {
+			continue
+		}
+		orgIds = append(orgIds, id)
+	}
+
+	comparison, err := models.GetMSPClientComparison(partner.Id, orgIds)
+	if err != nil {
+		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusBadRequest)
+		return
+	}
+	JSONResponse(w, comparison, http.StatusOK)
+}
+
+// MSPBillingUsage returns seat/license usage for all partner clients.
+// Route: GET /api/msp/portal/billing
+func (as *Server) MSPBillingUsage(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
+		return
+	}
+
+	user := ctx.Get(r, "user").(models.User)
+	partner, err := models.GetPartnerForUser(user.Id)
+	if err != nil {
+		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusForbidden)
+		return
+	}
+
+	billing, err := models.GetMSPBillingUsage(partner.Id)
+	if err != nil {
+		log.Error(err)
+		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+	JSONResponse(w, billing, http.StatusOK)
+}
+
+// MSPQuarterlyPDF generates and serves the aggregated PDF report.
+// Route: GET /api/msp/portal/quarterly-pdf
+func (as *Server) MSPQuarterlyPDF(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)
+		return
+	}
+
+	user := ctx.Get(r, "user").(models.User)
+	partner, err := models.GetPartnerForUser(user.Id)
+	if err != nil {
+		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusForbidden)
+		return
+	}
+
+	pdf, err := models.GenerateMSPQuarterlyPDF(partner.Id)
+	if err != nil {
+		log.Error(err)
+		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Content-Disposition", "attachment; filename=MSP_Quarterly_Review.pdf")
+	if pdfErr := pdf.Output(w); pdfErr != nil {
+		log.Error(pdfErr)
+	}
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

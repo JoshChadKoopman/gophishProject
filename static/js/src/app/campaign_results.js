@@ -897,6 +897,8 @@ function load() {
                     });
                 }
                 updateMap(campaign.results)
+                // Load advanced analytics panels
+                loadAdvancedAnalytics()
             }
         })
         .error(function () {
@@ -959,6 +961,321 @@ function report_mail(rid, cid) {
         }
     })
 }
+
+// ── Advanced Analytics ──────────────────────────────────────────
+
+var analyticsColors = {
+    funnel: ['#1abc9c', '#f9bf3b', '#F39C12', '#f05b4f', '#45d6ef'],
+    risk: { critical: '#E94560', high: '#f05b4f', moderate: '#F39C12' },
+    chart: ['#1abc9c', '#3498db', '#9b59b6', '#e74c3c', '#f39c12', '#2ecc71', '#e67e22', '#1abc9c', '#34495e', '#95a5a6']
+}
+
+/**
+ * Loads all advanced analytics panels for the current campaign.
+ */
+function loadAdvancedAnalytics() {
+    if (!campaign || !campaign.id) return
+    $("#advancedAnalytics").show()
+    loadFunnel()
+    loadTimeToClick()
+    loadDeviceBreakdown()
+    loadRepeatOffenders()
+}
+
+// ── 1. Funnel Visualization ──
+
+function loadFunnel() {
+    api.campaignId.funnel(campaign.id)
+        .success(function (data) {
+            if (!data || !data.stages || data.total === 0) {
+                $("#funnelChart").html('<p class="text-center text-muted">No data available yet.</p>')
+                return
+            }
+            renderFunnelChart(data)
+            renderFunnelTable(data)
+        })
+        .error(function () {
+            $("#funnelChart").html('<p class="text-center text-muted">Could not load funnel data.</p>')
+        })
+}
+
+function renderFunnelChart(data) {
+    var categories = []
+    var counts = []
+    var percentages = []
+    $.each(data.stages, function (i, s) {
+        categories.push(s.stage)
+        counts.push(s.count)
+        percentages.push(s.percentage)
+    })
+
+    Highcharts.chart('funnelChart', {
+        chart: { type: 'bar', height: 300 },
+        title: { text: '' },
+        xAxis: {
+            categories: categories,
+            title: { text: null }
+        },
+        yAxis: {
+            min: 0,
+            title: { text: 'Recipients' },
+            allowDecimals: false
+        },
+        tooltip: {
+            formatter: function () {
+                return '<b>' + this.x + '</b><br/>' +
+                    this.y + ' recipients (' + percentages[this.point.index] + '% of total)'
+            }
+        },
+        plotOptions: {
+            bar: {
+                dataLabels: {
+                    enabled: true,
+                    formatter: function () {
+                        return this.y + ' (' + percentages[this.point.index] + '%)'
+                    }
+                },
+                colorByPoint: true
+            }
+        },
+        colors: analyticsColors.funnel,
+        legend: { enabled: false },
+        credits: { enabled: false },
+        series: [{
+            name: 'Recipients',
+            data: counts
+        }]
+    })
+}
+
+function renderFunnelTable(data) {
+    var html = '<table class="table table-condensed table-bordered">'
+    html += '<thead><tr><th>Stage</th><th>Count</th><th>% of Total</th><th>Drop-off</th></tr></thead><tbody>'
+    $.each(data.stages, function (i, s) {
+        var dropoffBadge = ''
+        if (i > 0 && s.drop_off > 0) {
+            var dropClass = s.drop_off > 70 ? 'success' : (s.drop_off > 40 ? 'warning' : 'danger')
+            dropoffBadge = '<span class="label label-' + dropClass + '">↓ ' + s.drop_off + '%</span>'
+        } else if (i === 0) {
+            dropoffBadge = '<span class="label label-default">—</span>'
+        } else {
+            dropoffBadge = '<span class="label label-success">0%</span>'
+        }
+        html += '<tr><td>' + escapeHtml(s.stage) + '</td><td>' + s.count + '</td>'
+        html += '<td>' + s.percentage + '%</td><td>' + dropoffBadge + '</td></tr>'
+    })
+    html += '</tbody></table>'
+    $("#funnelTable").html(html)
+}
+
+// ── 2. Time-to-Click Distribution ──
+
+function loadTimeToClick() {
+    api.campaignId.timeToClick(campaign.id)
+        .success(function (data) {
+            if (!data || data.total_clickers === 0) {
+                $("#timeToClickChart").html('<p class="text-center text-muted">No clicks recorded yet.</p>')
+                $("#clickBehaviorStats").html('<p class="text-center text-muted">No data.</p>')
+                return
+            }
+            renderTimeToClickChart(data)
+            renderClickBehaviorStats(data)
+        })
+        .error(function () {
+            $("#timeToClickChart").html('<p class="text-center text-muted">Could not load time-to-click data.</p>')
+        })
+}
+
+function renderTimeToClickChart(data) {
+    var categories = []
+    var counts = []
+    $.each(data.buckets, function (i, b) {
+        categories.push(b.label)
+        counts.push(b.count)
+    })
+
+    Highcharts.chart('timeToClickChart', {
+        chart: { type: 'column', height: 280 },
+        title: { text: '' },
+        xAxis: {
+            categories: categories,
+            title: { text: 'Time after delivery' },
+            crosshair: true
+        },
+        yAxis: {
+            min: 0,
+            title: { text: 'Clickers' },
+            allowDecimals: false
+        },
+        tooltip: {
+            formatter: function () {
+                var bucket = data.buckets[this.point.index]
+                return '<b>' + this.x + '</b><br/>' +
+                    this.y + ' clickers (' + bucket.percent + '%)'
+            }
+        },
+        plotOptions: {
+            column: {
+                borderRadius: 3,
+                colorByPoint: false,
+                color: '#3498db'
+            }
+        },
+        legend: { enabled: false },
+        credits: { enabled: false },
+        series: [{
+            name: 'Clickers',
+            data: counts
+        }]
+    })
+}
+
+function renderClickBehaviorStats(data) {
+    var medianMin = Math.floor(data.median_seconds / 60)
+    var medianSec = Math.round(data.median_seconds % 60)
+    var meanMin = Math.floor(data.mean_seconds / 60)
+    var meanSec = Math.round(data.mean_seconds % 60)
+
+    var html = '<div style="text-align:center;">'
+    html += '<h2 style="margin-bottom:5px;">' + data.total_clickers + '</h2>'
+    html += '<p class="text-muted" style="margin-top:0;">Total Clickers</p>'
+    html += '<hr/>'
+    html += '<div class="row">'
+    html += '<div class="col-xs-6">'
+    html += '<h4 style="color:#E94560;">' + data.impulsive_count + '</h4>'
+    html += '<small class="text-muted">Impulsive<br/>(&lt; 2 min)</small>'
+    html += '<div class="progress" style="margin-top:5px;"><div class="progress-bar progress-bar-danger" style="width:' + data.impulsive_pct + '%"></div></div>'
+    html += '<strong>' + data.impulsive_pct + '%</strong>'
+    html += '</div>'
+    html += '<div class="col-xs-6">'
+    html += '<h4 style="color:#1abc9c;">' + data.considered_count + '</h4>'
+    html += '<small class="text-muted">Considered<br/>(≥ 2 min)</small>'
+    html += '<div class="progress" style="margin-top:5px;"><div class="progress-bar progress-bar-success" style="width:' + data.considered_pct + '%"></div></div>'
+    html += '<strong>' + data.considered_pct + '%</strong>'
+    html += '</div>'
+    html += '</div>'
+    html += '<hr/>'
+    html += '<p><i class="fa fa-clock-o"></i> Median: <strong>' + medianMin + 'm ' + medianSec + 's</strong></p>'
+    html += '<p><i class="fa fa-bar-chart"></i> Mean: <strong>' + meanMin + 'm ' + meanSec + 's</strong></p>'
+    html += '</div>'
+    $("#clickBehaviorStats").html(html)
+}
+
+// ── 3. Device / Browser / OS Breakdown ──
+
+function loadDeviceBreakdown() {
+    api.campaignId.deviceBreakdown(campaign.id)
+        .success(function (data) {
+            if (!data || data.total_events === 0) {
+                $("#browserChart").html('<p class="text-center text-muted">No device data.</p>')
+                $("#osChart").html('<p class="text-center text-muted">No device data.</p>')
+                $("#deviceTypeChart").html('<p class="text-center text-muted">No device data.</p>')
+                return
+            }
+            renderBreakdownPie('browserChart', 'Browser', data.browsers)
+            renderBreakdownPie('osChart', 'Operating System', data.oses)
+            renderBreakdownPie('deviceTypeChart', 'Device Type', data.device_types)
+        })
+        .error(function () {
+            $("#browserChart").html('<p class="text-center text-muted">Error loading data.</p>')
+        })
+}
+
+function renderBreakdownPie(elemId, title, entries) {
+    if (!entries || entries.length === 0) {
+        $('#' + elemId).html('<p class="text-center text-muted">No data.</p>')
+        return
+    }
+    var seriesData = []
+    $.each(entries, function (i, e) {
+        seriesData.push({ name: e.value, y: e.count })
+    })
+    Highcharts.chart(elemId, {
+        chart: { type: 'pie', height: 240 },
+        title: { text: '' },
+        colors: analyticsColors.chart,
+        plotOptions: {
+            pie: {
+                allowPointSelect: true,
+                cursor: 'pointer',
+                dataLabels: {
+                    enabled: true,
+                    format: '<b>{point.name}</b>: {point.percentage:.1f}%',
+                    style: { fontSize: '11px' }
+                }
+            }
+        },
+        tooltip: {
+            pointFormat: '<b>{point.y}</b> events ({point.percentage:.1f}%)'
+        },
+        credits: { enabled: false },
+        series: [{ name: title, data: seriesData }]
+    })
+}
+
+// ── 4. Repeat Offenders ──
+
+function loadRepeatOffenders() {
+    api.campaignId.repeatOffenders(campaign.id)
+        .success(function (data) {
+            $("#repeatOffendersLoading").hide()
+            if (!data || data.length === 0) {
+                $("#repeatOffendersEmpty").show()
+                return
+            }
+            renderRepeatOffenders(data)
+        })
+        .error(function () {
+            $("#repeatOffendersLoading").hide()
+            $("#repeatOffendersEmpty").html('<p class="text-muted">Could not load repeat offender data.</p>').show()
+        })
+}
+
+function renderRepeatOffenders(offenders) {
+    var tbody = ''
+    $.each(offenders, function (i, o) {
+        var riskBadge = ''
+        switch (o.risk_level) {
+            case 'critical':
+                riskBadge = '<span class="label label-danger"><i class="fa fa-exclamation-circle"></i> Critical</span>'; break
+            case 'high':
+                riskBadge = '<span class="label label-warning"><i class="fa fa-exclamation-triangle"></i> High</span>'; break
+            default:
+                riskBadge = '<span class="label label-info"><i class="fa fa-info-circle"></i> Moderate</span>'
+        }
+        var inCampaign = o.in_current_campaign
+            ? '<span class="label label-danger"><i class="fa fa-check"></i> Yes</span>'
+            : '<span class="label label-default">No</span>'
+
+        var campaignList = ''
+        if (o.campaign_names && o.campaign_names.length > 0) {
+            campaignList = ' data-toggle="tooltip" data-placement="top" title="' + escapeHtml(o.campaign_names.join(', ')) + '"'
+        }
+
+        tbody += '<tr>'
+        tbody += '<td>' + escapeHtml(o.first_name || '') + ' ' + escapeHtml(o.last_name || '') + '</td>'
+        tbody += '<td>' + escapeHtml(o.email || '') + '</td>'
+        tbody += '<td>' + escapeHtml(o.position || '') + '</td>'
+        tbody += '<td' + campaignList + '><strong>' + o.campaign_count + '</strong> campaigns</td>'
+        tbody += '<td>' + o.total_clicks + '</td>'
+        tbody += '<td>' + riskBadge + '</td>'
+        tbody += '<td>' + escapeHtml(o.last_click_date || '—') + '</td>'
+        tbody += '<td class="text-center">' + inCampaign + '</td>'
+        tbody += '<td><a href="/remediation" class="btn btn-xs btn-primary" title="Create Remediation Path"><i class="fa fa-medkit"></i> Remediate</a></td>'
+        tbody += '</tr>'
+    })
+    $("#repeatOffendersBody").html(tbody)
+    $("#repeatOffendersTable").show()
+    $("#repeatOffendersTable").DataTable({
+        destroy: true,
+        order: [[3, 'desc']],
+        pageLength: 10,
+        columnDefs: [{ orderable: false, targets: [8] }]
+    })
+    $('[data-toggle="tooltip"]').tooltip()
+}
+
+// ── End Advanced Analytics ──
 
 $(document).ready(function () {
     Highcharts.setOptions({

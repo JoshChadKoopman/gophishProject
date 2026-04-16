@@ -35,6 +35,7 @@ type AutopilotSchedule struct {
 	UserEmail       string    `json:"user_email"`
 	CampaignId      int64     `json:"campaign_id"`
 	DifficultyLevel int       `json:"difficulty_level"`
+	VariantId       string    `json:"variant_id" gorm:"column:variant_id;default:''"` // A/B test variant: "A" or "B"
 	ScheduledDate   time.Time `json:"scheduled_date"`
 	Sent            bool      `json:"sent"`
 	CreatedDate     time.Time `json:"created_date"`

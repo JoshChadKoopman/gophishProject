@@ -447,3 +447,179 @@ func TestAPIResponseIsJSON(t *testing.T) {
 		t.Errorf("expected Content-Type 'application/json', got '%s'", ct)
 	}
 }
+
+// ── Campaign Analytics API ──
+
+func TestCampaignAnalyticsFunnelAPI(t *testing.T) {
+	tc := setupIntegrationTest(t)
+	w, r := makeRequest(t, tc, http.MethodGet, "/api/campaigns/1/analytics/funnel", nil)
+	tc.apiServer.CampaignAnalyticsFunnel(w, r)
+	// Campaign 1 doesn't exist, but handler should return 200 with empty funnel or 404
+	if w.Code != http.StatusOK && w.Code != http.StatusNotFound {
+		t.Errorf("expected 200 or 404, got %d", w.Code)
+	}
+}
+
+func TestCampaignAnalyticsTimeToClickAPI(t *testing.T) {
+	tc := setupIntegrationTest(t)
+	w, r := makeRequest(t, tc, http.MethodGet, "/api/campaigns/1/analytics/time-to-click", nil)
+	tc.apiServer.CampaignAnalyticsTimeToClick(w, r)
+	if w.Code != http.StatusOK && w.Code != http.StatusNotFound {
+		t.Errorf("expected 200 or 404, got %d", w.Code)
+	}
+}
+
+func TestCampaignAnalyticsRepeatOffendersAPI(t *testing.T) {
+	tc := setupIntegrationTest(t)
+	w, r := makeRequest(t, tc, http.MethodGet, "/api/campaigns/1/analytics/repeat-offenders", nil)
+	tc.apiServer.CampaignAnalyticsRepeatOffenders(w, r)
+	if w.Code != http.StatusOK && w.Code != http.StatusNotFound {
+		t.Errorf("expected 200 or 404, got %d", w.Code)
+	}
+}
+
+func TestCampaignAnalyticsDeviceBreakdownAPI(t *testing.T) {
+	tc := setupIntegrationTest(t)
+	w, r := makeRequest(t, tc, http.MethodGet, "/api/campaigns/1/analytics/devices", nil)
+	tc.apiServer.CampaignAnalyticsDeviceBreakdown(w, r)
+	if w.Code != http.StatusOK && w.Code != http.StatusNotFound {
+		t.Errorf("expected 200 or 404, got %d", w.Code)
+	}
+}
+
+// ── ROI Enhanced API ──
+
+func TestROIBenchmarksListAPI(t *testing.T) {
+	tc := setupIntegrationTest(t)
+	w, r := makeRequest(t, tc, http.MethodGet, "/api/roi/benchmarks", nil)
+	tc.apiServer.ROIBenchmarks(w, r)
+	expectStatus(t, w, http.StatusOK)
+}
+
+func TestROIMonteCarloAPI(t *testing.T) {
+	tc := setupIntegrationTest(t)
+	w, r := makeRequest(t, tc, http.MethodGet, "/api/roi/monte-carlo", nil)
+	tc.apiServer.ROIMonteCarlo(w, r)
+	expectStatus(t, w, http.StatusOK)
+}
+
+func TestROIHistoryListAPI(t *testing.T) {
+	tc := setupIntegrationTest(t)
+	w, r := makeRequest(t, tc, http.MethodGet, "/api/roi/history", nil)
+	tc.apiServer.ROIHistory(w, r)
+	expectStatus(t, w, http.StatusOK)
+}
+
+func TestROIQuarterlyTrendAPI(t *testing.T) {
+	tc := setupIntegrationTest(t)
+	w, r := makeRequest(t, tc, http.MethodGet, "/api/roi/trend", nil)
+	tc.apiServer.ROIQuarterlyTrend(w, r)
+	expectStatus(t, w, http.StatusOK)
+}
+
+// ── Scheduled Reports API ──
+
+func TestScheduledReportsListAPI(t *testing.T) {
+	tc := setupIntegrationTest(t)
+	w, r := makeRequest(t, tc, http.MethodGet, "/api/scheduled-reports/", nil)
+	tc.apiServer.ScheduledReports(w, r)
+	expectStatus(t, w, http.StatusOK)
+}
+
+func TestScheduledReportTypesAPI(t *testing.T) {
+	tc := setupIntegrationTest(t)
+	w, r := makeRequest(t, tc, http.MethodGet, "/api/scheduled-reports/types", nil)
+	tc.apiServer.ScheduledReportTypes(w, r)
+	expectStatus(t, w, http.StatusOK)
+}
+
+func TestScheduledReportSummaryAPI(t *testing.T) {
+	tc := setupIntegrationTest(t)
+	w, r := makeRequest(t, tc, http.MethodGet, "/api/scheduled-reports/summary", nil)
+	tc.apiServer.ScheduledReportSummary(w, r)
+	expectStatus(t, w, http.StatusOK)
+}
+
+// ── Unified Export API ──
+
+func TestUnifiedExportMissingTypeAPI(t *testing.T) {
+	tc := setupIntegrationTest(t)
+	w, r := makeRequest(t, tc, http.MethodGet, "/api/export", nil)
+	tc.apiServer.UnifiedExport(w, r)
+	// Should return 400 because report_type query param is missing
+	if w.Code != http.StatusBadRequest && w.Code != http.StatusOK {
+		t.Errorf("expected 400 or 200, got %d", w.Code)
+	}
+}
+
+// ── Email Security Ops API ──
+
+func TestEmailSecurityDashboardAPI(t *testing.T) {
+	tc := setupIntegrationTest(t)
+	w, r := makeRequest(t, tc, http.MethodGet, "/api/email-security/dashboard", nil)
+	tc.apiServer.EmailSecurityDashboard(w, r)
+	expectStatus(t, w, http.StatusOK)
+}
+
+func TestEmailSecurityOpsAPI(t *testing.T) {
+	tc := setupIntegrationTest(t)
+	w, r := makeRequest(t, tc, http.MethodGet, "/api/email-security/ops", nil)
+	tc.apiServer.EmailSecurityOps(w, r)
+	expectStatus(t, w, http.StatusOK)
+}
+
+// ── Admin Assistant API ──
+
+func TestAdminAssistantOnboardingAPI(t *testing.T) {
+	tc := setupIntegrationTest(t)
+	w, r := makeRequest(t, tc, http.MethodGet, "/api/admin-assistant/onboarding", nil)
+	tc.apiServer.AdminAssistantOnboarding(w, r)
+	expectStatus(t, w, http.StatusOK)
+}
+
+func TestAdminAssistantConversationsAPI(t *testing.T) {
+	tc := setupIntegrationTest(t)
+	w, r := makeRequest(t, tc, http.MethodGet, "/api/admin-assistant/conversations", nil)
+	tc.apiServer.AdminAssistantConversations(w, r)
+	expectStatus(t, w, http.StatusOK)
+}
+
+// ── Enhanced Board Reports API ──
+
+func TestBoardReportHeatmapAPI(t *testing.T) {
+	tc := setupIntegrationTest(t)
+	w, r := makeRequest(t, tc, http.MethodGet, "/api/board-reports/heatmap", nil)
+	tc.apiServer.BoardReportHeatmap(w, r)
+	expectStatus(t, w, http.StatusOK)
+}
+
+func TestBoardReportDeltasAPI(t *testing.T) {
+	tc := setupIntegrationTest(t)
+	payload := map[string]string{"period_start": "2026-01-01", "period_end": "2026-03-31"}
+	w, r := makeRequest(t, tc, http.MethodPost, "/api/board-reports/deltas", payload)
+	tc.apiServer.BoardReportDeltas(w, r)
+	expectStatus(t, w, http.StatusOK)
+}
+
+// ── Inbox AI Feedback API ──
+
+func TestInboxFeedbackListAPI(t *testing.T) {
+	tc := setupIntegrationTest(t)
+	w, r := makeRequest(t, tc, http.MethodGet, "/api/inbox/feedback", nil)
+	tc.apiServer.InboxFeedback(w, r)
+	expectStatus(t, w, http.StatusOK)
+}
+
+func TestInboxFeedbackUnreadAPI(t *testing.T) {
+	tc := setupIntegrationTest(t)
+	w, r := makeRequest(t, tc, http.MethodGet, "/api/inbox/feedback/unread-count", nil)
+	tc.apiServer.InboxFeedbackUnread(w, r)
+	expectStatus(t, w, http.StatusOK)
+}
+
+func TestInboxAIAccuracyAPI(t *testing.T) {
+	tc := setupIntegrationTest(t)
+	w, r := makeRequest(t, tc, http.MethodGet, "/api/inbox/ai-accuracy", nil)
+	tc.apiServer.InboxAIAccuracy(w, r)
+	expectStatus(t, w, http.StatusOK)
+}

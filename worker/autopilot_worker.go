@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/gophish/gophish/ai"
 	log "github.com/gophish/gophish/logger"
 	"github.com/gophish/gophish/models"
 )
@@ -240,6 +241,8 @@ func buildAdaptiveBatches(targets []models.Target, templates []models.Template) 
 
 // launchBatchedCampaigns creates one campaign per template batch and records
 // per-user schedule entries with adaptive difficulty levels.
+// When A/B testing is possible (even number of targets), it splits the batch
+// into Variant A and Variant B to measure learning outcomes.
 func launchBatchedCampaigns(orgId int64, batches map[int64]*campaignBatch, res *autopilotResources) error {
 	now := time.Now().UTC()
 
@@ -247,15 +250,19 @@ func launchBatchedCampaigns(orgId int64, batches map[int64]*campaignBatch, res *
 		campaignName := fmt.Sprintf("Autopilot - %s - %s",
 			batch.template.Name, now.Format("2006-01-02 15:04"))
 
+		// Compute optimal launch time: if enough users have send-time data,
+		// shift the launch to the most common preferred send window.
+		launchTime := computeBatchLaunchTime(batch, now, res)
+
 		campaign := models.Campaign{
-			Name:     campaignName,
-			Template: models.Template{Name: batch.template.Name},
-			Page:     models.Page{Name: res.page.Name},
-			SMTP:     models.SMTP{Name: res.smtp.Name},
-			URL:      res.phishURL,
-			Groups:   []models.Group{{Name: res.groupName}},
-			LaunchDate: now,
-			SendByDate: now.Add(res.sendWindow),
+			Name:       campaignName,
+			Template:   models.Template{Name: batch.template.Name},
+			Page:       models.Page{Name: res.page.Name},
+			SMTP:       models.SMTP{Name: res.smtp.Name},
+			URL:        res.phishURL,
+			Groups:     []models.Group{{Name: res.groupName}},
+			LaunchDate: launchTime,
+			SendByDate: launchTime.Add(res.sendWindow),
 		}
 
 		if err := models.PostCampaign(&campaign, res.campaignScope); err != nil {
@@ -264,20 +271,29 @@ func launchBatchedCampaigns(orgId int64, batches map[int64]*campaignBatch, res *
 			continue
 		}
 
-		log.Infof("Autopilot Worker: org %d - created adaptive campaign %d (%s) with %d recipients, template=%q difficulty=%d",
+		log.Infof("Autopilot Worker: org %d - created adaptive campaign %d (%s) with %d recipients, template=%q difficulty=%d launch=%s",
 			orgId, campaign.Id, campaignName, len(batch.targets),
-			batch.template.Name, batch.template.DifficultyLevel)
+			batch.template.Name, batch.template.DifficultyLevel,
+			launchTime.Format("2006-01-02 15:04"))
 
-		recordScheduleEntries(orgId, campaign.Id, now, batch)
+		recordScheduleEntries(orgId, campaign.Id, launchTime, batch)
+
+		// Record A/B test placeholders for post-hoc analysis
+		recordABTestEntries(orgId, campaign.Id, batch)
 	}
 	return nil
 }
 
 func recordScheduleEntries(orgId, campaignId int64, scheduledDate time.Time, batch *campaignBatch) {
-	for _, t := range batch.targets {
+	for i, t := range batch.targets {
 		difficulty := 2 // default medium
 		if p := batch.profiles[t.Email]; p != nil {
 			difficulty = p.RecommendedDifficulty
+		}
+		// Assign A/B variant: alternate A and B across the target list.
+		variantId := "A"
+		if i%2 == 1 {
+			variantId = "B"
 		}
 		models.CreateAutopilotSchedule(&models.AutopilotSchedule{
 			OrgId:           orgId,
@@ -286,13 +302,118 @@ func recordScheduleEntries(orgId, campaignId int64, scheduledDate time.Time, bat
 			DifficultyLevel: difficulty,
 			ScheduledDate:   scheduledDate,
 			Sent:            true,
+			VariantId:       variantId,
 		})
+	}
+}
+
+// recordABTestEntries pre-creates ABTestResult rows for each user in the batch
+// so that the result handlers can populate outcome data later.
+func recordABTestEntries(orgId, campaignId int64, batch *campaignBatch) {
+	for i, t := range batch.targets {
+		variantId := "A"
+		if i%2 == 1 {
+			variantId = "B"
+		}
+		user, err := models.GetUserByEmail(t.Email)
+		if err != nil || user.Id == 0 {
+			continue
+		}
+		models.RecordABTestResult(&models.ABTestResult{
+			OrgId:        orgId,
+			CampaignId:   campaignId,
+			UserId:       user.Id,
+			Email:        t.Email,
+			VariantId:    variantId,
+			TemplateId:   batch.template.Id,
+			TemplateName: batch.template.Name,
+		})
+	}
+}
+
+// computeBatchLaunchTime determines the best time to launch a campaign batch
+// based on the send-time profiles of the targets in the batch.
+// It picks the most popular preferred send hour/day from users with sufficient data.
+func computeBatchLaunchTime(batch *campaignBatch, fallback time.Time, res *autopilotResources) time.Time {
+	hourVotes := make(map[int]int)
+	dayVotes := make(map[int]int) // 0=Sun .. 6=Sat
+	confident := 0
+
+	for _, p := range batch.profiles {
+		if p == nil || p.SendTimeConfidence < 0.3 {
+			continue
+		}
+		confident++
+		hourVotes[p.PreferredSendHour]++
+		dayIdx := dayNameToIndex(p.PreferredSendDay)
+		if dayIdx >= 0 {
+			dayVotes[dayIdx]++
+		}
+	}
+
+	// Need at least 30% of batch to have confident send-time data
+	if confident < len(batch.targets)*30/100 || confident == 0 {
+		return fallback
+	}
+
+	// Find peak hour and day
+	bestHour, bestHourCount := 10, 0 // default 10am
+	for h, c := range hourVotes {
+		if c > bestHourCount {
+			bestHour = h
+			bestHourCount = c
+		}
+	}
+
+	bestDay, bestDayCount := int(fallback.Weekday()), 0
+	for d, c := range dayVotes {
+		if c > bestDayCount {
+			bestDay = d
+			bestDayCount = c
+		}
+	}
+
+	// Compute next occurrence of bestDay at bestHour
+	now := time.Now().UTC()
+	target := time.Date(now.Year(), now.Month(), now.Day(), bestHour, 0, 0, 0, time.UTC)
+	daysUntil := (bestDay - int(now.Weekday()) + 7) % 7
+	if daysUntil == 0 && target.Before(now) {
+		daysUntil = 7
+	}
+	target = target.AddDate(0, 0, daysUntil)
+
+	log.Infof("Autopilot Worker: send-time optimization → launch at %s (hour=%d, day=%s, confident=%d/%d)",
+		target.Format("2006-01-02 15:04"), bestHour, time.Weekday(bestDay).String(), confident, len(batch.targets))
+
+	return target
+}
+
+func dayNameToIndex(name string) int {
+	switch name {
+	case "Sunday":
+		return 0
+	case "Monday":
+		return 1
+	case "Tuesday":
+		return 2
+	case "Wednesday":
+		return 3
+	case "Thursday":
+		return 4
+	case "Friday":
+		return 5
+	case "Saturday":
+		return 6
+	default:
+		return -1
 	}
 }
 
 // getUserProfile builds a targeting profile for a target. If the target has a
 // matching platform user with BRS data, the full adaptive profile is returned;
 // otherwise nil is returned (which causes random/easy selection).
+// This function now also populates send-time and department threat intelligence
+// data for use by the send-time optimizer and AI prompt builder.
 func getUserProfile(t models.Target) *models.UserTargetingProfile {
 	user, err := models.GetUserByEmail(t.Email)
 	if err != nil || user.Id == 0 {
@@ -303,7 +424,50 @@ func getUserProfile(t models.Target) *models.UserTargetingProfile {
 		log.Errorf("Autopilot Worker: adaptive targeting failed for %s: %v", t.Email, err)
 		return nil
 	}
+	// GetUserTargetingProfile already populates:
+	// - PreferredSendDay/Hour/Confidence (from SendTimeProfile)
+	// - Department/DepartmentThreats/DepartmentRiskMult (from DepartmentThreatProfile)
 	return profile
+}
+
+// BuildUserContextForAI converts a targeting profile into the AI UserContext
+// structure used by the prompt builder. This bridges the adaptive targeting engine
+// with the AI template generator, ensuring department-specific threat intelligence
+// flows into the generated phishing templates.
+func BuildUserContextForAI(profile *models.UserTargetingProfile) *ai.UserContext {
+	if profile == nil {
+		return nil
+	}
+	ctx := &ai.UserContext{
+		ClickRate:      profile.OverallClickRate,
+		BRSScore:       profile.BRSComposite,
+		TrendDirection: profile.TrendDirection,
+	}
+
+	// Weak categories
+	for _, wc := range profile.WeakCategories {
+		ctx.WeakCategories = append(ctx.WeakCategories, wc.Category)
+	}
+
+	// Recent categories → avoid
+	ctx.AvoidCategories = profile.RecentCategories
+
+	// Department-specific threat intelligence
+	if profile.Department != "" {
+		ctx.Department = profile.Department
+		ctx.DepartmentThreats = profile.DepartmentThreats
+		// Load contextual triggers from the full threat profile
+		deptTP := models.GetDepartmentThreatProfile(profile.Department)
+		ctx.ContextualTriggers = deptTP.ContextualTriggers
+	}
+
+	// Send-time optimization hints
+	if profile.SendTimeConfidence >= 0.3 {
+		ctx.OptimalSendDay = profile.PreferredSendDay
+		ctx.OptimalSendHour = profile.PreferredSendHour
+	}
+
+	return ctx
 }
 
 // getByID is a helper to load a model by ID from a specific table.

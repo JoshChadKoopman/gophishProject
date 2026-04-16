@@ -107,6 +107,23 @@ var api = {
         // summary() - Queries the API for GET /campaigns/summary
         summary: function (id) {
             return query("/campaigns/" + id + "/summary", "GET", {}, true)
+        },
+        // ── Campaign Advanced Analytics ──
+        // funnel() - GET /campaigns/:id/analytics/funnel
+        funnel: function (id) {
+            return query("/campaigns/" + id + "/analytics/funnel", "GET", {}, true)
+        },
+        // timeToClick() - GET /campaigns/:id/analytics/time-to-click
+        timeToClick: function (id) {
+            return query("/campaigns/" + id + "/analytics/time-to-click", "GET", {}, true)
+        },
+        // repeatOffenders() - GET /campaigns/:id/analytics/repeat-offenders
+        repeatOffenders: function (id) {
+            return query("/campaigns/" + id + "/analytics/repeat-offenders", "GET", {}, true)
+        },
+        // deviceBreakdown() - GET /campaigns/:id/analytics/devices
+        deviceBreakdown: function (id) {
+            return query("/campaigns/" + id + "/analytics/devices", "GET", {}, true)
         }
     },
     // groups contains the endpoints for /groups
@@ -521,6 +538,9 @@ var api = {
         getOne: function (id) {
             return query("/board-reports/" + id, "GET", {}, true)
         },
+        getFull: function (id) {
+            return query("/board-reports/" + id + "/full", "GET", {}, true)
+        },
         create: function (data) {
             return query("/board-reports/", "POST", data, false)
         },
@@ -532,6 +552,24 @@ var api = {
         },
         generate: function (data) {
             return query("/board-reports/generate", "POST", data, false)
+        },
+        generateNarrative: function (id) {
+            return query("/board-reports/" + id + "/generate-narrative", "POST", {}, false)
+        },
+        editNarrative: function (id, data) {
+            return query("/board-reports/" + id + "/narrative-edit", "PUT", data, false)
+        },
+        transition: function (id, data) {
+            return query("/board-reports/" + id + "/transition", "POST", data, false)
+        },
+        getApprovals: function (id) {
+            return query("/board-reports/" + id + "/approvals", "GET", {}, true)
+        },
+        getHeatmap: function () {
+            return query("/board-reports/heatmap", "GET", {}, true)
+        },
+        getDeltas: function (data) {
+            return query("/board-reports/deltas", "POST", data, false)
         },
         exportUrl: function (id, format) {
             return "/api/board-reports/" + id + "/export?format=" + (format || "pdf")
@@ -981,6 +1019,169 @@ var api = {
     emailSecurity: {
         getDashboard: function () {
             return query("/email-security/dashboard", "GET", {}, true)
+        }
+    },
+    // Network Events: Security event correlation & MITRE mapping
+    networkEvents: {
+        list: function (qs) {
+            var url = "/network-events/";
+            if (qs) url += "?" + qs;
+            return query(url, "GET", {}, true)
+        },
+        get: function (id) {
+            return query("/network-events/" + id, "GET", {}, true)
+        },
+        updateStatus: function (id, status) {
+            return query("/network-events/" + id, "PUT", { status: status }, false)
+        },
+        ingest: function (data) {
+            return query("/network-events/ingest", "POST", data, false)
+        },
+        bulkIngest: function (data) {
+            return query("/network-events/bulk-ingest", "POST", data, false)
+        },
+        dashboard: function () {
+            return query("/network-events/dashboard", "GET", {}, true)
+        },
+        trend: function (days) {
+            return query("/network-events/trend?days=" + (days || 30), "GET", {}, true)
+        },
+        addNote: function (id, content) {
+            return query("/network-events/" + id + "/notes", "POST", { content: content }, false)
+        },
+        mitreHeatmap: function () {
+            return query("/network-events/mitre-heatmap", "GET", {}, true)
+        },
+        correlate: function () {
+            return query("/network-events/correlate", "POST", {}, false)
+        },
+        incidents: function (status, limit) {
+            var url = "/network-events/incidents";
+            var params = [];
+            if (status) params.push("status=" + encodeURIComponent(status));
+            if (limit) params.push("limit=" + limit);
+            if (params.length) url += "?" + params.join("&");
+            return query(url, "GET", {}, true)
+        },
+        getIncident: function (id) {
+            return query("/network-events/incidents/" + id, "GET", {}, true)
+        },
+        updateIncidentStatus: function (id, status) {
+            return query("/network-events/incidents/" + id, "PUT", { status: status }, false)
+        },
+        playbookLogs: function (limit) {
+            return query("/network-events/playbook-logs?limit=" + (limit || 50), "GET", {}, true)
+        },
+        getRules: function () {
+            return query("/network-events/rules", "GET", {}, true)
+        },
+        createRule: function (data) {
+            return query("/network-events/rules", "POST", data, false)
+        },
+        updateRule: function (id, data) {
+            return query("/network-events/rules/" + id, "PUT", data, false)
+        },
+        deleteRule: function (id) {
+            return query("/network-events/rules/" + id, "DELETE", {}, false)
+        }
+    },
+    // ── ROI Enhanced: Benchmarks, Monte Carlo, History ──
+    roi: {
+        generate: function (data) {
+            return query("/roi/generate", "POST", data, false)
+        },
+        generateAndSave: function (data) {
+            return query("/roi/generate-and-save", "POST", data, false)
+        },
+        getConfig: function () {
+            return query("/roi/config", "GET", {}, true)
+        },
+        saveConfig: function (data) {
+            return query("/roi/config", "PUT", data, false)
+        },
+        getBenchmarks: function () {
+            return query("/roi/benchmarks", "GET", {}, true)
+        },
+        saveBenchmark: function (data) {
+            return query("/roi/benchmarks", "POST", data, false)
+        },
+        deleteBenchmark: function (id) {
+            return query("/roi/benchmarks/" + id, "DELETE", {}, false)
+        },
+        seedBenchmarks: function () {
+            return query("/roi/benchmarks/seed", "POST", {}, false)
+        },
+        compareBenchmarks: function (start, end) {
+            return query("/roi/benchmarks/compare?start=" + start + "&end=" + end, "GET", {}, true)
+        },
+        monteCarlo: function (data) {
+            return query("/roi/monte-carlo", "POST", data, false)
+        },
+        getHistory: function () {
+            return query("/roi/history", "GET", {}, true)
+        },
+        deleteHistoryItem: function (id) {
+            return query("/roi/history/" + id, "DELETE", {}, false)
+        },
+        getTrend: function () {
+            return query("/roi/trend", "GET", {}, true)
+        },
+        exportPdf: function (start, end) {
+            return "/api/roi/export-pdf?start=" + start + "&end=" + end
+        },
+        exportUrl: function (format, start, end) {
+            return "/api/roi/export?format=" + format + "&start=" + start + "&end=" + end
+        }
+    },
+    // ── AI Admin Assistant ──
+    adminAssistant: {
+        chat: function (data) {
+            return query("/admin-assistant/chat", "POST", data, false)
+        },
+        getConversations: function () {
+            return query("/admin-assistant/conversations", "GET", {}, true)
+        },
+        getConversation: function (id) {
+            return query("/admin-assistant/conversations/" + id, "GET", {}, true)
+        },
+        getOnboarding: function () {
+            return query("/admin-assistant/onboarding", "GET", {}, true)
+        },
+        completeOnboardingStep: function (step) {
+            return query("/admin-assistant/onboarding/" + step + "/complete", "POST", {}, false)
+        }
+    },
+    // ── Scheduled Reports ──
+    scheduledReports: {
+        getAll: function () {
+            return query("/scheduled-reports/", "GET", {}, true)
+        },
+        get: function (id) {
+            return query("/scheduled-reports/" + id, "GET", {}, true)
+        },
+        create: function (data) {
+            return query("/scheduled-reports/", "POST", data, false)
+        },
+        update: function (id, data) {
+            return query("/scheduled-reports/" + id, "PUT", data, false)
+        },
+        delete: function (id) {
+            return query("/scheduled-reports/" + id, "DELETE", {}, false)
+        },
+        toggle: function (id, isActive) {
+            return query("/scheduled-reports/" + id + "/toggle", "POST", { is_active: isActive }, false)
+        },
+        getSummary: function () {
+            return query("/scheduled-reports/summary", "GET", {}, true)
+        },
+        getTypes: function () {
+            return query("/scheduled-reports/types", "GET", {}, true)
+        }
+    },
+    // ── Unified Export ──
+    export: {
+        url: function (reportType, format, start, end) {
+            return "/api/export?type=" + reportType + "&format=" + (format || "pdf") + "&start=" + (start || "") + "&end=" + (end || "")
         }
     }
 }

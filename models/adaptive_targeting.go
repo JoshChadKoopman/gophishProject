@@ -50,13 +50,13 @@ type UserTargetingProfile struct {
 	LastSimulationDate          *time.Time      `json:"last_simulation_date"`
 	RecentCategories            []string        `json:"recent_categories"` // categories used in last 3 campaigns, to avoid repeats
 	// Send-time optimization (Feature 1 enhancement)
-	PreferredSendDay   string `json:"preferred_send_day,omitempty"`
-	PreferredSendHour  int    `json:"preferred_send_hour,omitempty"`
+	PreferredSendDay   string  `json:"preferred_send_day,omitempty"`
+	PreferredSendHour  int     `json:"preferred_send_hour,omitempty"`
 	SendTimeConfidence float64 `json:"send_time_confidence,omitempty"` // 0-1
 	// Department threat context (Feature 1 enhancement)
-	Department           string   `json:"department,omitempty"`
-	DepartmentThreats    []string `json:"department_threats,omitempty"`
-	DepartmentRiskMult   float64  `json:"department_risk_multiplier,omitempty"`
+	Department         string   `json:"department,omitempty"`
+	DepartmentThreats  []string `json:"department_threats,omitempty"`
+	DepartmentRiskMult float64  `json:"department_risk_multiplier,omitempty"`
 }
 
 // CategoryScore tracks a user's click/submit rate for a specific phishing category.
@@ -113,7 +113,14 @@ func GetUserTargetingProfile(userId int64) (*UserTargetingProfile, error) {
 	if profile.TrainingDifficultyMode == "" {
 		profile.TrainingDifficultyMode = DifficultyModeAdaptive
 	}
-	profile.EffectiveTrainingDifficulty = GetEffectiveDifficulty(userId)
+	// Compute effective difficulty inline to avoid mutual recursion with GetEffectiveDifficulty
+	if profile.TrainingDifficultyMode == DifficultyModeManual &&
+		user.TrainingDifficultyManual >= DifficultyEasy &&
+		user.TrainingDifficultyManual <= DifficultySophisticated {
+		profile.EffectiveTrainingDifficulty = user.TrainingDifficultyManual
+	} else {
+		profile.EffectiveTrainingDifficulty = profile.RecommendedDifficulty
+	}
 
 	// 6. Last simulation date
 	profile.LastSimulationDate = getLastSimDate(userId, user.OrgId, user.Email)

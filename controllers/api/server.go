@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/gophish/gophish/config"
@@ -72,6 +73,29 @@ func WithAIConfig(cfg config.AIConfig) ServerOption {
 	}
 }
 
+// MCPQueryRequest represents the request body for the MCP API.
+type MCPQueryRequest struct {
+	Query string `json:"query"`
+}
+
+// MCPQueryResponse represents the response body for the MCP API.
+type MCPQueryResponse struct {
+	Result string `json:"result"`
+}
+
+// MCPQueryHandler handles MCP API queries for Claude or other LLMs.
+func (as *Server) MCPQueryHandler(w http.ResponseWriter, r *http.Request) {
+	var req MCPQueryRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+	// TODO: Replace this with real Claude/LLM integration
+	resp := MCPQueryResponse{Result: "Echo: " + req.Query}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}
+
 func (as *Server) registerRoutes() {
 	root := mux.NewRouter()
 	root = root.StrictSlash(true)
@@ -92,6 +116,11 @@ func (as *Server) registerRoutes() {
 	router.HandleFunc("/campaigns/{id:[0-9]+}/results", as.CampaignResults)
 	router.HandleFunc("/campaigns/{id:[0-9]+}/summary", as.CampaignSummary)
 	router.HandleFunc("/campaigns/{id:[0-9]+}/complete", as.CampaignComplete)
+	// Campaign advanced analytics
+	router.HandleFunc("/campaigns/{id:[0-9]+}/analytics/funnel", as.CampaignAnalyticsFunnel)
+	router.HandleFunc("/campaigns/{id:[0-9]+}/analytics/time-to-click", as.CampaignAnalyticsTimeToClick)
+	router.HandleFunc("/campaigns/{id:[0-9]+}/analytics/repeat-offenders", as.CampaignAnalyticsRepeatOffenders)
+	router.HandleFunc("/campaigns/{id:[0-9]+}/analytics/devices", as.CampaignAnalyticsDeviceBreakdown)
 	router.HandleFunc("/groups/", as.Groups)
 	router.HandleFunc("/groups/summary", as.GroupsSummary)
 	router.HandleFunc("/groups/{id:[0-9]+}", as.Group)
@@ -194,10 +223,24 @@ func (as *Server) registerRoutes() {
 	router.HandleFunc("/board-reports/generate", mid.Use(as.BoardReportGenerate, mid.RequirePermission(models.PermissionViewReports), mid.RequireFeature(models.FeatureBoardReports)))
 	router.HandleFunc("/board-reports/{id:[0-9]+}", mid.Use(as.BoardReport, mid.RequirePermission(models.PermissionViewReports), mid.RequireFeature(models.FeatureBoardReports)))
 	router.HandleFunc("/board-reports/{id:[0-9]+}/export", mid.Use(as.BoardReportExport, mid.RequirePermission(models.PermissionViewReports), mid.RequireFeature(models.FeatureBoardReports)))
+	router.HandleFunc("/board-reports/{id:[0-9]+}/export-branded", mid.Use(as.BoardReportExportBranded, mid.RequirePermission(models.PermissionViewReports), mid.RequireFeature(models.FeatureBoardReports)))
+	router.HandleFunc("/board-reports/schedules", mid.Use(as.BoardReportSchedules, mid.RequirePermission(models.PermissionModifySystem), mid.RequireFeature(models.FeatureBoardReports)))
+	router.HandleFunc("/board-reports/schedules/run", mid.Use(as.BoardReportScheduleRun, mid.RequirePermission(models.PermissionModifySystem), mid.RequireFeature(models.FeatureBoardReports)))
+	router.HandleFunc("/board-reports/schedules/{id:[0-9]+}", mid.Use(as.BoardReportScheduleItem, mid.RequirePermission(models.PermissionModifySystem), mid.RequireFeature(models.FeatureBoardReports)))
 	// ROI Reporting routes
 	router.HandleFunc("/roi/config", mid.Use(as.ROIConfig, mid.RequirePermission(models.PermissionViewReports)))
 	router.HandleFunc("/roi/generate", mid.Use(as.ROIGenerate, mid.RequirePermission(models.PermissionViewReports)))
+	router.HandleFunc("/roi/generate-and-save", mid.Use(as.ROIGenerateAndSave, mid.RequirePermission(models.PermissionViewReports)))
 	router.HandleFunc("/roi/export", mid.Use(as.ROIExport, mid.RequirePermission(models.PermissionViewReports)))
+	router.HandleFunc("/roi/export-pdf", mid.Use(as.ROIExportEnhancedPDF, mid.RequirePermission(models.PermissionViewReports)))
+	router.HandleFunc("/roi/benchmarks", mid.Use(as.ROIBenchmarks, mid.RequirePermission(models.PermissionViewReports)))
+	router.HandleFunc("/roi/benchmarks/{id:[0-9]+}", mid.Use(as.ROIBenchmarkItem, mid.RequirePermission(models.PermissionModifySystem)))
+	router.HandleFunc("/roi/benchmarks/seed", mid.Use(as.ROIBenchmarkSeed, mid.RequirePermission(models.PermissionModifySystem)))
+	router.HandleFunc("/roi/benchmarks/compare", mid.Use(as.ROIBenchmarkCompare, mid.RequirePermission(models.PermissionViewReports)))
+	router.HandleFunc("/roi/monte-carlo", mid.Use(as.ROIMonteCarlo, mid.RequirePermission(models.PermissionViewReports)))
+	router.HandleFunc("/roi/history", mid.Use(as.ROIHistory, mid.RequirePermission(models.PermissionViewReports)))
+	router.HandleFunc("/roi/history/{id:[0-9]+}", mid.Use(as.ROIHistoryItem, mid.RequirePermission(models.PermissionViewReports)))
+	router.HandleFunc("/roi/trend", mid.Use(as.ROIQuarterlyTrend, mid.RequirePermission(models.PermissionViewReports)))
 	// Adaptive targeting
 	router.HandleFunc("/targeting/profile/{id:[0-9]+}", mid.Use(as.TargetingProfile, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireFeature(models.FeatureAutopilot)))
 	// Adaptive difficulty routes
@@ -372,6 +415,7 @@ func (as *Server) registerRoutes() {
 	router.HandleFunc("/phishing-tickets/{id:[0-9]+}/escalate", mid.Use(as.PhishingTicketEscalate, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireFeature(models.FeaturePhishingTickets)))
 	// Email Security Dashboard (unified view)
 	router.HandleFunc("/email-security/dashboard", mid.Use(as.EmailSecurityDashboard, mid.RequirePermission(models.PermissionViewReports)))
+	router.HandleFunc("/email-security/ops", mid.Use(as.EmailSecurityOps, mid.RequirePermission(models.PermissionViewReports)))
 	// SCIM token management (admin API, uses normal API key auth)
 	router.HandleFunc("/scim/tokens", mid.Use(as.SCIMTokens, mid.RequirePermission(models.PermissionModifySystem), mid.RequireFeature(models.FeatureSCIM)))
 	router.HandleFunc("/scim/tokens/{id:[0-9]+}", mid.Use(as.SCIMToken, mid.RequirePermission(models.PermissionModifySystem), mid.RequireFeature(models.FeatureSCIM)))
@@ -391,6 +435,10 @@ func (as *Server) registerRoutes() {
 	router.HandleFunc("/msp/portal/report", mid.Use(as.MSPPortalReport, mid.RequireMSPPartner, mid.RequireFeature(models.FeatureMSPPartnerPortal)))
 	router.HandleFunc("/msp/portal/clients/{oid:[0-9]+}", mid.Use(as.MSPPortalClientDetail, mid.RequireMSPPartner, mid.RequireFeature(models.FeatureMSPPartnerPortal)))
 	router.HandleFunc("/msp/portal/switch-org", mid.Use(as.MSPSwitchOrg, mid.RequireMSPPartner, mid.RequireFeature(models.FeatureMSPPartnerPortal)))
+	router.HandleFunc("/msp/portal/ranking", mid.Use(as.MSPClientRanking, mid.RequireMSPPartner, mid.RequireFeature(models.FeatureMSPPartnerPortal)))
+	router.HandleFunc("/msp/portal/comparison", mid.Use(as.MSPClientComparison, mid.RequireMSPPartner, mid.RequireFeature(models.FeatureMSPPartnerPortal)))
+	router.HandleFunc("/msp/portal/billing", mid.Use(as.MSPBillingUsage, mid.RequireMSPPartner, mid.RequireFeature(models.FeatureMSPPartnerPortal)))
+	router.HandleFunc("/msp/portal/quarterly-pdf", mid.Use(as.MSPQuarterlyPDF, mid.RequireMSPPartner, mid.RequireFeature(models.FeatureMSPPartnerPortal)))
 
 	// Network Events Dashboard routes
 	router.HandleFunc("/network-events/", mid.Use(as.NetworkEvents, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireFeature(models.FeatureNetworkEvents)))
@@ -398,6 +446,11 @@ func (as *Server) registerRoutes() {
 	router.HandleFunc("/network-events/bulk-ingest", mid.Use(as.NetworkEventBulkIngest, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireFeature(models.FeatureNetworkEvents)))
 	router.HandleFunc("/network-events/dashboard", mid.Use(as.NetworkEventDashboard, mid.RequirePermission(models.PermissionViewReports), mid.RequireFeature(models.FeatureNetworkEvents)))
 	router.HandleFunc("/network-events/trend", mid.Use(as.NetworkEventTrend, mid.RequirePermission(models.PermissionViewReports), mid.RequireFeature(models.FeatureNetworkEvents)))
+	router.HandleFunc("/network-events/mitre-heatmap", mid.Use(as.NetworkEventMitreHeatmap, mid.RequirePermission(models.PermissionViewReports), mid.RequireFeature(models.FeatureNetworkEvents)))
+	router.HandleFunc("/network-events/correlate", mid.Use(as.NetworkEventCorrelate, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireFeature(models.FeatureNetworkEvents)))
+	router.HandleFunc("/network-events/incidents", mid.Use(as.NetworkIncidents, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireFeature(models.FeatureNetworkEvents)))
+	router.HandleFunc("/network-events/incidents/{id:[0-9]+}", mid.Use(as.NetworkIncident, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireFeature(models.FeatureNetworkEvents)))
+	router.HandleFunc("/network-events/playbook-logs", mid.Use(as.NetworkEventPlaybookLogs, mid.RequirePermission(models.PermissionViewReports), mid.RequireFeature(models.FeatureNetworkEvents)))
 	router.HandleFunc("/network-events/rules", mid.Use(as.NetworkEventRules, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireFeature(models.FeatureNetworkEvents)))
 	router.HandleFunc("/network-events/rules/{id:[0-9]+}", mid.Use(as.NetworkEventRule, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireFeature(models.FeatureNetworkEvents)))
 	router.HandleFunc("/network-events/{id:[0-9]+}", mid.Use(as.NetworkEvent, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireFeature(models.FeatureNetworkEvents)))
@@ -430,6 +483,13 @@ func (as *Server) registerRoutes() {
 	// ── Enhanced Board Reports (AI Narrative + ROI) ──
 	router.HandleFunc("/board-reports/enhanced", mid.Use(as.BoardReportEnhanced, mid.RequirePermission(models.PermissionViewReports), mid.RequireFeature(models.FeatureEnhancedBoardReports)))
 	router.HandleFunc("/board-reports/{id:[0-9]+}/narrative", mid.Use(as.BoardReportNarrative, mid.RequirePermission(models.PermissionViewReports), mid.RequireFeature(models.FeatureEnhancedBoardReports)))
+	router.HandleFunc("/board-reports/{id:[0-9]+}/full", mid.Use(as.BoardReportFull, mid.RequirePermission(models.PermissionViewReports), mid.RequireFeature(models.FeatureEnhancedBoardReports)))
+	router.HandleFunc("/board-reports/{id:[0-9]+}/generate-narrative", mid.Use(as.BoardReportGenerateNarrative, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireFeature(models.FeatureEnhancedBoardReports)))
+	router.HandleFunc("/board-reports/{id:[0-9]+}/narrative-edit", mid.Use(as.BoardReportEditNarrative, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireFeature(models.FeatureEnhancedBoardReports)))
+	router.HandleFunc("/board-reports/{id:[0-9]+}/transition", mid.Use(as.BoardReportTransition, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireFeature(models.FeatureEnhancedBoardReports)))
+	router.HandleFunc("/board-reports/{id:[0-9]+}/approvals", mid.Use(as.BoardReportApprovals, mid.RequirePermission(models.PermissionViewReports), mid.RequireFeature(models.FeatureEnhancedBoardReports)))
+	router.HandleFunc("/board-reports/heatmap", mid.Use(as.BoardReportHeatmap, mid.RequirePermission(models.PermissionViewReports), mid.RequireFeature(models.FeatureEnhancedBoardReports)))
+	router.HandleFunc("/board-reports/deltas", mid.Use(as.BoardReportDeltas, mid.RequirePermission(models.PermissionViewReports), mid.RequireFeature(models.FeatureEnhancedBoardReports)))
 
 	// ── Real-Time Dashboard (WebSocket + Metrics + Sparklines) ──
 	router.HandleFunc("/dashboard/ws", mid.Use(as.DashboardWS, mid.RequireFeature(models.FeatureRealtimeDashboard)))
@@ -439,6 +499,19 @@ func (as *Server) registerRoutes() {
 	router.HandleFunc("/dashboard/live-counts", mid.Use(as.DashboardLiveCounts, mid.RequireFeature(models.FeatureRealtimeDashboard)))
 	router.HandleFunc("/dashboard/ws-status", mid.Use(as.DashboardWSStatus, mid.RequirePermission(models.PermissionModifySystem), mid.RequireFeature(models.FeatureRealtimeDashboard)))
 
+	// ── Scheduled Reports (admin-configurable recurring report delivery) ──
+	router.HandleFunc("/scheduled-reports/", mid.Use(as.ScheduledReports, mid.RequirePermission(models.PermissionViewReports), mid.RequireFeature(models.FeatureScheduledReports)))
+	router.HandleFunc("/scheduled-reports/types", mid.Use(as.ScheduledReportTypes, mid.RequirePermission(models.PermissionViewReports), mid.RequireFeature(models.FeatureScheduledReports)))
+	router.HandleFunc("/scheduled-reports/summary", mid.Use(as.ScheduledReportSummary, mid.RequirePermission(models.PermissionViewReports), mid.RequireFeature(models.FeatureScheduledReports)))
+	router.HandleFunc("/scheduled-reports/{id:[0-9]+}", mid.Use(as.ScheduledReport, mid.RequirePermission(models.PermissionViewReports), mid.RequireFeature(models.FeatureScheduledReports)))
+	router.HandleFunc("/scheduled-reports/{id:[0-9]+}/toggle", mid.Use(as.ScheduledReportToggle, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireFeature(models.FeatureScheduledReports)))
+
+	// ── Unified Export API (standardized exports for all report types) ──
+	router.HandleFunc("/export", mid.Use(as.UnifiedExport, mid.RequirePermission(models.PermissionViewReports)))
+
+	// ── A/B Testing API ──
+	router.HandleFunc("/ab-test/{campaignId:[0-9]+}", mid.Use(as.ABTestSummary, mid.RequirePermission(models.PermissionViewReports), mid.RequireFeature(models.FeatureABTesting)))
+
 	// ── DB-Backed Template Library (Admin) ──
 	router.HandleFunc("/template-library-db/", mid.Use(as.TemplateLibraryDB, mid.RequireFeature(models.FeatureTemplateLibraryDB)))
 	router.HandleFunc("/template-library-db/stats", mid.Use(as.TemplateLibraryDBStats, mid.RequireFeature(models.FeatureTemplateLibraryDB)))
@@ -446,6 +519,24 @@ func (as *Server) registerRoutes() {
 	router.HandleFunc("/template-library-db/import", mid.Use(as.TemplateLibraryDBImport, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireFeature(models.FeatureTemplateLibraryDB)))
 	router.HandleFunc("/template-library-db/export", mid.Use(as.TemplateLibraryDBExport, mid.RequirePermission(models.PermissionViewReports), mid.RequireFeature(models.FeatureTemplateLibraryDB)))
 	router.HandleFunc("/template-library-db/seed", mid.Use(as.TemplateLibraryDBSeed, mid.RequirePermission(models.PermissionModifySystem), mid.RequireFeature(models.FeatureTemplateLibraryDB)))
+	router.HandleFunc("/template-library-db/seed-all", mid.Use(as.TemplateLibraryDBSeedAll, mid.RequirePermission(models.PermissionModifySystem), mid.RequireFeature(models.FeatureTemplateLibraryDB)))
+	router.HandleFunc("/template-library-db/seed-multilingual", mid.Use(as.TemplateLibraryDBSeedMultilingual, mid.RequirePermission(models.PermissionModifySystem), mid.RequireFeature(models.FeatureTemplateLibraryDB)))
+	router.HandleFunc("/template-library-db/community/submit", mid.Use(as.TemplateLibraryDBCommunitySubmit, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireFeature(models.FeatureTemplateLibraryDB)))
+	router.HandleFunc("/template-library-db/community/submissions", mid.Use(as.TemplateLibraryDBCommunityList, mid.RequireFeature(models.FeatureTemplateLibraryDB)))
+	router.HandleFunc("/template-library-db/community/review", mid.Use(as.TemplateLibraryDBCommunityReview, mid.RequirePermission(models.PermissionModifySystem), mid.RequireFeature(models.FeatureTemplateLibraryDB)))
+	router.HandleFunc("/template-library-db/search", mid.Use(as.TemplateLibraryDBSearch, mid.RequireFeature(models.FeatureTemplateLibraryDB)))
+	router.HandleFunc("/template-library-db/similarity", mid.Use(as.TemplateLibraryDBSimilarity, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireFeature(models.FeatureTemplateLibraryDB)))
+	router.HandleFunc("/template-library-db/reviews", mid.Use(as.TemplateLibraryDBReviews, mid.RequirePermission(models.PermissionModifySystem), mid.RequireFeature(models.FeatureTemplateLibraryDB)))
+	router.HandleFunc("/template-library-db/reviews/stats", mid.Use(as.TemplateLibraryDBReviewStats, mid.RequirePermission(models.PermissionModifySystem), mid.RequireFeature(models.FeatureTemplateLibraryDB)))
+	router.HandleFunc("/template-library-db/reviews/complete", mid.Use(as.TemplateLibraryDBReviewComplete, mid.RequirePermission(models.PermissionModifySystem), mid.RequireFeature(models.FeatureTemplateLibraryDB)))
+	router.HandleFunc("/template-library-db/reviews/revision", mid.Use(as.TemplateLibraryDBReviewRevision, mid.RequirePermission(models.PermissionModifySystem), mid.RequireFeature(models.FeatureTemplateLibraryDB)))
+	router.HandleFunc("/template-library-db/reviews/create-pending", mid.Use(as.TemplateLibraryDBCreateReviews, mid.RequirePermission(models.PermissionModifySystem), mid.RequireFeature(models.FeatureTemplateLibraryDB)))
+	router.HandleFunc("/template-library-db/export-csv", mid.Use(as.TemplateLibraryDBExportCSV, mid.RequirePermission(models.PermissionViewReports), mid.RequireFeature(models.FeatureTemplateLibraryDB)))
+	router.HandleFunc("/template-library-db/import-csv", mid.Use(as.TemplateLibraryDBImportCSV, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireFeature(models.FeatureTemplateLibraryDB)))
+	router.HandleFunc("/template-library-db/bulk-publish", mid.Use(as.TemplateLibraryDBBulkPublish, mid.RequirePermission(models.PermissionModifySystem), mid.RequireFeature(models.FeatureTemplateLibraryDB)))
+	router.HandleFunc("/template-library-db/bulk-unpublish", mid.Use(as.TemplateLibraryDBBulkUnpublish, mid.RequirePermission(models.PermissionModifySystem), mid.RequireFeature(models.FeatureTemplateLibraryDB)))
+	router.HandleFunc("/template-library-db/bulk-delete", mid.Use(as.TemplateLibraryDBBulkDelete, mid.RequirePermission(models.PermissionModifySystem), mid.RequireFeature(models.FeatureTemplateLibraryDB)))
+	router.HandleFunc("/template-library-db/bulk-tag", mid.Use(as.TemplateLibraryDBBulkTag, mid.RequirePermission(models.PermissionModifySystem), mid.RequireFeature(models.FeatureTemplateLibraryDB)))
 	router.HandleFunc("/template-library-db/{id:[0-9]+}", mid.Use(as.TemplateLibraryDBItem, mid.RequireFeature(models.FeatureTemplateLibraryDB)))
 
 	// ── ROI Reporting Dashboard (demonstrate value to leadership) ──
@@ -474,6 +565,13 @@ func (as *Server) registerRoutes() {
 	router.HandleFunc("/compliance/module-assignments", mid.Use(as.ComplianceModuleOrgAssignments, mid.RequirePermission(models.PermissionViewReports), mid.RequireFeature(models.FeatureComplianceMapping)))
 	router.HandleFunc("/compliance/module-seed", mid.Use(as.ComplianceModuleSeed, mid.RequirePermission(models.PermissionModifySystem), mid.RequireFeature(models.FeatureComplianceMapping)))
 	router.HandleFunc("/compliance/training-modules/{slug}/progress", mid.Use(as.ComplianceModuleDetail, mid.RequireFeature(models.FeatureComplianceMapping)))
+
+	// ── AI Admin Assistant (Aria) — guided onboarding + platform navigation ──
+	router.HandleFunc("/admin-assistant/chat", mid.Use(as.AdminAssistantChat, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireFeature(models.FeatureAIAssistant)))
+	router.HandleFunc("/admin-assistant/conversations", mid.Use(as.AdminAssistantConversations, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireFeature(models.FeatureAIAssistant)))
+	router.HandleFunc("/admin-assistant/conversations/{id:[0-9]+}", mid.Use(as.AdminAssistantConversation, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireFeature(models.FeatureAIAssistant)))
+	router.HandleFunc("/admin-assistant/onboarding", mid.Use(as.AdminAssistantOnboarding, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireFeature(models.FeatureAIAssistant)))
+	router.HandleFunc("/admin-assistant/onboarding/{step}/complete", mid.Use(as.AdminAssistantOnboardingComplete, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireFeature(models.FeatureAIAssistant)))
 
 	// ── Sending Domain Pool ──
 	router.HandleFunc("/domain-pool/", mid.Use(as.DomainPool, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireFeature(models.FeatureDomainPool)))

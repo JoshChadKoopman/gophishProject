@@ -34,6 +34,12 @@ type ROIReport struct {
 	Hygiene     ROIHygieneSection     `json:"hygiene"`
 	Compliance  ROIComplianceSection  `json:"compliance"`
 
+	// Industry benchmark comparisons
+	Benchmarks []BenchmarkComparison `json:"benchmarks,omitempty"`
+
+	// Monte Carlo confidence intervals
+	MonteCarlo *MonteCarloResult `json:"monte_carlo,omitempty"`
+
 	// Executive summary
 	KeyFindings     []string `json:"key_findings"`
 	Recommendations []string `json:"recommendations"`
@@ -323,6 +329,13 @@ func GenerateROIReport(orgId int64, periodStart, periodEnd time.Time) (*ROIRepor
 	// ─── Key Findings ───
 	report.KeyFindings = generateROIFindings(report)
 	report.Recommendations = generateROIRecommendations(report)
+
+	// ─── Industry Benchmark Comparisons ───
+	report.Benchmarks = CompareOrgToBenchmarks(orgId, report)
+
+	// ─── Monte Carlo Confidence Intervals ───
+	mc := RunROIMonteCarlo(report)
+	report.MonteCarlo = &mc
 
 	return report, nil
 }

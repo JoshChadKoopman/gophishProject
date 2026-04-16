@@ -3,6 +3,7 @@ package controllers
 import (
 	"compress/gzip"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -242,6 +243,19 @@ func (ps *PhishingServer) ReportHandler(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		log.Error(err)
 	}
+
+	// ── End-User Feedback UX (Gap 1, Set 2) ──
+	// If the reporter's client sends Accept: application/json, return a structured
+	// feedback response with the AI analysis so the Outlook/Gmail add-in (or
+	// report-button JS) can show a toast: "Our AI analyzed this email — it's [X]."
+	if strings.Contains(r.Header.Get("Accept"), "application/json") {
+		feedback := buildReportFeedbackResponse(rs)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(feedback)
+		return
+	}
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -494,4 +508,107 @@ func setupContext(r *http.Request) (*http.Request, error) {
 	r = ctx.Set(r, "campaign", c)
 	r = ctx.Set(r, "details", d)
 	return r, nil
+}
+
+// ── End-User Report Feedback Response ───────────────────────────
+// When a user reports a phishing email and the client accepts JSON,
+// return structured feedback so the add-in / report button can display:
+//   "Our AI analyzed this email — it's [safe/suspicious/confirmed phishing].
+//    Here's why: [indicators]."
+
+// ReportFeedbackResponse is the JSON structure returned to report-button clients.
+type ReportFeedbackResponse struct {
+	Success        bool     `json:"success"`
+	WasSimulation  bool     `json:"was_simulation"`
+	ThreatLevel    string   `json:"threat_level"`
+	Summary        string   `json:"summary"`
+	Recommendation string   `json:"recommendation"`
+	LearningTip    string   `json:"learning_tip"`
+	Indicators     []string `json:"indicators,omitempty"`
+	Category       string   `json:"category,omitempty"`
+}
+
+// buildReportFeedbackResponse constructs real-time feedback for the end user
+// based on whether the reported email was a simulation and its template category.
+func buildReportFeedbackResponse(rs models.Result) ReportFeedbackResponse {
+	fb := ReportFeedbackResponse{
+		Success: true,
+	}
+
+	// Look up the campaign to determine if this is a simulation and get the template category
+	var campaign models.Campaign
+	err := models.GetDB().Where("id = ?", rs.CampaignId).First(&campaign).Error
+	if err != nil {
+		fb.ThreatLevel = "unknown"
+		fb.Summary = "Thank you for reporting this email. Your security team will review it."
+		fb.Recommendation = "✅ You did the right thing by reporting. Stay vigilant!"
+		return fb
+	}
+
+	fb.WasSimulation = true // If we're here, the result is from a GoPhish campaign
+	fb.ThreatLevel = "simulation"
+
+	// Get template category for enriched feedback
+	var templateCategory string
+	models.GetDB().Raw(`
+		SELECT t.category FROM templates t WHERE t.id = ?
+	`, campaign.TemplateId).Row().Scan(&templateCategory)
+	fb.Category = templateCategory
+
+	// Build simulation feedback
+	if rs.Status == models.EventClicked || rs.Status == models.EventDataSubmit {
+		// User clicked/submitted before reporting
+		fb.Summary = fmt.Sprintf("🎓 This was a Nivoxis phishing simulation. "+
+			"You reported it correctly — great job! However, you had already interacted "+
+			"with the email (status: %s). In a real attack, early detection is critical.", rs.Status)
+		fb.Recommendation = "⚠️ Next time, try to report suspicious emails before clicking any links."
+	} else {
+		// User reported without clicking — perfect behavior
+		fb.Summary = "🎉 Excellent work! This was a Nivoxis phishing simulation and you " +
+			"reported it without clicking any links. This is exactly the right response!"
+		fb.Recommendation = "✅ You correctly identified and reported a simulated phishing attempt. " +
+			"Your awareness score has been updated."
+	}
+
+	// Category-specific learning tip
+	fb.LearningTip = buildCategoryTip(templateCategory)
+
+	// Indicators based on category
+	fb.Indicators = buildSimulationIndicators(templateCategory)
+
+	return fb
+}
+
+func buildCategoryTip(category string) string {
+	tips := map[string]string{
+		"Credential Harvesting":     "💡 Always verify the URL before entering credentials. Hover over links to check destinations.",
+		"Business Email Compromise": "💡 BEC attacks impersonate executives or vendors. Always verify unusual requests through a separate channel (phone/chat).",
+		"Delivery Notification":     "💡 Fake delivery notifications often use urgency. Check the sender domain and go directly to the carrier's website.",
+		"IT Helpdesk":               "💡 IT department will never ask for your password via email. When in doubt, call the helpdesk directly.",
+		"HR / Payroll":              "💡 HR-themed phishing often targets direct deposit or tax information. Verify through your HR portal directly.",
+		"Social Engineering":        "💡 Social engineering exploits trust. Be cautious of emails that seem unusually personal or create urgency.",
+		"QR Code Phishing":          "💡 QR codes can hide malicious URLs. Never scan a QR code from an untrusted email.",
+		"SMS Phishing":              "💡 SMS phishing (smishing) uses text messages to trick you. Never click links in unexpected text messages.",
+		"Supply Chain":              "💡 Supply-chain attacks impersonate trusted vendors. Verify software update notifications through official channels.",
+	}
+	if tip, ok := tips[category]; ok {
+		return tip
+	}
+	return "💡 When in doubt, don't click. Report suspicious emails to your security team."
+}
+
+func buildSimulationIndicators(category string) []string {
+	indicators := map[string][]string{
+		"Credential Harvesting":     {"Suspicious login page URL", "Urgency to verify account", "Generic greeting"},
+		"Business Email Compromise": {"Impersonated executive", "Unusual request", "Urgency for payment/action"},
+		"Delivery Notification":     {"Unexpected package notification", "Suspicious tracking link", "Mismatched sender domain"},
+		"IT Helpdesk":               {"Password reset request", "Fake security alert", "Suspicious sender domain"},
+		"HR / Payroll":              {"Benefits/payroll change request", "Tax document request", "Urgency around deadline"},
+		"Social Engineering":        {"Emotional manipulation", "Unusual personal request", "Pressure to act quickly"},
+		"Supply Chain":              {"Fake vendor update", "Spoofed vendor domain", "Unexpected software notification"},
+	}
+	if ind, ok := indicators[category]; ok {
+		return ind
+	}
+	return []string{"Suspicious sender", "Urgency or pressure", "Unusual request"}
 }

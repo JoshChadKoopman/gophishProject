@@ -223,6 +223,12 @@ func (as *AdminServer) registerRoutes() {
 	router.HandleFunc("/email-security", mid.Use(as.EmailSecurityPage, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireLogin))
 	// MSP Partner Portal page
 	router.HandleFunc("/partner-portal", mid.Use(as.PartnerPortalPage, mid.RequireMSPPartner, mid.RequireLogin))
+	// Scheduled Reports page
+	router.HandleFunc("/scheduled-reports", mid.Use(as.ScheduledReportsPage, mid.RequirePermission(models.PermissionViewReports), mid.RequireLogin))
+	// Network Events Dashboard page
+	router.HandleFunc("/network-events", mid.Use(as.NetworkEventsPage, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireLogin))
+	// AI Admin Assistant page
+	router.HandleFunc("/admin-assistant", mid.Use(as.AdminAssistantPage, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireLogin))
 	// Create the API routes
 	apiServer := api.NewServer(
 		api.WithWorker(as.worker),
@@ -583,6 +589,27 @@ func (as *AdminServer) PartnerPortalPage(w http.ResponseWriter, r *http.Request)
 	params := newTemplateParams(r)
 	params.Title = "Partner Portal"
 	getTemplate(w, "partner_portal").ExecuteTemplate(w, "base", params)
+}
+
+// ScheduledReportsPage renders the Scheduled Reports management page.
+func (as *AdminServer) ScheduledReportsPage(w http.ResponseWriter, r *http.Request) {
+	params := newTemplateParams(r)
+	params.Title = "Scheduled Reports"
+	getTemplate(w, "scheduled_reports").ExecuteTemplate(w, "base", params)
+}
+
+// NetworkEventsPage handles the /network-events route.
+func (as *AdminServer) NetworkEventsPage(w http.ResponseWriter, r *http.Request) {
+	params := newTemplateParams(r)
+	params.Title = "Network Events"
+	getTemplate(w, "network_events").ExecuteTemplate(w, "base", params)
+}
+
+// AdminAssistantPage handles the /admin-assistant route.
+func (as *AdminServer) AdminAssistantPage(w http.ResponseWriter, r *http.Request) {
+	params := newTemplateParams(r)
+	params.Title = "AI Admin Assistant"
+	getTemplate(w, "admin_assistant").ExecuteTemplate(w, "base", params)
 }
 
 // PluginReportEmail handles POST /api/plugin/report-email from the

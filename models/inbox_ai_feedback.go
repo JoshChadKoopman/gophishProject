@@ -3,6 +3,7 @@ package models
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -13,32 +14,32 @@ import (
 
 // Shared query constants for this file.
 const (
-	orderCreatedDateDescFB  = "created_date DESC"
-	queryOrgFeedbackType    = "org_id = ? AND feedback_type = ?"
+	orderCreatedDateDescFB = "created_date DESC"
+	queryOrgFeedbackType   = "org_id = ? AND feedback_type = ?"
 )
 
 // UserEmailFeedback is the AI analysis result surfaced to end users
 // through the report button, Outlook add-in, or Gmail add-on.
 type UserEmailFeedback struct {
-	Id                int64     `json:"id" gorm:"primary_key"`
-	OrgId             int64     `json:"org_id"`
-	UserId            int64     `json:"user_id"`
-	Email             string    `json:"email"`
-	MessageId         string    `json:"message_id"`
-	Subject           string    `json:"subject"`
-	SenderEmail       string    `json:"sender_email"`
-	ThreatLevel       string    `json:"threat_level"`       // safe, suspicious, likely_phishing, confirmed_phishing
-	ConfidenceScore   float64   `json:"confidence_score"`   // 0-1
-	Summary           string    `json:"summary"`            // 2-3 sentence plain-language explanation
-	Indicators        string    `json:"indicators"`         // JSON array of detected indicators
-	Recommendation    string    `json:"recommendation"`     // what the user should do
-	WasSimulation     bool      `json:"was_simulation"`     // true if this was a Nivoxis phishing simulation
-	SimulationResult  string    `json:"simulation_result"`  // "correctly_reported", "missed", ""
-	LearningTip       string    `json:"learning_tip"`       // educational tip based on the email type
-	FeedbackRead      bool      `json:"feedback_read"`      // has the user seen this feedback
-	UserAcknowledged  bool      `json:"user_acknowledged"`  // has the user dismissed/acknowledged
-	CreatedDate       time.Time `json:"created_date"`
-	ModifiedDate      time.Time `json:"modified_date"`
+	Id               int64     `json:"id" gorm:"primary_key"`
+	OrgId            int64     `json:"org_id"`
+	UserId           int64     `json:"user_id"`
+	Email            string    `json:"email"`
+	MessageId        string    `json:"message_id"`
+	Subject          string    `json:"subject"`
+	SenderEmail      string    `json:"sender_email"`
+	ThreatLevel      string    `json:"threat_level"`      // safe, suspicious, likely_phishing, confirmed_phishing
+	ConfidenceScore  float64   `json:"confidence_score"`  // 0-1
+	Summary          string    `json:"summary"`           // 2-3 sentence plain-language explanation
+	Indicators       string    `json:"indicators"`        // JSON array of detected indicators
+	Recommendation   string    `json:"recommendation"`    // what the user should do
+	WasSimulation    bool      `json:"was_simulation"`    // true if this was a Nivoxis phishing simulation
+	SimulationResult string    `json:"simulation_result"` // "correctly_reported", "missed", ""
+	LearningTip      string    `json:"learning_tip"`      // educational tip based on the email type
+	FeedbackRead     bool      `json:"feedback_read"`     // has the user seen this feedback
+	UserAcknowledged bool      `json:"user_acknowledged"` // has the user dismissed/acknowledged
+	CreatedDate      time.Time `json:"created_date"`
+	ModifiedDate     time.Time `json:"modified_date"`
 }
 
 func (UserEmailFeedback) TableName() string { return "user_email_feedback" }
@@ -153,18 +154,18 @@ func buildLearningTip(classification, threatLevel string) string {
 
 // AIClassificationFeedback records admin corrections to AI email analysis.
 type AIClassificationFeedback struct {
-	Id                int64     `json:"id" gorm:"primary_key"`
-	OrgId             int64     `json:"org_id"`
-	ScanResultId      int64     `json:"scan_result_id"`
-	ReportedEmailId   int64     `json:"reported_email_id"`
-	OriginalThreatLevel string  `json:"original_threat_level"`
-	CorrectedThreatLevel string `json:"corrected_threat_level"`
-	OriginalClassification string `json:"original_classification"`
-	CorrectedClassification string `json:"corrected_classification"`
-	FeedbackType      string    `json:"feedback_type"` // "false_positive", "false_negative", "misclassification"
-	AdminNotes        string    `json:"admin_notes"`
-	AdminUserId       int64     `json:"admin_user_id"`
-	CreatedDate       time.Time `json:"created_date"`
+	Id                      int64     `json:"id" gorm:"primary_key"`
+	OrgId                   int64     `json:"org_id"`
+	ScanResultId            int64     `json:"scan_result_id"`
+	ReportedEmailId         int64     `json:"reported_email_id"`
+	OriginalThreatLevel     string    `json:"original_threat_level"`
+	CorrectedThreatLevel    string    `json:"corrected_threat_level"`
+	OriginalClassification  string    `json:"original_classification"`
+	CorrectedClassification string    `json:"corrected_classification"`
+	FeedbackType            string    `json:"feedback_type"` // "false_positive", "false_negative", "misclassification"
+	AdminNotes              string    `json:"admin_notes"`
+	AdminUserId             int64     `json:"admin_user_id"`
+	CreatedDate             time.Time `json:"created_date"`
 }
 
 func (AIClassificationFeedback) TableName() string { return "ai_classification_feedback" }
@@ -189,10 +190,10 @@ func SubmitClassificationFeedback(fb *AIClassificationFeedback) error {
 	// Update the scan result with the corrected classification
 	if fb.ScanResultId > 0 {
 		db.Model(&InboxScanResult{}).Where("id = ?", fb.ScanResultId).Updates(map[string]interface{}{
-			"threat_level":             fb.CorrectedThreatLevel,
-			"classification":           fb.CorrectedClassification,
-			"admin_override":           true,
-			"admin_override_by":        fb.AdminUserId,
+			"threat_level":      fb.CorrectedThreatLevel,
+			"classification":    fb.CorrectedClassification,
+			"admin_override":    true,
+			"admin_override_by": fb.AdminUserId,
 		})
 	}
 
@@ -344,18 +345,18 @@ func isSimulationEmail(orgId int64, messageId string) bool {
 
 // InboxWebhookConfig stores webhook/push notification settings per org.
 type InboxWebhookConfig struct {
-	Id               int64     `json:"id" gorm:"primary_key"`
-	OrgId            int64     `json:"org_id"`
-	Provider         string    `json:"provider"`        // "microsoft_graph", "gmail"
-	Enabled          bool      `json:"enabled"`
+	Id       int64  `json:"id" gorm:"primary_key"`
+	OrgId    int64  `json:"org_id"`
+	Provider string `json:"provider"` // "microsoft_graph", "gmail"
+	Enabled  bool   `json:"enabled"`
 	// Microsoft Graph webhook fields
-	SubscriptionId   string    `json:"subscription_id,omitempty"`
-	WebhookURL       string    `json:"webhook_url,omitempty"`
-	ExpirationDate   time.Time `json:"expiration_date,omitempty"`
+	SubscriptionId string    `json:"subscription_id,omitempty"`
+	WebhookURL     string    `json:"webhook_url,omitempty"`
+	ExpirationDate time.Time `json:"expiration_date,omitempty"`
 	// Gmail Pub/Sub fields
-	PubSubTopicName  string    `json:"pubsub_topic,omitempty"`
-	PubSubSubscription string  `json:"pubsub_subscription,omitempty"`
-	HistoryId        string    `json:"history_id,omitempty"`
+	PubSubTopicName    string `json:"pubsub_topic,omitempty"`
+	PubSubSubscription string `json:"pubsub_subscription,omitempty"`
+	HistoryId          string `json:"history_id,omitempty"`
 	// Common
 	LastNotification time.Time `json:"last_notification,omitempty"`
 	CreatedDate      time.Time `json:"created_date"`
@@ -378,4 +379,142 @@ func SaveInboxWebhookConfig(cfg *InboxWebhookConfig) error {
 		cfg.CreatedDate = time.Now().UTC()
 	}
 	return db.Save(cfg).Error
+}
+
+// GetActiveWebhookConfigs returns all enabled webhook configurations.
+// Used by the webhook subscription lifecycle worker.
+func GetActiveWebhookConfigs() ([]InboxWebhookConfig, error) {
+	var configs []InboxWebhookConfig
+	err := db.Where("enabled = ?", true).Find(&configs).Error
+	return configs, err
+}
+
+// GetWebhookConfigsByOrg returns all webhook configs for an org.
+func GetWebhookConfigsByOrg(orgId int64) ([]InboxWebhookConfig, error) {
+	var configs []InboxWebhookConfig
+	err := db.Where("org_id = ?", orgId).Find(&configs).Error
+	return configs, err
+}
+
+// ── User-Specific Threat Intelligence for Inbox AI ──────────────
+// Correlates the user's targeting profile (BRS, weak categories, department
+// threats) with real email characteristics to prioritize threat detection.
+
+// EnrichScanWithUserThreatIntel checks the user's targeting profile and
+// adjusts the scan result's threat level / confidence if the email pattern
+// matches the user's known vulnerabilities.
+//
+// For example, if a user is weak against BEC and the email looks like a
+// payment/wire request, bump the confidence score and add a context note.
+//
+// Returns a supplementary context string for the response summary.
+func EnrichScanWithUserThreatIntel(userId int64, scan *InboxScanResult) string {
+	profile, err := GetUserTargetingProfile(userId)
+	if err != nil || profile == nil || profile.TotalSimulations < 3 {
+		return ""
+	}
+
+	var notes []string
+
+	// Check if the email classification matches user's weak categories
+	for _, wc := range profile.WeakCategories {
+		if matchesCategoryPattern(scan, wc.Category) {
+			// This email matches a pattern the user is vulnerable to
+			// Bump confidence by 10-20% based on weakness severity
+			boost := (1.0 - wc.Score/100.0) * 0.2
+			scan.ConfidenceScore = clampFloat(scan.ConfidenceScore+boost, 0, 1)
+
+			// If the scan was "safe" but matches a weak category, flag as suspicious
+			if scan.ThreatLevel == ThreatLevelSafe && wc.Score < 40 {
+				scan.ThreatLevel = ThreatLevelSuspicious
+				notes = append(notes, "⚡ This email matches a pattern you've been vulnerable to in training ("+wc.Category+"). Extra caution advised.")
+			}
+			break
+		}
+	}
+
+	// Department-specific risk escalation
+	if profile.Department != "" {
+		deptTP := GetDepartmentThreatProfile(profile.Department)
+		if deptTP.RiskMultiplier > 1.2 {
+			for _, threat := range deptTP.PrimaryThreats {
+				if matchesCategoryPattern(scan, threat.Category) && threat.Relevance >= 0.8 {
+					notes = append(notes, "🏢 As a "+profile.Department+" team member, you may be a target for "+threat.Category+" attacks.")
+					break
+				}
+			}
+		}
+	}
+
+	if len(notes) == 0 {
+		return ""
+	}
+
+	result := ""
+	for _, n := range notes {
+		result += n + " "
+	}
+	return result
+}
+
+// matchesCategoryPattern checks if an email's characteristics match a known
+// phishing category pattern. This is a heuristic check based on subject/sender keywords.
+func matchesCategoryPattern(scan *InboxScanResult, category string) bool {
+	subject := strings.ToLower(scan.Subject)
+	sender := strings.ToLower(scan.SenderEmail)
+
+	switch category {
+	case CategoryBEC:
+		return containsAnySubstr(subject, "wire transfer", "payment", "invoice", "urgent request",
+			"confidential", "executive", "ceo", "cfo") ||
+			containsAnySubstr(sender, "ceo", "cfo", "president", "director")
+
+	case CategoryCredentialHarvesting:
+		return containsAnySubstr(subject, "password", "verify", "confirm your", "reset",
+			"account suspended", "sign in", "login", "credentials")
+
+	case CategoryHRPayroll:
+		return containsAnySubstr(subject, "payroll", "direct deposit", "w-2", "benefits",
+			"open enrollment", "salary", "compensation")
+
+	case CategoryITHelpdesk:
+		return containsAnySubstr(subject, "helpdesk", "ticket", "password reset",
+			"it support", "security update", "patch")
+
+	case CategoryDeliveryNotification:
+		return containsAnySubstr(subject, "delivery", "package", "tracking",
+			"shipment", "fedex", "ups", "dhl", "usps")
+
+	case CategorySocialEngineering:
+		return containsAnySubstr(subject, "congratulations", "you've won", "limited time",
+			"act now", "special offer")
+
+	case CategorySupplyChain:
+		return containsAnySubstr(subject, "software update", "vendor", "partner portal",
+			"security advisory", "dependency", "npm", "github")
+
+	default:
+		return false
+	}
+}
+
+// containsAnySubstr returns true if s contains any of the given substrings.
+func containsAnySubstr(s string, subs ...string) bool {
+	for _, sub := range subs {
+		if strings.Contains(s, sub) {
+			return true
+		}
+	}
+	return false
+}
+
+// clampFloat constrains a float64 to [min, max].
+func clampFloat(v, min, max float64) float64 {
+	if v < min {
+		return min
+	}
+	if v > max {
+		return max
+	}
+	return v
 }

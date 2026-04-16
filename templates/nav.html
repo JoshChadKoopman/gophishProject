@@ -111,10 +111,24 @@
                     <a href="/email-security"><i class="fa fa-shield"></i> Email Security</a>
                 </li>
                 {{end}}
+                {{if and .OrgFeatures (index .OrgFeatures "network_events")}}
+                {{if .ModifyObjects}}
+                <li>
+                    <a href="/network-events"><i class="fa fa-globe"></i> {{T .Locale "nav.network_events"}}</a>
+                </li>
+                {{end}}
+                {{end}}
                 {{if and .OrgFeatures (index .OrgFeatures "msp_partner_portal")}}
                 <li>
                     <a href="/partner-portal"><i class="fa fa-handshake-o"></i> Partner Portal</a>
                 </li>
+                {{end}}
+                {{if and .OrgFeatures (index .OrgFeatures "ai_assistant")}}
+                {{if .ModifyObjects}}
+                <li>
+                    <a href="/admin-assistant"><i class="fa fa-commenting"></i> {{T .Locale "nav.admin_assistant"}}</a>
+                </li>
+                {{end}}
                 {{end}}
                 {{if .ModifyObjects}}
                 <li>

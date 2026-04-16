@@ -46,19 +46,19 @@ func TimeWindowDays(tw TimeWindow) int {
 
 // DashboardMetrics is the top-level response for GET /api/dashboard/metrics.
 type DashboardMetrics struct {
-	TimeWindow  TimeWindow       `json:"time_window"`
-	GeneratedAt time.Time        `json:"generated_at"`
-	Cards       DashboardCards   `json:"cards"`
+	TimeWindow  TimeWindow     `json:"time_window"`
+	GeneratedAt time.Time      `json:"generated_at"`
+	Cards       DashboardCards `json:"cards"`
 }
 
 // DashboardCards groups all summary cards shown on the admin dashboard.
 type DashboardCards struct {
-	Campaigns  CampaignCard  `json:"campaigns"`
-	ClickRate  RateCard      `json:"click_rate"`
-	ReportRate RateCard      `json:"report_rate"`
-	Training   TrainingCard  `json:"training"`
-	Tickets    TicketCard    `json:"tickets"`
-	RiskScore  RiskCard      `json:"risk_score"`
+	Campaigns  CampaignCard   `json:"campaigns"`
+	ClickRate  RateCard       `json:"click_rate"`
+	ReportRate RateCard       `json:"report_rate"`
+	Training   TrainingCard   `json:"training"`
+	Tickets    TicketCard     `json:"tickets"`
+	RiskScore  RiskCard       `json:"risk_score"`
 	Compliance ComplianceCard `json:"compliance"`
 }
 
@@ -72,29 +72,29 @@ type SparklinePoint struct {
 type TrendDirection string
 
 const (
-	TrendUp    TrendDirection = "up"
-	TrendDown  TrendDirection = "down"
-	TrendFlat  TrendDirection = "flat"
+	TrendUp   TrendDirection = "up"
+	TrendDown TrendDirection = "down"
+	TrendFlat TrendDirection = "flat"
 )
 
 // ── Individual card types ──
 
 // CampaignCard shows campaign summary with sparkline.
 type CampaignCard struct {
-	ActiveCount    int64            `json:"active_count"`
-	TotalInWindow  int64            `json:"total_in_window"`
-	EmailsSent     int64            `json:"emails_sent"`
-	Sparkline      []SparklinePoint `json:"sparkline"` // emails sent per day
-	Trend          TrendDirection   `json:"trend"`
+	ActiveCount   int64            `json:"active_count"`
+	TotalInWindow int64            `json:"total_in_window"`
+	EmailsSent    int64            `json:"emails_sent"`
+	Sparkline     []SparklinePoint `json:"sparkline"` // emails sent per day
+	Trend         TrendDirection   `json:"trend"`
 }
 
 // RateCard is used for click-rate and report-rate cards.
 type RateCard struct {
-	CurrentRate float64          `json:"current_rate"`
-	PreviousRate float64         `json:"previous_rate"`
-	Delta       float64          `json:"delta"`
-	Sparkline   []SparklinePoint `json:"sparkline"` // daily rate
-	Trend       TrendDirection   `json:"trend"`
+	CurrentRate  float64          `json:"current_rate"`
+	PreviousRate float64          `json:"previous_rate"`
+	Delta        float64          `json:"delta"`
+	Sparkline    []SparklinePoint `json:"sparkline"` // daily rate
+	Trend        TrendDirection   `json:"trend"`
 }
 
 // TrainingCard shows training completion at a glance.
@@ -123,15 +123,18 @@ type RiskCard struct {
 
 // ComplianceCard shows overall compliance posture.
 type ComplianceCard struct {
-	OverallScore  float64          `json:"overall_score"`
-	FrameworksActive int           `json:"frameworks_active"`
-	Sparkline     []SparklinePoint `json:"sparkline"` // daily compliance score
-	Trend         TrendDirection   `json:"trend"`
+	OverallScore     float64          `json:"overall_score"`
+	FrameworksActive int              `json:"frameworks_active"`
+	Sparkline        []SparklinePoint `json:"sparkline"` // daily compliance score
+	Trend            TrendDirection   `json:"trend"`
 }
 
 // ── Query functions ──
 
 // GetDashboardMetrics builds the full dashboard for the given time window.
+// When rollup data is available, it reads from the pre-aggregated
+// report_daily_metrics table for dramatically faster response times.
+// Falls back to raw table scans if rollup data hasn't been populated yet.
 func GetDashboardMetrics(scope OrgScope, tw TimeWindow) (*DashboardMetrics, error) {
 	days := TimeWindowDays(tw)
 	cutoff := time.Now().UTC().AddDate(0, 0, -days)
@@ -141,15 +144,152 @@ func GetDashboardMetrics(scope OrgScope, tw TimeWindow) (*DashboardMetrics, erro
 		GeneratedAt: time.Now().UTC(),
 	}
 
-	metrics.Cards.Campaigns = getCampaignCard(scope, cutoff, days)
-	metrics.Cards.ClickRate = getClickRateCard(scope, cutoff, days)
-	metrics.Cards.ReportRate = getReportRateCard(scope, cutoff, days)
-	metrics.Cards.Training = getTrainingCard(scope, cutoff, days)
-	metrics.Cards.Tickets = getTicketCard(scope, cutoff)
-	metrics.Cards.RiskScore = getRiskScoreCard(scope, days)
-	metrics.Cards.Compliance = getComplianceCard(scope)
+	// Check if rollup data is available for this org
+	useRollup := HasRollupData(scope.OrgId)
+
+	if useRollup {
+		metrics.Cards.Campaigns = getCampaignCardFromRollup(scope, days)
+		metrics.Cards.ClickRate = getRateCardFromRollup(scope, "click_rate", "links_clicked", "emails_sent", days, false)
+		metrics.Cards.ReportRate = getRateCardFromRollup(scope, "report_rate", "emails_reported", "emails_sent", days, true)
+		metrics.Cards.Training = getTrainingCardFromRollup(scope, days)
+		metrics.Cards.Tickets = getTicketCardFromRollup(scope)
+		metrics.Cards.RiskScore = getRiskScoreCardFromRollup(scope, days)
+		metrics.Cards.Compliance = getComplianceCard(scope) // Compliance doesn't change daily, keep as-is
+	} else {
+		// Fallback: use original raw-table queries
+		metrics.Cards.Campaigns = getCampaignCard(scope, cutoff, days)
+		metrics.Cards.ClickRate = getClickRateCard(scope, cutoff, days)
+		metrics.Cards.ReportRate = getReportRateCard(scope, cutoff, days)
+		metrics.Cards.Training = getTrainingCard(scope, cutoff, days)
+		metrics.Cards.Tickets = getTicketCard(scope, cutoff)
+		metrics.Cards.RiskScore = getRiskScoreCard(scope, days)
+		metrics.Cards.Compliance = getComplianceCard(scope)
+	}
 
 	return metrics, nil
+}
+
+// ── Rollup-backed card builders ─────────────────────────────────
+
+func getCampaignCardFromRollup(scope OrgScope, days int) CampaignCard {
+	card := CampaignCard{}
+
+	// Active campaigns (current state — always live query, it's fast)
+	var active int64
+	scopeQuery(db.Table("campaigns"), scope).
+		Where("status = ?", CampaignInProgress).Count(&active)
+	card.ActiveCount = active
+
+	// Totals from rollup
+	card.TotalInWindow = int64(GetDailyMetricSum(scope, "campaigns_launched", days))
+	card.EmailsSent = int64(GetDailyMetricSum(scope, "emails_sent", days))
+
+	// Sparkline from rollup
+	card.Sparkline = GetDailyMetricSparkline(scope, "emails_sent", days)
+	card.Trend = sparklineTrend(card.Sparkline)
+	return card
+}
+
+func getRateCardFromRollup(scope OrgScope, rateCol, numCol, denCol string, days int, upIsGood bool) RateCard {
+	card := RateCard{}
+
+	// Sparkline from stored daily rates
+	card.Sparkline = GetDailyMetricSparkline(scope, rateCol, days)
+
+	if len(card.Sparkline) > 0 {
+		card.CurrentRate = card.Sparkline[len(card.Sparkline)-1].Value
+	}
+
+	// Previous rate = average of first half of sparkline
+	mid := len(card.Sparkline) / 2
+	if mid > 0 {
+		sum := 0.0
+		for _, p := range card.Sparkline[:mid] {
+			sum += p.Value
+		}
+		card.PreviousRate = math.Round(sum/float64(mid)*100) / 100
+	}
+	card.Delta = math.Round((card.CurrentRate-card.PreviousRate)*100) / 100
+
+	if upIsGood {
+		if card.Delta > 1 {
+			card.Trend = TrendUp
+		} else if card.Delta < -1 {
+			card.Trend = TrendDown
+		} else {
+			card.Trend = TrendFlat
+		}
+	} else {
+		// For click rate, down is good
+		if card.Delta < -1 {
+			card.Trend = TrendDown
+		} else if card.Delta > 1 {
+			card.Trend = TrendUp
+		} else {
+			card.Trend = TrendFlat
+		}
+	}
+	return card
+}
+
+func getTrainingCardFromRollup(scope OrgScope, days int) TrainingCard {
+	card := TrainingCard{}
+
+	// Latest cumulative completion rate
+	card.CompletionRate = GetDailyMetricAvg(scope, "training_completion_rate", 1)
+
+	// Completed in window
+	card.Completed = int64(GetDailyMetricSum(scope, "training_completed", days))
+
+	// Latest overdue snapshot
+	latestOverdue := GetDailyMetricSparkline(scope, "training_overdue", 1)
+	if len(latestOverdue) > 0 {
+		card.Overdue = int64(latestOverdue[0].Value)
+	}
+
+	// Sparkline
+	card.Sparkline = GetDailyMetricSparkline(scope, "training_completed", days)
+	card.Trend = sparklineTrend(card.Sparkline)
+	return card
+}
+
+func getTicketCardFromRollup(scope OrgScope) TicketCard {
+	card := TicketCard{}
+
+	// Open ticket count is current state — fast live query
+	q := db.Table("phishing_tickets")
+	if !scope.IsSuperAdmin {
+		q = q.Where("org_id = ?", scope.OrgId)
+	}
+	var openCount int64
+	q.Where("status IN (?)", []string{"open", "investigating"}).Count(&openCount)
+	card.OpenCount = openCount
+
+	// Resolved today from rollup
+	todaySparkline := GetDailyMetricSparkline(scope, "tickets_resolved", 1)
+	if len(todaySparkline) > 0 {
+		card.ResolvedToday = int64(todaySparkline[0].Value)
+	}
+
+	// Sparkline: daily new tickets over 7 days
+	card.Sparkline = GetDailyMetricSparkline(scope, "tickets_opened", 7)
+	card.Trend = sparklineTrend(card.Sparkline)
+	return card
+}
+
+func getRiskScoreCardFromRollup(scope OrgScope, days int) RiskCard {
+	card := RiskCard{}
+
+	// Latest avg risk score
+	latest := GetDailyMetricSparkline(scope, "avg_risk_score", 1)
+	if len(latest) > 0 {
+		card.AvgScore = math.Round(latest[0].Value*100) / 100
+	}
+
+	// Sparkline
+	card.Sparkline = GetDailyMetricSparkline(scope, "avg_risk_score", days)
+	card.Trend = sparklineTrend(card.Sparkline)
+	return card
 }
 
 // ── Campaign card ──
@@ -568,40 +708,57 @@ type DashboardLiveCounts struct {
 }
 
 // GetDashboardLiveCounts returns a lightweight snapshot for the WS pulse.
+// When rollup data is available, it uses the pre-aggregated table for
+// click/report rates instead of expensive real-time queries.
 func GetDashboardLiveCounts(scope OrgScope) DashboardLiveCounts {
 	counts := DashboardLiveCounts{}
 
-	// Active campaigns
+	// Active campaigns — always a live query (cheap indexed count)
 	scopeQuery(db.Table("campaigns"), scope).
 		Where("status = ?", CampaignInProgress).Count(&counts.ActiveCampaigns)
 
-	// Emails sent today
-	today := time.Now().UTC().Format("2006-01-02")
-	type cntRow struct{ Count int64 }
-	var sr cntRow
-	if scope.IsSuperAdmin {
-		db.Raw(`SELECT COUNT(*) as count FROM events e
-			JOIN campaigns c ON e.campaign_id = c.id
-			WHERE e.message = ? AND DATE(e.time) = ?`, EventSent, today).Scan(&sr)
-	} else {
-		db.Raw(`SELECT COUNT(*) as count FROM events e
-			JOIN campaigns c ON e.campaign_id = c.id
-			WHERE c.org_id = ? AND e.message = ? AND DATE(e.time) = ?`, scope.OrgId, EventSent, today).Scan(&sr)
-	}
-	counts.EmailsSentToday = sr.Count
-
-	// Open tickets
+	// Open tickets — always a live query (cheap indexed count)
 	q := db.Table("phishing_tickets").Where("status IN (?)", []string{"open", "investigating"})
 	if !scope.IsSuperAdmin {
 		q = q.Where("org_id = ?", scope.OrgId)
 	}
 	q.Count(&counts.OpenTickets)
 
-	// Click rate (last 30 days)
-	overview, err := GetReportOverview(scope)
-	if err == nil {
-		counts.AvgClickRate = overview.AvgClickRate
-		counts.AvgReportRate = overview.AvgReportRate
+	// Check if rollup data is available
+	useRollup := HasRollupData(scope.OrgId)
+
+	if useRollup {
+		// Emails sent today from rollup
+		todayPoints := GetDailyMetricSparkline(scope, "emails_sent", 1)
+		if len(todayPoints) > 0 {
+			counts.EmailsSentToday = int64(todayPoints[0].Value)
+		}
+
+		// Click rate and report rate from rollup (last 30 days avg)
+		counts.AvgClickRate = GetDailyMetricAvg(scope, "click_rate", 30)
+		counts.AvgReportRate = GetDailyMetricAvg(scope, "report_rate", 30)
+	} else {
+		// Fallback: raw table queries
+		today := time.Now().UTC().Format("2006-01-02")
+		type cntRow struct{ Count int64 }
+		var sr cntRow
+		if scope.IsSuperAdmin {
+			db.Raw(`SELECT COUNT(*) as count FROM events e
+				JOIN campaigns c ON e.campaign_id = c.id
+				WHERE e.message = ? AND DATE(e.time) = ?`, EventSent, today).Scan(&sr)
+		} else {
+			db.Raw(`SELECT COUNT(*) as count FROM events e
+				JOIN campaigns c ON e.campaign_id = c.id
+				WHERE c.org_id = ? AND e.message = ? AND DATE(e.time) = ?`, scope.OrgId, EventSent, today).Scan(&sr)
+		}
+		counts.EmailsSentToday = sr.Count
+
+		// Click rate (last 30 days) from report overview
+		overview, err := GetReportOverview(scope)
+		if err == nil {
+			counts.AvgClickRate = overview.AvgClickRate
+			counts.AvgReportRate = overview.AvgReportRate
+		}
 	}
 
 	counts.OnlineAdmins = GetWSHub().SubscriberCount(scope.OrgId)
@@ -619,4 +776,3 @@ func BuildEventSparklinePublic(scope OrgScope, eventMsg string, days int) []Spar
 func BuildRateSparklinePublic(scope OrgScope, numeratorEvent, denominatorEvent string, days int) []SparklinePoint {
 	return buildRateSparkline(scope, numeratorEvent, denominatorEvent, days)
 }
-

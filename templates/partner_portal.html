@@ -116,9 +116,14 @@
                         <h3 class="panel-title">
                             <i class="fa fa-bar-chart"></i> Cross-Client Report
                         </h3>
-                        <button class="btn btn-default btn-xs pull-right" onclick="loadReport()">
-                            <i class="fa fa-refresh"></i> Refresh
-                        </button>
+                        <div class="pull-right">
+                            <button class="btn btn-default btn-xs" onclick="loadReport()">
+                                <i class="fa fa-refresh"></i> Refresh
+                            </button>
+                            <button class="btn btn-primary btn-xs" onclick="downloadQuarterlyPDF()" style="margin-left:5px;">
+                                <i class="fa fa-file-pdf-o"></i> Download MSP Quarterly Review (PDF)
+                            </button>
+                        </div>
                     </div>
                     <div class="panel-body">
                         <div class="row">
@@ -135,6 +140,150 @@
                                 <h2 id="highRiskClients" style="color:#f39c12;">-</h2>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ Client Risk Ranking Table ═══ -->
+        <div class="row" style="margin-top:20px;">
+            <div class="col-lg-12">
+                <div class="panel panel-default" style="border-left:4px solid #e74c3c;">
+                    <div class="panel-heading">
+                        <h3 class="panel-title">
+                            <i class="fa fa-sort-amount-desc"></i> Client Risk Ranking
+                            <small class="text-muted">(worst-first)</small>
+                        </h3>
+                        <button class="btn btn-default btn-xs pull-right" onclick="loadRanking()">
+                            <i class="fa fa-refresh"></i> Refresh
+                        </button>
+                    </div>
+                    <div class="panel-body">
+                        <div id="rankingLoading" class="text-center" style="display:none;">
+                            <i class="fa fa-spinner fa-spin"></i> Loading...
+                        </div>
+                        <table class="table table-striped table-hover" id="rankingTable" style="display:none;">
+                            <thead>
+                                <tr>
+                                    <th style="width:50px;">#</th>
+                                    <th>Client</th>
+                                    <th style="width:140px;">Risk Score</th>
+                                    <th style="width:160px;">Training Completion</th>
+                                    <th style="width:80px;">Users</th>
+                                    <th style="width:100px;">Campaigns</th>
+                                    <th style="width:100px;">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rankingTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ Client Comparison Radar Chart ═══ -->
+        <div class="row" style="margin-top:20px;">
+            <div class="col-lg-12">
+                <div class="panel panel-default" style="border-left:4px solid #3498db;">
+                    <div class="panel-heading">
+                        <h3 class="panel-title">
+                            <i class="fa fa-bullseye"></i> Client Comparison — Radar Chart
+                        </h3>
+                    </div>
+                    <div class="panel-body">
+                        <div class="row" style="margin-bottom:15px;">
+                            <div class="col-md-8">
+                                <label>Select 2–3 clients to compare:</label>
+                                <select id="comparisonSelect" class="form-control" multiple="multiple" style="height:80px;">
+                                </select>
+                                <small class="text-muted">Hold Ctrl/Cmd to select multiple. Max 3 clients.</small>
+                            </div>
+                            <div class="col-md-4" style="padding-top:22px;">
+                                <button class="btn btn-primary" onclick="loadComparison()">
+                                    <i class="fa fa-line-chart"></i> Compare Clients
+                                </button>
+                            </div>
+                        </div>
+                        <div id="comparisonLoading" class="text-center" style="display:none;">
+                            <i class="fa fa-spinner fa-spin"></i> Loading comparison...
+                        </div>
+                        <div id="comparisonChartContainer" style="display:none; max-width:650px; margin:0 auto;">
+                            <canvas id="radarChart" width="600" height="400"></canvas>
+                        </div>
+                        <div id="comparisonEmpty" class="text-center text-muted" style="padding:30px;">
+                            <i class="fa fa-bullseye fa-3x" style="opacity:0.3;"></i>
+                            <p style="margin-top:10px;">Select 2–3 clients above and click "Compare" to see a radar chart.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ Billing / License Usage ═══ -->
+        <div class="row" style="margin-top:20px;">
+            <div class="col-lg-12">
+                <div class="panel panel-default" style="border-left:4px solid #f39c12;">
+                    <div class="panel-heading">
+                        <h3 class="panel-title">
+                            <i class="fa fa-credit-card"></i> Billing & License Usage
+                        </h3>
+                        <button class="btn btn-default btn-xs pull-right" onclick="loadBilling()">
+                            <i class="fa fa-refresh"></i> Refresh
+                        </button>
+                    </div>
+                    <div class="panel-body">
+                        <div id="billingLoading" class="text-center" style="display:none;">
+                            <i class="fa fa-spinner fa-spin"></i> Loading...
+                        </div>
+                        <!-- Billing Summary Cards -->
+                        <div class="row" id="billingSummaryCards" style="margin-bottom:15px; display:none;">
+                            <div class="col-md-3">
+                                <div class="panel panel-default text-center" style="margin-bottom:0;">
+                                    <div class="panel-body">
+                                        <h4 class="text-muted" style="margin-top:0;font-size:12px;">Total Seats Allocated</h4>
+                                        <h2 id="billingTotalSeats" style="margin:0;color:#1a73e8;">0</h2>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="panel panel-default text-center" style="margin-bottom:0;">
+                                    <div class="panel-body">
+                                        <h4 class="text-muted" style="margin-top:0;font-size:12px;">Total Seats Used</h4>
+                                        <h2 id="billingTotalUsed" style="margin:0;color:#27ae60;">0</h2>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="panel panel-default text-center" style="margin-bottom:0;">
+                                    <div class="panel-body">
+                                        <h4 class="text-muted" style="margin-top:0;font-size:12px;">Clients At Limit</h4>
+                                        <h2 id="billingAtLimit" style="margin:0;color:#f39c12;">0</h2>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="panel panel-default text-center" style="margin-bottom:0;">
+                                    <div class="panel-body">
+                                        <h4 class="text-muted" style="margin-top:0;font-size:12px;">Clients Over Limit</h4>
+                                        <h2 id="billingOverLimit" style="margin:0;color:#e74c3c;">0</h2>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Billing Table -->
+                        <table class="table table-striped table-hover" id="billingTable" style="display:none;">
+                            <thead>
+                                <tr>
+                                    <th>Client</th>
+                                    <th>Tier</th>
+                                    <th style="width:110px;">Seats Used</th>
+                                    <th style="width:110px;">Seats Allocated</th>
+                                    <th style="width:180px;">Usage</th>
+                                    <th style="width:120px;">Alert</th>
+                                </tr>
+                            </thead>
+                            <tbody id="billingTableBody"></tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -257,14 +406,19 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
 var partnerId = 0;
 var currentDetailOrgId = 0;
+var radarChartInstance = null;
+var allClients = []; // cached for the comparison selector
 
 $(document).ready(function(){
     loadDashboard();
     loadReport();
     loadWhiteLabel();
+    loadRanking();
+    loadBilling();
 });
 
 function loadDashboard(){
@@ -290,6 +444,10 @@ function loadDashboard(){
 
             // Clients table
             renderClientsTable(data.clients || []);
+
+            // Cache clients for comparison selector
+            allClients = data.clients || [];
+            populateComparisonSelector(allClients);
         })
         .error(function(data){
             $("#loading").hide();
@@ -442,6 +600,238 @@ function escapeHtml(text){
     return div.innerHTML;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Client Risk Ranking
+// ═══════════════════════════════════════════════════════════════════════════
+
+function loadRanking(){
+    $("#rankingLoading").show();
+    $("#rankingTable").hide();
+    api.MSP.getRanking()
+        .success(function(data){
+            $("#rankingLoading").hide();
+            renderRankingTable(data || []);
+            $("#rankingTable").show();
+        })
+        .error(function(){
+            $("#rankingLoading").hide();
+        });
+}
+
+function renderRankingTable(rankings){
+    var tbody = $("#rankingTableBody");
+    tbody.empty();
+    rankings.forEach(function(r){
+        var riskBadge = '<span class="label" style="background-color:' + r.risk_color + ';font-size:13px;padding:4px 12px;">' +
+            r.avg_risk_score.toFixed(1) + '</span>';
+
+        var statusBadge;
+        if(r.risk_level === "high"){
+            statusBadge = '<span class="label" style="background-color:#e74c3c;"><i class="fa fa-exclamation-triangle"></i> High</span>';
+        } else if(r.risk_level === "medium"){
+            statusBadge = '<span class="label" style="background-color:#f39c12;"><i class="fa fa-warning"></i> Medium</span>';
+        } else {
+            statusBadge = '<span class="label" style="background-color:#27ae60;"><i class="fa fa-check"></i> Low</span>';
+        }
+
+        var completionBar = '<div class="progress" style="margin:0;min-width:100px;">' +
+            '<div class="progress-bar progress-bar-success" style="width:' + r.training_completion_pct.toFixed(0) + '%;min-width:20px;">' +
+            r.training_completion_pct.toFixed(0) + '%</div></div>';
+
+        tbody.append(
+            '<tr style="' + (r.risk_level === "high" ? "background-color:#fdf2f2;" : "") + '">' +
+            '<td style="font-weight:bold;font-size:16px;text-align:center;">' + r.rank + '</td>' +
+            '<td><a href="#" onclick="viewClientDetail(' + r.org_id + '); return false;">' + escapeHtml(r.org_name) + '</a></td>' +
+            '<td class="text-center">' + riskBadge + '</td>' +
+            '<td>' + completionBar + '</td>' +
+            '<td class="text-center">' + r.user_count + '</td>' +
+            '<td class="text-center">' + r.campaign_count + '</td>' +
+            '<td class="text-center">' + statusBadge + '</td>' +
+            '</tr>'
+        );
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Client Comparison Radar Chart
+// ═══════════════════════════════════════════════════════════════════════════
+
+function populateComparisonSelector(clients){
+    var select = $("#comparisonSelect");
+    select.empty();
+    clients.forEach(function(c){
+        if(c.is_active){
+            select.append('<option value="' + c.org_id + '">' + escapeHtml(c.org_name) + '</option>');
+        }
+    });
+}
+
+var radarColors = [
+    {bg: "rgba(52, 152, 219, 0.2)", border: "rgba(52, 152, 219, 1)"},
+    {bg: "rgba(231, 76, 60, 0.2)", border: "rgba(231, 76, 60, 1)"},
+    {bg: "rgba(46, 204, 113, 0.2)", border: "rgba(46, 204, 113, 1)"}
+];
+
+function loadComparison(){
+    var selected = $("#comparisonSelect").val();
+    if(!selected || selected.length < 2 || selected.length > 3){
+        errorFlash("Please select 2 or 3 clients to compare.");
+        return;
+    }
+
+    $("#comparisonEmpty").hide();
+    $("#comparisonLoading").show();
+    $("#comparisonChartContainer").hide();
+
+    api.MSP.getComparison(selected.join(","))
+        .success(function(data){
+            $("#comparisonLoading").hide();
+            renderRadarChart(data);
+            $("#comparisonChartContainer").show();
+        })
+        .error(function(xhr){
+            $("#comparisonLoading").hide();
+            $("#comparisonEmpty").show();
+            errorFlash("Comparison failed: " + (xhr.responseJSON ? xhr.responseJSON.message : "Unknown error"));
+        });
+}
+
+function renderRadarChart(data){
+    if(radarChartInstance){
+        radarChartInstance.destroy();
+    }
+
+    var datasets = [];
+    data.clients.forEach(function(client, idx){
+        var color = radarColors[idx % radarColors.length];
+        datasets.push({
+            label: client.org_name,
+            data: client.values.map(function(v){ return Math.round(v * 10) / 10; }),
+            backgroundColor: color.bg,
+            borderColor: color.border,
+            borderWidth: 2,
+            pointBackgroundColor: color.border,
+            pointBorderColor: "#fff",
+            pointRadius: 5
+        });
+    });
+
+    var ctx = document.getElementById("radarChart").getContext("2d");
+    radarChartInstance = new Chart(ctx, {
+        type: "radar",
+        data: {
+            labels: data.labels,
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            scales: {
+                r: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: { stepSize: 20, backdropColor: "transparent" },
+                    grid: { color: "rgba(0,0,0,0.08)" },
+                    pointLabels: { font: { size: 13, weight: "bold" } }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: "bottom",
+                    labels: { font: { size: 13 }, padding: 20 }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context){
+                            return context.dataset.label + ": " + context.parsed.r.toFixed(1) + "%";
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Billing / License Usage
+// ═══════════════════════════════════════════════════════════════════════════
+
+function loadBilling(){
+    $("#billingLoading").show();
+    $("#billingTable").hide();
+    $("#billingSummaryCards").hide();
+
+    api.MSP.getBilling()
+        .success(function(data){
+            $("#billingLoading").hide();
+
+            // Summary cards
+            $("#billingTotalSeats").text(data.total_seats_allocated);
+            $("#billingTotalUsed").text(data.total_seats_used);
+            $("#billingAtLimit").text(data.clients_at_limit);
+            $("#billingOverLimit").text(data.clients_over_limit);
+            if(data.clients_over_limit > 0){
+                $("#billingOverLimit").css("color", "#e74c3c");
+            }
+            $("#billingSummaryCards").show();
+
+            // Billing table
+            renderBillingTable(data.clients || []);
+            $("#billingTable").show();
+        })
+        .error(function(){
+            $("#billingLoading").hide();
+        });
+}
+
+function renderBillingTable(clients){
+    var tbody = $("#billingTableBody");
+    tbody.empty();
+    clients.forEach(function(c){
+        var usagePct = c.usage_pct || 0;
+        var barColor = "#27ae60";
+        if(c.over_limit) barColor = "#e74c3c";
+        else if(c.at_limit) barColor = "#f39c12";
+        else if(usagePct > 80) barColor = "#e67e22";
+
+        var usageBar = '<div class="progress" style="margin:0;min-width:120px;">' +
+            '<div class="progress-bar" style="width:' + Math.min(usagePct, 100) + '%;background-color:' + barColor + ';min-width:30px;">' +
+            usagePct.toFixed(0) + '%</div></div>';
+
+        var alertBadge = "";
+        if(c.over_limit){
+            alertBadge = '<span class="label label-danger"><i class="fa fa-exclamation-circle"></i> OVER LIMIT</span>';
+        } else if(c.at_limit){
+            alertBadge = '<span class="label label-warning"><i class="fa fa-warning"></i> AT LIMIT</span>';
+        } else if(usagePct > 80){
+            alertBadge = '<span class="label label-info"><i class="fa fa-info-circle"></i> Near Limit</span>';
+        } else {
+            alertBadge = '<span class="text-muted">—</span>';
+        }
+
+        var rowStyle = c.over_limit ? "background-color:#fdf2f2;" : (c.at_limit ? "background-color:#fef9e7;" : "");
+
+        tbody.append(
+            '<tr style="' + rowStyle + '">' +
+            '<td>' + escapeHtml(c.org_name) + '</td>' +
+            '<td>' + escapeHtml(c.tier_name || "-") + '</td>' +
+            '<td class="text-center"><strong>' + c.seats_used + '</strong></td>' +
+            '<td class="text-center">' + (c.seats_allocated > 0 ? c.seats_allocated : '<span class="text-muted">Unlimited</span>') + '</td>' +
+            '<td>' + usageBar + '</td>' +
+            '<td class="text-center">' + alertBadge + '</td>' +
+            '</tr>'
+        );
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PDF Download
+// ═══════════════════════════════════════════════════════════════════════════
+
+function downloadQuarterlyPDF(){
+    window.location.href = "/api/msp/portal/quarterly-pdf?api_key=" + user.api_key;
+}
+
 // API wrapper for MSP endpoints
 if(typeof api === "undefined") var api = {};
 api.MSP = {
@@ -450,6 +840,15 @@ api.MSP = {
     },
     getReport: function(){
         return $.ajax({ url: "/api/msp/portal/report", method: "GET", headers: { Authorization: "Bearer " + user.api_key } });
+    },
+    getRanking: function(){
+        return $.ajax({ url: "/api/msp/portal/ranking", method: "GET", headers: { Authorization: "Bearer " + user.api_key } });
+    },
+    getComparison: function(orgIds){
+        return $.ajax({ url: "/api/msp/portal/comparison?org_ids=" + orgIds, method: "GET", headers: { Authorization: "Bearer " + user.api_key } });
+    },
+    getBilling: function(){
+        return $.ajax({ url: "/api/msp/portal/billing", method: "GET", headers: { Authorization: "Bearer " + user.api_key } });
     },
     getWhiteLabel: function(){
         return $.ajax({ url: "/api/msp/whitelabel/config", method: "GET", headers: { Authorization: "Bearer " + user.api_key } });

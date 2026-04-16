@@ -4,150 +4,234 @@
         <h1>
             <i class="fa fa-shield"></i> Network Events
             <button class="btn btn-default pull-right" id="rulesBtn" style="margin-left:8px;">
-                <i class="fa fa-cogs"></i> Automation Rules
+                <i class="fa fa-cogs"></i> Automation Rules & Playbooks
+            </button>
+            <button class="btn btn-info pull-right" id="correlateBtn" style="margin-left:8px;">
+                <i class="fa fa-link"></i> Run Correlation
             </button>
         </h1>
     </div>
     <div id="flashes" class="row"></div>
 
-    <!-- Dashboard Summary Cards -->
-    <div id="eventDashboard" class="row" style="margin-bottom:20px;">
-        <div class="col-md-2">
-            <div class="panel panel-default text-center">
-                <div class="panel-body">
-                    <h3 id="totalEvents" style="margin:5px 0;">—</h3>
-                    <p style="color:#888;margin:0;font-size:12px;">Total</p>
+    <!-- Tab Navigation -->
+    <ul class="nav nav-tabs" style="margin-bottom:20px;">
+        <li class="active"><a data-toggle="tab" href="#tab-dashboard"><i class="fa fa-dashboard"></i> Dashboard</a></li>
+        <li><a data-toggle="tab" href="#tab-incidents"><i class="fa fa-object-group"></i> Incidents</a></li>
+        <li><a data-toggle="tab" href="#tab-events"><i class="fa fa-list"></i> All Events</a></li>
+        <li><a data-toggle="tab" href="#tab-mitre"><i class="fa fa-th"></i> MITRE ATT&CK</a></li>
+        <li><a data-toggle="tab" href="#tab-playbooks"><i class="fa fa-play-circle"></i> Playbook Logs</a></li>
+    </ul>
+
+    <div class="tab-content">
+
+    <!-- ═══════════ TAB: Dashboard ═══════════ -->
+    <div id="tab-dashboard" class="tab-pane fade in active">
+        <!-- Summary Cards -->
+        <div id="eventDashboard" class="row" style="margin-bottom:20px;">
+            <div class="col-md-2">
+                <div class="panel panel-default text-center">
+                    <div class="panel-body">
+                        <h3 id="totalEvents" style="margin:5px 0;">—</h3>
+                        <p style="color:#888;margin:0;font-size:12px;">Total</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="panel panel-warning text-center">
+                    <div class="panel-body">
+                        <h3 id="openEvents" style="margin:5px 0;">—</h3>
+                        <p style="color:#888;margin:0;font-size:12px;">Open</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="panel panel-danger text-center">
+                    <div class="panel-body">
+                        <h3 id="criticalOpen" style="margin:5px 0;">—</h3>
+                        <p style="color:#888;margin:0;font-size:12px;">Critical</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="panel panel-danger text-center" style="border-color:#f0ad4e;">
+                    <div class="panel-body">
+                        <h3 id="highOpen" style="margin:5px 0;">—</h3>
+                        <p style="color:#888;margin:0;font-size:12px;">High</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="panel panel-info text-center">
+                    <div class="panel-body">
+                        <h3 id="avgResolution" style="margin:5px 0;">—</h3>
+                        <p style="color:#888;margin:0;font-size:12px;">Avg Resolution (hrs)</p>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-2">
-            <div class="panel panel-warning text-center">
-                <div class="panel-body">
-                    <h3 id="openEvents" style="margin:5px 0;">—</h3>
-                    <p style="color:#888;margin:0;font-size:12px;">Open</p>
+
+        <!-- Trend Chart -->
+        <div class="row" style="margin-bottom:20px;">
+            <div class="col-md-12">
+                <div class="panel panel-default">
+                    <div class="panel-heading"><h4 class="panel-title">30-Day Event Trend</h4></div>
+                    <div class="panel-body"><canvas id="trendChart" height="80"></canvas></div>
                 </div>
             </div>
         </div>
-        <div class="col-md-2">
-            <div class="panel panel-danger text-center">
-                <div class="panel-body">
-                    <h3 id="criticalOpen" style="margin:5px 0;">—</h3>
-                    <p style="color:#888;margin:0;font-size:12px;">Critical</p>
+
+        <!-- Breakdown Charts -->
+        <div class="row">
+            <div class="col-md-4">
+                <div class="panel panel-default">
+                    <div class="panel-heading"><h4 class="panel-title">By Source</h4></div>
+                    <div class="panel-body" id="sourceBreakdown"></div>
                 </div>
             </div>
-        </div>
-        <div class="col-md-2">
-            <div class="panel panel-danger text-center" style="border-color:#f0ad4e;">
-                <div class="panel-body">
-                    <h3 id="highOpen" style="margin:5px 0;">—</h3>
-                    <p style="color:#888;margin:0;font-size:12px;">High</p>
+            <div class="col-md-4">
+                <div class="panel panel-default">
+                    <div class="panel-heading"><h4 class="panel-title">By Type</h4></div>
+                    <div class="panel-body" id="typeBreakdown"></div>
                 </div>
             </div>
-        </div>
-        <div class="col-md-2">
-            <div class="panel panel-info text-center">
-                <div class="panel-body">
-                    <h3 id="avgResolution" style="margin:5px 0;">—</h3>
-                    <p style="color:#888;margin:0;font-size:12px;">Avg Resolution (hrs)</p>
+            <div class="col-md-4">
+                <div class="panel panel-default">
+                    <div class="panel-heading"><h4 class="panel-title">By Severity</h4></div>
+                    <div class="panel-body" id="severityBreakdown"></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Filters -->
-    <div class="row" style="margin-bottom:15px;">
-        <div class="col-md-2">
-            <select class="form-control" id="filterSource">
-                <option value="">All Sources</option>
-                <option value="siem">SIEM</option>
-                <option value="endpoint">Endpoint</option>
-                <option value="firewall">Firewall</option>
-                <option value="email_gateway">Email Gateway</option>
-                <option value="cloud">Cloud</option>
-                <option value="identity">Identity</option>
-                <option value="custom">Custom</option>
-            </select>
+    <!-- ═══════════ TAB: Incidents ═══════════ -->
+    <div id="tab-incidents" class="tab-pane fade">
+        <div class="row" style="margin-bottom:15px;">
+            <div class="col-md-3">
+                <select class="form-control" id="incidentStatusFilter">
+                    <option value="">All Statuses</option>
+                    <option value="open">Open</option>
+                    <option value="investigating">Investigating</option>
+                    <option value="resolved">Resolved</option>
+                    <option value="closed">Closed</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-primary" onclick="loadIncidents()"><i class="fa fa-refresh"></i> Refresh</button>
+            </div>
         </div>
-        <div class="col-md-2">
-            <select class="form-control" id="filterSeverity">
-                <option value="">All Severities</option>
-                <option value="critical">Critical</option>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
-                <option value="info">Info</option>
-            </select>
+        <div id="incidentCards" class="row"></div>
+    </div>
+
+    <!-- ═══════════ TAB: All Events ═══════════ -->
+    <div id="tab-events" class="tab-pane fade">
+        <!-- Filters -->
+        <div class="row" style="margin-bottom:15px;">
+            <div class="col-md-2">
+                <select class="form-control" id="filterSource">
+                    <option value="">All Sources</option>
+                    <option value="siem">SIEM</option>
+                    <option value="endpoint">Endpoint</option>
+                    <option value="firewall">Firewall</option>
+                    <option value="email_gateway">Email Gateway</option>
+                    <option value="cloud">Cloud</option>
+                    <option value="identity">Identity</option>
+                    <option value="custom">Custom</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-control" id="filterSeverity">
+                    <option value="">All Severities</option>
+                    <option value="critical">Critical</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                    <option value="info">Info</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-control" id="filterStatus">
+                    <option value="">All Statuses</option>
+                    <option value="new">New</option>
+                    <option value="acknowledged">Acknowledged</option>
+                    <option value="investigating">Investigating</option>
+                    <option value="resolved">Resolved</option>
+                    <option value="false_positive">False Positive</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-primary" onclick="loadEvents()"><i class="fa fa-filter"></i> Apply</button>
+            </div>
         </div>
-        <div class="col-md-2">
-            <select class="form-control" id="filterStatus">
-                <option value="">All Statuses</option>
-                <option value="new">New</option>
-                <option value="acknowledged">Acknowledged</option>
-                <option value="investigating">Investigating</option>
-                <option value="resolved">Resolved</option>
-                <option value="false_positive">False Positive</option>
-            </select>
-        </div>
-        <div class="col-md-2">
-            <button class="btn btn-primary" onclick="loadEvents()"><i class="fa fa-filter"></i> Apply</button>
+
+        <!-- Events Table -->
+        <div class="row">
+            <div class="col-md-12">
+                <table id="eventsTable" class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Source</th>
+                            <th>Type</th>
+                            <th>Severity</th>
+                            <th>Title</th>
+                            <th>MITRE</th>
+                            <th>User</th>
+                            <th>Status</th>
+                            <th>Event Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="eventsBody"></tbody>
+                </table>
+            </div>
         </div>
     </div>
 
-    <!-- Events Table -->
-    <div class="row">
-        <div class="col-md-12">
-            <table id="eventsTable" class="table table-striped table-hover">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Source</th>
-                        <th>Type</th>
-                        <th>Severity</th>
-                        <th>Title</th>
-                        <th>User</th>
-                        <th>Status</th>
-                        <th>Event Date</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="eventsBody"></tbody>
-            </table>
+    <!-- ═══════════ TAB: MITRE ATT&CK Heatmap ═══════════ -->
+    <div id="tab-mitre" class="tab-pane fade">
+        <div class="row" style="margin-bottom:15px;">
+            <div class="col-md-8">
+                <h4><i class="fa fa-th"></i> MITRE ATT&CK Technique Coverage</h4>
+                <p class="text-muted">Heatmap of observed techniques mapped to MITRE ATT&CK tactics. Darker cells = higher event count.</p>
+            </div>
+            <div class="col-md-4 text-right">
+                <span id="mitreSummary" class="text-muted"></span>
+            </div>
         </div>
-    </div>
-
-    <!-- Trend Chart Placeholder -->
-    <div class="row" style="margin-top:20px;">
-        <div class="col-md-12">
-            <div class="panel panel-default">
-                <div class="panel-heading"><h4 class="panel-title">30-Day Event Trend</h4></div>
-                <div class="panel-body">
-                    <canvas id="trendChart" height="80"></canvas>
+        <div id="mitreHeatmap" style="overflow-x:auto;"></div>
+        <div class="row" style="margin-top:20px;">
+            <div class="col-md-6">
+                <div class="panel panel-default">
+                    <div class="panel-heading"><h4 class="panel-title">Top Observed Techniques</h4></div>
+                    <div class="panel-body" id="topTechniques"></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Breakdown Charts -->
-    <div class="row">
-        <div class="col-md-4">
-            <div class="panel panel-default">
-                <div class="panel-heading"><h4 class="panel-title">By Source</h4></div>
-                <div class="panel-body" id="sourceBreakdown"></div>
+    <!-- ═══════════ TAB: Playbook Logs ═══════════ -->
+    <div id="tab-playbooks" class="tab-pane fade">
+        <div class="row" style="margin-bottom:15px;">
+            <div class="col-md-12">
+                <h4><i class="fa fa-play-circle"></i> Playbook Execution Log</h4>
+                <p class="text-muted">Shows when automated playbooks fired and what actions they took.</p>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="panel panel-default">
-                <div class="panel-heading"><h4 class="panel-title">By Type</h4></div>
-                <div class="panel-body" id="typeBreakdown"></div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="panel panel-default">
-                <div class="panel-heading"><h4 class="panel-title">By Severity</h4></div>
-                <div class="panel-body" id="severityBreakdown"></div>
-            </div>
-        </div>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Rule/Playbook</th>
+                    <th>Event ID</th>
+                    <th>Actions Executed</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="playbookLogBody"></tbody>
+        </table>
     </div>
+
+    </div><!-- /tab-content -->
 </div>
 
 <!-- Event Detail Modal -->
@@ -173,22 +257,135 @@
         </div>
     </div>
 </div>
+
+<!-- Incident Detail Modal -->
+<div class="modal fade" id="incidentDetailModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title"><i class="fa fa-object-group"></i> Incident Details</h4>
+            </div>
+            <div class="modal-body" id="incidentDetailBody"></div>
+            <div class="modal-footer">
+                <select class="form-control" id="updateIncidentStatus" style="width:200px;display:inline-block;">
+                    <option value="">Update Status...</option>
+                    <option value="investigating">Investigating</option>
+                    <option value="resolved">Resolved</option>
+                    <option value="closed">Closed</option>
+                </select>
+                <button class="btn btn-primary" id="updateIncidentStatusBtn">Update</button>
+                <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Automation Rules / Playbooks Modal -->
+<div class="modal fade" id="rulesModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title"><i class="fa fa-cogs"></i> Automation Rules & Playbooks</h4>
+            </div>
+            <div class="modal-body">
+                <ul class="nav nav-tabs" style="margin-bottom:15px;">
+                    <li class="active"><a data-toggle="tab" href="#rules-list-tab">Existing Rules</a></li>
+                    <li><a data-toggle="tab" href="#rules-create-tab">Create Rule</a></li>
+                    <li><a data-toggle="tab" href="#playbook-create-tab">Create Playbook</a></li>
+                </ul>
+                <div class="tab-content">
+                    <!-- Existing rules list -->
+                    <div id="rules-list-tab" class="tab-pane fade in active">
+                        <div id="rulesList"></div>
+                    </div>
+                    <!-- Create simple rule -->
+                    <div id="rules-create-tab" class="tab-pane fade">
+                        <form id="createRuleForm">
+                            <div class="form-group"><label>Name</label><input class="form-control" id="ruleName" required></div>
+                            <div class="form-group"><label>Description</label><input class="form-control" id="ruleDesc"></div>
+                            <div class="row">
+                                <div class="col-md-4"><div class="form-group"><label>Match Source</label><input class="form-control" id="ruleSourceMatch" placeholder="e.g. email_gateway"></div></div>
+                                <div class="col-md-4"><div class="form-group"><label>Match Event Type</label><input class="form-control" id="ruleTypeMatch" placeholder="e.g. malware_detected"></div></div>
+                                <div class="col-md-4"><div class="form-group"><label>Match Severity</label><input class="form-control" id="ruleSevMatch" placeholder="e.g. critical"></div></div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6"><div class="form-group"><label>Auto-set Severity</label>
+                                    <select class="form-control" id="ruleAutoSev"><option value="">—</option><option value="info">Info</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option></select>
+                                </div></div>
+                                <div class="col-md-6"><div class="form-group"><label>Auto-assign To (User ID)</label><input class="form-control" id="ruleAutoAssign" type="number" min="0"></div></div>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Create Rule</button>
+                        </form>
+                    </div>
+                    <!-- Create playbook -->
+                    <div id="playbook-create-tab" class="tab-pane fade">
+                        <div class="alert alert-info">
+                            <strong>Playbooks</strong> extend automation rules with if/then action chains. Define conditions and a sequence of actions to execute when an event matches.
+                        </div>
+                        <form id="createPlaybookForm">
+                            <div class="form-group"><label>Playbook Name</label><input class="form-control" id="pbName" required></div>
+                            <div class="form-group"><label>Description</label><input class="form-control" id="pbDesc"></div>
+                            <h5><i class="fa fa-filter"></i> IF Conditions</h5>
+                            <div class="row">
+                                <div class="col-md-4"><div class="form-group"><label>Source =</label><input class="form-control" id="pbSourceMatch" placeholder="e.g. email_gateway"></div></div>
+                                <div class="col-md-4"><div class="form-group"><label>Event Type =</label><input class="form-control" id="pbTypeMatch" placeholder="e.g. malware_detected"></div></div>
+                                <div class="col-md-4"><div class="form-group"><label>Severity =</label>
+                                    <select class="form-control" id="pbSevMatch"><option value="">Any</option><option value="info">Info</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option></select>
+                                </div></div>
+                            </div>
+                            <h5><i class="fa fa-bolt"></i> THEN Actions</h5>
+                            <div id="pbActionsContainer">
+                                <div class="playbook-action-row row" style="margin-bottom:8px;">
+                                    <div class="col-md-4">
+                                        <select class="form-control pb-action-type">
+                                            <option value="set_severity">Set Severity</option>
+                                            <option value="assign_to">Assign To (User ID)</option>
+                                            <option value="add_note">Add Note</option>
+                                            <option value="create_remediation">Create Remediation Action</option>
+                                            <option value="notify_webhook">Notify Webhook</option>
+                                            <option value="create_incident">Auto-create Incident</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6"><input class="form-control pb-action-value" placeholder="Value (e.g. critical, user ID, URL, note text)"></div>
+                                    <div class="col-md-2"><button type="button" class="btn btn-danger btn-sm" onclick="$(this).closest('.playbook-action-row').remove()"><i class="fa fa-times"></i></button></div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-default btn-sm" id="addPbAction" style="margin-bottom:15px;"><i class="fa fa-plus"></i> Add Action</button><br>
+                            <button type="submit" class="btn btn-success">Create Playbook</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {{end}}
 
 {{define "scripts"}}
 <script>
 var currentEventId = 0;
+var currentIncidentId = 0;
 
 function severityBadge(sev) {
     var colors = {"info":"info","low":"success","medium":"warning","high":"danger","critical":"danger"};
-    return '<span class="label label-' + (colors[sev] || "default") + '">' + sev + '</span>';
+    var style = sev === "critical" ? ' style="background:#8b0000;"' : "";
+    return '<span class="label label-' + (colors[sev] || "default") + '"' + style + '>' + sev + '</span>';
 }
 
 function statusBadge(status) {
-    var colors = {"new":"primary","acknowledged":"info","investigating":"warning","resolved":"success","false_positive":"default"};
+    var colors = {"new":"primary","acknowledged":"info","investigating":"warning","resolved":"success","false_positive":"default","open":"warning","closed":"default"};
     return '<span class="label label-' + (colors[status] || "default") + '">' + (status || "").replace(/_/g, " ") + '</span>';
 }
 
+function mitreBadge(tid) {
+    if (!tid) return '<span class="text-muted">—</span>';
+    return '<span class="label label-default" style="background:#5b3a8c;font-size:11px;">' + escapeHtml(tid) + '</span>';
+}
+
+// ═══════════ Dashboard ═══════════
 function loadDashboard() {
     api.networkEvents.dashboard()
         .success(function(d) {
@@ -198,50 +395,38 @@ function loadDashboard() {
             $("#highOpen").text(d.high_open);
             $("#avgResolution").text(d.avg_resolution_hours ? d.avg_resolution_hours.toFixed(1) : "—");
 
-            // Source breakdown
             var sourceHtml = "";
             $.each(d.events_by_source || [], function(i, s) {
                 sourceHtml += '<div>' + s.source + ': <strong>' + s.count + '</strong></div>';
             });
             $("#sourceBreakdown").html(sourceHtml || "<em>No data</em>");
 
-            // Type breakdown
             var typeHtml = "";
             $.each(d.events_by_type || [], function(i, t) {
                 typeHtml += '<div>' + t.event_type.replace(/_/g, " ") + ': <strong>' + t.count + '</strong></div>';
             });
             $("#typeBreakdown").html(typeHtml || "<em>No data</em>");
 
-            // Severity breakdown
             var sevHtml = "";
             $.each(d.events_by_severity || [], function(i, s) {
                 sevHtml += '<div>' + severityBadge(s.severity) + ' <strong>' + s.count + '</strong></div>';
             });
             $("#severityBreakdown").html(sevHtml || "<em>No data</em>");
 
-            // Trend chart
             if (d.trend_data && d.trend_data.length > 0 && typeof Chart !== "undefined") {
                 var labels = d.trend_data.map(function(t) { return t.date; });
                 var counts = d.trend_data.map(function(t) { return t.count; });
                 var ctx = document.getElementById("trendChart").getContext("2d");
                 new Chart(ctx, {
                     type: "line",
-                    data: {
-                        labels: labels,
-                        datasets: [{
-                            label: "Events",
-                            data: counts,
-                            borderColor: "#337ab7",
-                            backgroundColor: "rgba(51,122,183,0.1)",
-                            fill: true
-                        }]
-                    },
+                    data: { labels: labels, datasets: [{ label: "Events", data: counts, borderColor: "#337ab7", backgroundColor: "rgba(51,122,183,0.1)", fill: true }] },
                     options: { responsive: true, scales: { y: { beginAtZero: true } } }
                 });
             }
         });
 }
 
+// ═══════════ Events Table ═══════════
 function loadEvents() {
     var params = {
         source: $("#filterSource").val(),
@@ -260,13 +445,14 @@ function loadEvents() {
                     '<td>' + e.event_type.replace(/_/g, " ") + '</td>' +
                     '<td>' + severityBadge(e.severity) + '</td>' +
                     '<td>' + escapeHtml(e.title) + '</td>' +
+                    '<td>' + mitreBadge(e.mitre_technique_id) + '</td>' +
                     '<td>' + (e.user_email || "—") + '</td>' +
                     '<td>' + statusBadge(e.status) + '</td>' +
                     '<td>' + moment(e.event_date).format("YYYY-MM-DD HH:mm") + '</td>' +
                     '<td><button class="btn btn-xs btn-info" onclick="viewEvent(' + e.id + ')"><i class="fa fa-eye"></i></button></td>' +
                     '</tr>';
             });
-            $("#eventsBody").html(html || '<tr><td colspan="9" class="text-center">No events found</td></tr>');
+            $("#eventsBody").html(html || '<tr><td colspan="10" class="text-center">No events found</td></tr>');
         });
 }
 
@@ -280,11 +466,13 @@ function viewEvent(id) {
                 '<p><strong>Type:</strong> ' + e.event_type.replace(/_/g, " ") + '</p>' +
                 '<p><strong>Severity:</strong> ' + severityBadge(e.severity) + '</p>' +
                 '<p><strong>Status:</strong> ' + statusBadge(e.status) + '</p>' +
+                '<p><strong>MITRE Technique:</strong> ' + mitreBadge(e.mitre_technique_id) + '</p>' +
                 '</div><div class="col-md-6">' +
                 '<p><strong>Source IP:</strong> ' + (e.source_ip || "—") + '</p>' +
                 '<p><strong>Destination IP:</strong> ' + (e.destination_ip || "—") + '</p>' +
                 '<p><strong>User:</strong> ' + (e.user_email || "—") + '</p>' +
                 '<p><strong>Device:</strong> ' + (e.device_id || "—") + '</p>' +
+                '<p><strong>Incident:</strong> ' + (e.incident_id > 0 ? '<a href="#" onclick="viewIncident(' + e.incident_id + '); return false;">Incident #' + e.incident_id + '</a>' : '—') + '</p>' +
                 '</div></div>';
 
             html += '<hr><h5>Description</h5><div class="well">' + escapeHtml(e.description || "No description") + '</div>';
@@ -319,15 +507,318 @@ $("#updateStatusBtn").click(function() {
         });
 });
 
+// ═══════════ Incidents ═══════════
+function loadIncidents() {
+    var status = $("#incidentStatusFilter").val();
+    api.networkEvents.incidents(status, 50)
+        .success(function(data) {
+            var html = "";
+            if (!data || data.length === 0) {
+                html = '<div class="col-md-12"><div class="alert alert-info">No incidents found. Click <strong>Run Correlation</strong> to group related events into incidents.</div></div>';
+            } else {
+                $.each(data, function(i, inc) {
+                    var borderColor = {"info":"#5bc0de","low":"#5cb85c","medium":"#f0ad4e","high":"#d9534f","critical":"#8b0000"}[inc.severity] || "#ddd";
+                    html += '<div class="col-md-6 col-lg-4" style="margin-bottom:15px;">' +
+                        '<div class="panel panel-default" style="border-left:4px solid ' + borderColor + ';cursor:pointer;" onclick="viewIncident(' + inc.id + ')">' +
+                        '<div class="panel-heading" style="padding:10px 15px;">' +
+                            '<strong>#' + inc.id + '</strong> ' + severityBadge(inc.severity) + ' ' + statusBadge(inc.status) +
+                            '<span class="pull-right badge">' + inc.event_count + ' events</span>' +
+                        '</div>' +
+                        '<div class="panel-body" style="padding:10px 15px;">' +
+                            '<p style="margin:0 0 5px 0;font-weight:600;">' + escapeHtml(inc.title) + '</p>' +
+                            '<small class="text-muted">' +
+                                (inc.source_ip ? '<i class="fa fa-globe"></i> ' + inc.source_ip + ' ' : '') +
+                                (inc.user_email ? '<i class="fa fa-user"></i> ' + inc.user_email + ' ' : '') +
+                            '</small><br>' +
+                            '<small class="text-muted">First: ' + moment(inc.first_seen).format("MM/DD HH:mm") + ' — Last: ' + moment(inc.last_seen).format("MM/DD HH:mm") + '</small>' +
+                        '</div></div></div>';
+                });
+            }
+            $("#incidentCards").html(html);
+        });
+}
+
+function viewIncident(id) {
+    currentIncidentId = id;
+    api.networkEvents.getIncident(id)
+        .success(function(inc) {
+            var html = '<div class="row"><div class="col-md-6">' +
+                '<p><strong>Severity:</strong> ' + severityBadge(inc.severity) + '</p>' +
+                '<p><strong>Status:</strong> ' + statusBadge(inc.status) + '</p>' +
+                '<p><strong>Source IP:</strong> ' + (inc.source_ip || "—") + '</p>' +
+                '<p><strong>User:</strong> ' + (inc.user_email || "—") + '</p>' +
+                '</div><div class="col-md-6">' +
+                '<p><strong>Events:</strong> ' + inc.event_count + '</p>' +
+                '<p><strong>First Seen:</strong> ' + moment(inc.first_seen).format("YYYY-MM-DD HH:mm") + '</p>' +
+                '<p><strong>Last Seen:</strong> ' + moment(inc.last_seen).format("YYYY-MM-DD HH:mm") + '</p>' +
+                '</div></div>';
+
+            html += '<hr><h5>Description</h5><div class="well">' + escapeHtml(inc.description || "—") + '</div>';
+
+            if (inc.events && inc.events.length > 0) {
+                html += '<h5>Correlated Events</h5><table class="table table-condensed table-striped">' +
+                    '<thead><tr><th>ID</th><th>Type</th><th>Severity</th><th>Title</th><th>MITRE</th><th>Date</th></tr></thead><tbody>';
+                $.each(inc.events, function(i, e) {
+                    html += '<tr>' +
+                        '<td><a href="#" onclick="viewEvent(' + e.id + '); return false;">' + e.id + '</a></td>' +
+                        '<td>' + e.event_type.replace(/_/g, " ") + '</td>' +
+                        '<td>' + severityBadge(e.severity) + '</td>' +
+                        '<td>' + escapeHtml(e.title) + '</td>' +
+                        '<td>' + mitreBadge(e.mitre_technique_id) + '</td>' +
+                        '<td>' + moment(e.event_date).format("MM/DD HH:mm") + '</td></tr>';
+                });
+                html += '</tbody></table>';
+            }
+
+            $("#incidentDetailBody").html(html);
+            $("#updateIncidentStatus").val("");
+            $("#incidentDetailModal").modal("show");
+        });
+}
+
+$("#updateIncidentStatusBtn").click(function() {
+    var status = $("#updateIncidentStatus").val();
+    if (!status || !currentIncidentId) return;
+    api.networkEvents.updateIncidentStatus(currentIncidentId, status)
+        .success(function() {
+            $("#incidentDetailModal").modal("hide");
+            loadIncidents();
+        });
+});
+
+// ═══════════ Run Correlation ═══════════
+$("#correlateBtn").click(function() {
+    var btn = $(this);
+    btn.prop("disabled", true).html('<i class="fa fa-spinner fa-spin"></i> Correlating...');
+    api.networkEvents.correlate()
+        .success(function(resp) {
+            btn.prop("disabled", false).html('<i class="fa fa-link"></i> Run Correlation');
+            var msg = resp.incidents_created + " incident(s) created.";
+            if (typeof Swal !== "undefined") {
+                Swal.fire("Correlation Complete", msg, "success");
+            } else {
+                alert(msg);
+            }
+            loadIncidents();
+        })
+        .error(function() {
+            btn.prop("disabled", false).html('<i class="fa fa-link"></i> Run Correlation');
+        });
+});
+
+// ═══════════ MITRE Heatmap ═══════════
+function loadMitreHeatmap() {
+    api.networkEvents.mitreHeatmap()
+        .success(function(data) {
+            $("#mitreSummary").html(
+                '<strong>' + data.total_mapped + '</strong> mapped events | ' +
+                '<strong>' + data.total_unmapped + '</strong> unmapped'
+            );
+
+            // Build heatmap table
+            var html = '<table class="table table-bordered" style="font-size:12px;"><thead><tr><th style="min-width:140px;">Tactic</th>';
+            // Max columns across all rows
+            var maxCols = 0;
+            $.each(data.rows, function(i, r) { maxCols = Math.max(maxCols, r.techniques.length); });
+            for (var c = 0; c < maxCols; c++) {
+                html += '<th style="text-align:center;">T' + (c + 1) + '</th>';
+            }
+            html += '</tr></thead><tbody>';
+
+            // Find max count for colour scaling
+            var maxCount = 1;
+            $.each(data.rows, function(i, r) {
+                $.each(r.techniques, function(j, t) {
+                    if (t.count > maxCount) maxCount = t.count;
+                });
+            });
+
+            $.each(data.rows, function(i, row) {
+                html += '<tr><td style="font-weight:600;white-space:nowrap;">' + row.tactic + '</td>';
+                $.each(row.techniques, function(j, t) {
+                    var intensity = t.count > 0 ? Math.min(Math.round((t.count / maxCount) * 200) + 55, 255) : 0;
+                    var bg = t.count > 0 ? 'rgba(139,0,0,' + (intensity / 255).toFixed(2) + ')' : '#f9f9f9';
+                    var fg = t.count > 0 ? '#fff' : '#999';
+                    html += '<td style="text-align:center;background:' + bg + ';color:' + fg + ';cursor:pointer;" ' +
+                        'title="' + t.technique_id + ': ' + (t.technique_name || "") + ' (' + t.count + ')">' +
+                        '<div style="font-weight:600;">' + t.technique_id + '</div>' +
+                        '<div style="font-size:10px;">' + (t.technique_name || "").substring(0, 18) + '</div>' +
+                        '<div style="font-size:11px;font-weight:bold;">' + (t.count || "") + '</div>' +
+                        '</td>';
+                });
+                // Pad empty cells
+                for (var k = row.techniques.length; k < maxCols; k++) {
+                    html += '<td style="background:#f9f9f9;"></td>';
+                }
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+            $("#mitreHeatmap").html(html);
+
+            // Top techniques list
+            var topHtml = "";
+            $.each(data.top_techniques || [], function(i, t) {
+                topHtml += '<div style="margin-bottom:6px;">' +
+                    '<span class="label label-default" style="background:#5b3a8c;font-size:12px;">' + t.technique_id + '</span> ' +
+                    '<strong>' + (t.technique_name || "Unknown") + '</strong> — ' + t.count + ' events</div>';
+            });
+            $("#topTechniques").html(topHtml || "<em>No techniques observed yet</em>");
+        });
+}
+
+// ═══════════ Playbook Logs ═══════════
+function loadPlaybookLogs() {
+    api.networkEvents.playbookLogs(100)
+        .success(function(data) {
+            var html = "";
+            $.each(data || [], function(i, l) {
+                var actions = "—";
+                try {
+                    var parsed = JSON.parse(l.actions_run);
+                    actions = parsed.join(", ");
+                } catch(e) { actions = l.actions_run; }
+                html += '<tr>' +
+                    '<td>' + moment(l.created_date).format("YYYY-MM-DD HH:mm") + '</td>' +
+                    '<td>' + escapeHtml(l.rule_name) + '</td>' +
+                    '<td>' + (l.event_id || "—") + '</td>' +
+                    '<td><code>' + escapeHtml(actions) + '</code></td>' +
+                    '<td>' + statusBadge(l.status) + '</td></tr>';
+            });
+            $("#playbookLogBody").html(html || '<tr><td colspan="5" class="text-center">No playbook executions yet</td></tr>');
+        });
+}
+
+// ═══════════ Rules & Playbooks Modal ═══════════
+$("#rulesBtn").click(function() {
+    loadRules();
+    $("#rulesModal").modal("show");
+});
+
+function loadRules() {
+    api.networkEvents.getRules()
+        .success(function(rules) {
+            var html = "";
+            if (!rules || rules.length === 0) {
+                html = '<div class="alert alert-info">No automation rules yet. Create one using the tabs above.</div>';
+            } else {
+                html = '<table class="table table-striped table-condensed"><thead><tr><th>Name</th><th>Type</th><th>Conditions</th><th>Enabled</th><th>Actions</th></tr></thead><tbody>';
+                $.each(rules, function(i, r) {
+                    var conditions = [];
+                    if (r.source_match) conditions.push("source=" + r.source_match);
+                    if (r.event_type_match) conditions.push("type=" + r.event_type_match);
+                    if (r.severity_match) conditions.push("severity=" + r.severity_match);
+                    var type = r.is_playbook ? '<span class="label label-success">Playbook</span>' : '<span class="label label-default">Rule</span>';
+                    html += '<tr><td>' + escapeHtml(r.name) + '</td><td>' + type + '</td>' +
+                        '<td><code>' + (conditions.join(" AND ") || "any") + '</code></td>' +
+                        '<td>' + (r.enabled ? '<i class="fa fa-check text-success"></i>' : '<i class="fa fa-times text-muted"></i>') + '</td>' +
+                        '<td><button class="btn btn-xs btn-danger" onclick="deleteRule(' + r.id + ')"><i class="fa fa-trash"></i></button></td></tr>';
+                });
+                html += '</tbody></table>';
+            }
+            $("#rulesList").html(html);
+        });
+}
+
+function deleteRule(id) {
+    if (!confirm("Delete this rule?")) return;
+    api.networkEvents.deleteRule(id)
+        .success(function() { loadRules(); });
+}
+
+// Create simple rule
+$("#createRuleForm").submit(function(e) {
+    e.preventDefault();
+    var data = {
+        name: $("#ruleName").val(),
+        description: $("#ruleDesc").val(),
+        source_match: $("#ruleSourceMatch").val(),
+        event_type_match: $("#ruleTypeMatch").val(),
+        severity_match: $("#ruleSevMatch").val(),
+        auto_severity: $("#ruleAutoSev").val(),
+        auto_assign: parseInt($("#ruleAutoAssign").val()) || 0,
+        is_playbook: false,
+        enabled: true
+    };
+    api.networkEvents.createRule(data)
+        .success(function() {
+            $("#createRuleForm")[0].reset();
+            loadRules();
+            $('a[href="#rules-list-tab"]').tab("show");
+        });
+});
+
+// Add playbook action row
+$("#addPbAction").click(function() {
+    var row = '<div class="playbook-action-row row" style="margin-bottom:8px;">' +
+        '<div class="col-md-4"><select class="form-control pb-action-type">' +
+        '<option value="set_severity">Set Severity</option><option value="assign_to">Assign To (User ID)</option>' +
+        '<option value="add_note">Add Note</option><option value="create_remediation">Create Remediation Action</option>' +
+        '<option value="notify_webhook">Notify Webhook</option><option value="create_incident">Auto-create Incident</option>' +
+        '</select></div>' +
+        '<div class="col-md-6"><input class="form-control pb-action-value" placeholder="Value"></div>' +
+        '<div class="col-md-2"><button type="button" class="btn btn-danger btn-sm" onclick="$(this).closest(\'.playbook-action-row\').remove()"><i class="fa fa-times"></i></button></div></div>';
+    $("#pbActionsContainer").append(row);
+});
+
+// Create playbook
+$("#createPlaybookForm").submit(function(e) {
+    e.preventDefault();
+    var actions = [];
+    $(".playbook-action-row").each(function() {
+        var type = $(this).find(".pb-action-type").val();
+        var value = $(this).find(".pb-action-value").val();
+        if (type) actions.push({ type: type, value: value || "" });
+    });
+    var data = {
+        name: $("#pbName").val(),
+        description: $("#pbDesc").val(),
+        source_match: $("#pbSourceMatch").val(),
+        event_type_match: $("#pbTypeMatch").val(),
+        severity_match: $("#pbSevMatch").val(),
+        is_playbook: true,
+        playbook_actions: JSON.stringify(actions),
+        enabled: true
+    };
+    api.networkEvents.createRule(data)
+        .success(function() {
+            $("#createPlaybookForm")[0].reset();
+            // Reset actions to single row
+            $("#pbActionsContainer").html(
+                '<div class="playbook-action-row row" style="margin-bottom:8px;">' +
+                '<div class="col-md-4"><select class="form-control pb-action-type">' +
+                '<option value="set_severity">Set Severity</option><option value="assign_to">Assign To (User ID)</option>' +
+                '<option value="add_note">Add Note</option><option value="create_remediation">Create Remediation Action</option>' +
+                '<option value="notify_webhook">Notify Webhook</option><option value="create_incident">Auto-create Incident</option>' +
+                '</select></div>' +
+                '<div class="col-md-6"><input class="form-control pb-action-value" placeholder="Value"></div>' +
+                '<div class="col-md-2"><button type="button" class="btn btn-danger btn-sm" onclick="$(this).closest(\'.playbook-action-row\').remove()"><i class="fa fa-times"></i></button></div></div>'
+            );
+            loadRules();
+            $('a[href="#rules-list-tab"]').tab("show");
+        });
+});
+
+// ═══════════ Utility ═══════════
 function escapeHtml(text) {
     var div = document.createElement("div");
     div.appendChild(document.createTextNode(text || ""));
     return div.innerHTML;
 }
 
+// ═══════════ Init ═══════════
 $(document).ready(function() {
     loadDashboard();
     loadEvents();
+    loadIncidents();
+
+    // Lazy-load tabs on first click
+    $('a[data-toggle="tab"]').on("shown.bs.tab", function(e) {
+        var target = $(e.target).attr("href");
+        if (target === "#tab-mitre") loadMitreHeatmap();
+        if (target === "#tab-playbooks") loadPlaybookLogs();
+        if (target === "#tab-incidents") loadIncidents();
+        if (target === "#tab-events") loadEvents();
+    });
 });
 </script>
 {{end}}

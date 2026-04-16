@@ -1,39 +1,39 @@
 {{define "body"}}
 <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
     <h1 class="page-header">
-        <i class="fa fa-bar-chart"></i> Reports
+        <i class="fa fa-bar-chart"></i> {{T .Locale "reports.title"}}
     </h1>
     <div id="flashes" class="row"></div>
 
     <!-- Tab navigation -->
     <ul class="nav nav-tabs" id="reportTabs" style="margin-bottom:20px;">
-        <li class="active"><a href="#overviewTab" data-toggle="tab">Overview</a></li>
-        <li><a href="#trendTab" data-toggle="tab">Trend</a></li>
-        <li><a href="#groupsTab" data-toggle="tab">Groups</a></li>
-        <li><a href="#trainingTab" data-toggle="tab">Training</a></li>
-        <li><a href="#riskTab" data-toggle="tab">Risk Assessment</a></li>
-        <li><a href="#brsTab" data-toggle="tab">Behavioral Risk Score</a></li>
+        <li class="active"><a href="#overviewTab" data-toggle="tab">{{T .Locale "reports.tab_overview"}}</a></li>
+        <li><a href="#trendTab" data-toggle="tab">{{T .Locale "reports.tab_trend"}}</a></li>
+        <li><a href="#groupsTab" data-toggle="tab">{{T .Locale "reports.tab_groups"}}</a></li>
+        <li><a href="#trainingTab" data-toggle="tab">{{T .Locale "reports.tab_training"}}</a></li>
+        <li><a href="#riskTab" data-toggle="tab">{{T .Locale "reports.tab_risk"}}</a></li>
+        <li><a href="#brsTab" data-toggle="tab">{{T .Locale "reports.tab_brs"}}</a></li>
     </ul>
 
     <!-- Export all formats dropdown -->
     <div class="pull-right" style="margin-top:-55px;">
         <div class="btn-group">
             <button type="button" class="btn btn-sm btn-default dropdown-toggle" data-toggle="dropdown">
-                <i class="fa fa-download"></i> Export All <span class="caret"></span>
+                <i class="fa fa-download"></i> {{T .Locale "reports.export_all"}} <span class="caret"></span>
             </button>
             <ul class="dropdown-menu dropdown-menu-right">
-                <li><a href="/api/reports/export?type=overview&format=csv"><i class="fa fa-file-text-o"></i> Overview CSV</a></li>
-                <li><a href="/api/reports/export?type=overview&format=xlsx"><i class="fa fa-file-excel-o"></i> Overview XLSX</a></li>
-                <li><a href="/api/reports/export?type=overview&format=pdf"><i class="fa fa-file-pdf-o"></i> Overview PDF</a></li>
+                <li><a href="/api/reports/export?type=overview&format=csv"><i class="fa fa-file-text-o"></i> {{T .Locale "reports.overview_csv"}}</a></li>
+                <li><a href="/api/reports/export?type=overview&format=xlsx"><i class="fa fa-file-excel-o"></i> {{T .Locale "reports.overview_xlsx"}}</a></li>
+                <li><a href="/api/reports/export?type=overview&format=pdf"><i class="fa fa-file-pdf-o"></i> {{T .Locale "reports.overview_pdf"}}</a></li>
                 <li class="divider"></li>
-                <li><a href="/api/reports/export?type=risk-scores&format=xlsx"><i class="fa fa-file-excel-o"></i> Risk Scores XLSX</a></li>
-                <li><a href="/api/reports/export?type=training&format=xlsx"><i class="fa fa-file-excel-o"></i> Training XLSX</a></li>
-                <li><a href="/api/reports/export?type=groups&format=xlsx"><i class="fa fa-file-excel-o"></i> Groups XLSX</a></li>
-                <li><a href="/api/reports/export?type=brs&format=xlsx"><i class="fa fa-file-excel-o"></i> BRS XLSX</a></li>
-                <li><a href="/api/reports/export?type=results&format=xlsx"><i class="fa fa-file-excel-o"></i> Raw Results XLSX</a></li>
+                <li><a href="/api/reports/export?type=risk-scores&format=xlsx"><i class="fa fa-file-excel-o"></i> {{T .Locale "reports.risk_scores_xlsx"}}</a></li>
+                <li><a href="/api/reports/export?type=training&format=xlsx"><i class="fa fa-file-excel-o"></i> {{T .Locale "reports.training_xlsx"}}</a></li>
+                <li><a href="/api/reports/export?type=groups&format=xlsx"><i class="fa fa-file-excel-o"></i> {{T .Locale "reports.groups_xlsx"}}</a></li>
+                <li><a href="/api/reports/export?type=brs&format=xlsx"><i class="fa fa-file-excel-o"></i> {{T .Locale "reports.brs_xlsx"}}</a></li>
+                <li><a href="/api/reports/export?type=results&format=xlsx"><i class="fa fa-file-excel-o"></i> {{T .Locale "reports.results_xlsx"}}</a></li>
                 <li class="divider"></li>
-                <li><a href="/api/reports/export?type=compliance&format=xlsx"><i class="fa fa-file-excel-o"></i> Compliance XLSX</a></li>
-                <li><a href="/api/reports/export?type=compliance&format=pdf"><i class="fa fa-file-pdf-o"></i> Compliance PDF</a></li>
+                <li><a href="/api/reports/export?type=compliance&format=xlsx"><i class="fa fa-file-excel-o"></i> {{T .Locale "reports.compliance_xlsx"}}</a></li>
+                <li><a href="/api/reports/export?type=compliance&format=pdf"><i class="fa fa-file-pdf-o"></i> {{T .Locale "reports.compliance_pdf"}}</a></li>
             </ul>
         </div>
     </div>
@@ -55,13 +55,13 @@
                 </div>
                 <div style="margin-top:15px; text-align:right;">
                     <a class="btn btn-default btn-sm" href="/api/reports/export?type=overview&format=csv">
-                        <i class="fa fa-download"></i> Export CSV
+                        <i class="fa fa-download"></i> {{T .Locale "common.export_csv"}}
                     </a>
                     <a class="btn btn-default btn-sm" href="/api/reports/export?type=overview&format=xlsx">
-                        <i class="fa fa-file-excel-o"></i> Export XLSX
+                        <i class="fa fa-file-excel-o"></i> {{T .Locale "common.export_xlsx"}}
                     </a>
                     <a class="btn btn-default btn-sm" href="/api/reports/export?type=overview&format=pdf">
-                        <i class="fa fa-file-pdf-o"></i> Export PDF
+                        <i class="fa fa-file-pdf-o"></i> {{T .Locale "common.export_pdf"}}
                     </a>
                 </div>
             </div>
@@ -75,15 +75,15 @@
             <div id="trendContent" style="display:none;">
                 <div class="row" style="margin-bottom:15px;">
                     <div class="col-md-4">
-                        <label for="trendDays">Time Period:</label>
+                        <label for="trendDays">{{T .Locale "reports.time_period"}}</label>
                         <select id="trendDays" class="form-control input-sm">
-                            <option value="7">Last 7 days</option>
-                            <option value="14">Last 14 days</option>
-                            <option value="30" selected>Last 30 days</option>
-                            <option value="60">Last 60 days</option>
-                            <option value="90">Last 90 days</option>
-                            <option value="180">Last 6 months</option>
-                            <option value="365">Last year</option>
+                            <option value="7">{{T .Locale "reports.last_7"}}</option>
+                            <option value="14">{{T .Locale "reports.last_14"}}</option>
+                            <option value="30" selected>{{T .Locale "reports.last_30"}}</option>
+                            <option value="60">{{T .Locale "reports.last_60"}}</option>
+                            <option value="90">{{T .Locale "reports.last_90"}}</option>
+                            <option value="180">{{T .Locale "reports.last_6mo"}}</option>
+                            <option value="365">{{T .Locale "reports.last_year"}}</option>
                         </select>
                     </div>
                 </div>
@@ -102,27 +102,27 @@
                 <table id="groupsTable" class="table table-striped table-hover">
                     <thead>
                         <tr>
-                            <th>Group</th>
-                            <th>Total</th>
-                            <th>Sent</th>
-                            <th>Opened</th>
-                            <th>Clicked</th>
-                            <th>Submitted</th>
-                            <th>Reported</th>
-                            <th>Click Rate</th>
+                            <th>{{T .Locale "reports.group"}}</th>
+                            <th>{{T .Locale "reports.total"}}</th>
+                            <th>{{T .Locale "reports.sent"}}</th>
+                            <th>{{T .Locale "reports.opened"}}</th>
+                            <th>{{T .Locale "reports.clicked"}}</th>
+                            <th>{{T .Locale "reports.submitted"}}</th>
+                            <th>{{T .Locale "reports.reported"}}</th>
+                            <th>{{T .Locale "reports.click_rate"}}</th>
                         </tr>
                     </thead>
                     <tbody id="groupsTableBody"></tbody>
                 </table>
                 <div style="text-align:right;">
                     <a class="btn btn-default btn-sm" href="/api/reports/export?type=groups&format=csv">
-                        <i class="fa fa-download"></i> Export CSV
+                        <i class="fa fa-download"></i> {{T .Locale "common.export_csv"}}
                     </a>
                     <a class="btn btn-default btn-sm" href="/api/reports/export?type=groups&format=xlsx">
-                        <i class="fa fa-file-excel-o"></i> Export XLSX
+                        <i class="fa fa-file-excel-o"></i> {{T .Locale "common.export_xlsx"}}
                     </a>
                     <a class="btn btn-default btn-sm" href="/api/reports/export?type=groups&format=pdf">
-                        <i class="fa fa-file-pdf-o"></i> Export PDF
+                        <i class="fa fa-file-pdf-o"></i> {{T .Locale "common.export_pdf"}}
                     </a>
                 </div>
             </div>
@@ -141,13 +141,13 @@
                 </div>
                 <div style="margin-top:15px; text-align:right;">
                     <a class="btn btn-default btn-sm" href="/api/reports/export?type=training&format=csv">
-                        <i class="fa fa-download"></i> Export CSV
+                        <i class="fa fa-download"></i> {{T .Locale "common.export_csv"}}
                     </a>
                     <a class="btn btn-default btn-sm" href="/api/reports/export?type=training&format=xlsx">
-                        <i class="fa fa-file-excel-o"></i> Export XLSX
+                        <i class="fa fa-file-excel-o"></i> {{T .Locale "common.export_xlsx"}}
                     </a>
                     <a class="btn btn-default btn-sm" href="/api/reports/export?type=training&format=pdf">
-                        <i class="fa fa-file-pdf-o"></i> Export PDF
+                        <i class="fa fa-file-pdf-o"></i> {{T .Locale "common.export_pdf"}}
                     </a>
                 </div>
             </div>
@@ -163,26 +163,26 @@
                 <table id="riskTable" class="table table-striped table-hover">
                     <thead>
                         <tr>
-                            <th>Email</th>
-                            <th>Name</th>
-                            <th>Emails Received</th>
-                            <th>Clicked</th>
-                            <th>Submitted</th>
-                            <th>Reported</th>
-                            <th>Risk Score</th>
+                            <th>{{T .Locale "common.email"}}</th>
+                            <th>{{T .Locale "common.name"}}</th>
+                            <th>{{T .Locale "reports.emails_received"}}</th>
+                            <th>{{T .Locale "reports.clicked"}}</th>
+                            <th>{{T .Locale "reports.submitted"}}</th>
+                            <th>{{T .Locale "reports.reported"}}</th>
+                            <th>{{T .Locale "reports.risk_score"}}</th>
                         </tr>
                     </thead>
                     <tbody id="riskTableBody"></tbody>
                 </table>
                 <div style="text-align:right;">
                     <a class="btn btn-default btn-sm" href="/api/reports/export?type=risk-scores&format=csv">
-                        <i class="fa fa-download"></i> Export CSV
+                        <i class="fa fa-download"></i> {{T .Locale "common.export_csv"}}
                     </a>
                     <a class="btn btn-default btn-sm" href="/api/reports/export?type=risk-scores&format=xlsx">
-                        <i class="fa fa-file-excel-o"></i> Export XLSX
+                        <i class="fa fa-file-excel-o"></i> {{T .Locale "common.export_xlsx"}}
                     </a>
                     <a class="btn btn-default btn-sm" href="/api/reports/export?type=risk-scores&format=pdf">
-                        <i class="fa fa-file-pdf-o"></i> Export PDF
+                        <i class="fa fa-file-pdf-o"></i> {{T .Locale "common.export_pdf"}}
                     </a>
                 </div>
             </div>
@@ -199,7 +199,7 @@
                 <div class="row" style="margin-top:20px;">
                     <div class="col-md-6">
                         <div class="panel panel-default">
-                            <div class="panel-heading"><strong>Score Distribution</strong></div>
+                            <div class="panel-heading"><strong>{{T .Locale "reports.score_distribution"}}</strong></div>
                             <div class="panel-body">
                                 <div id="brsDistributionChart" style="height:300px;"></div>
                             </div>
@@ -207,7 +207,7 @@
                     </div>
                     <div class="col-md-6">
                         <div class="panel panel-default">
-                            <div class="panel-heading"><strong>Department Comparison</strong></div>
+                            <div class="panel-heading"><strong>{{T .Locale "reports.dept_comparison"}}</strong></div>
                             <div class="panel-body">
                                 <div id="brsDepartmentChart" style="height:300px;"></div>
                             </div>
@@ -217,9 +217,9 @@
                 <!-- Leaderboard table -->
                 <div class="panel panel-default" style="margin-top:20px;">
                     <div class="panel-heading">
-                        <strong>Leaderboard</strong> <small class="text-muted">(lowest risk first)</small>
-                        <button id="brsRecalcBtn" class="btn btn-xs btn-default pull-right" title="Recalculate BRS">
-                            <i class="fa fa-refresh"></i> Recalculate
+                        <strong>{{T .Locale "reports.leaderboard"}}</strong> <small class="text-muted">{{T .Locale "reports.leaderboard_hint"}}</small>
+                        <button id="brsRecalcBtn" class="btn btn-xs btn-default pull-right" title="{{T .Locale "reports.recalculate_title"}}">
+                            <i class="fa fa-refresh"></i> {{T .Locale "reports.recalculate"}}
                         </button>
                     </div>
                     <div class="panel-body" style="padding:0;">
@@ -227,16 +227,16 @@
                             <thead>
                                 <tr>
                                     <th>#</th>
-                                    <th>Name</th>
-                                    <th>Email</th>
-                                    <th>Department</th>
-                                    <th>Simulation</th>
-                                    <th>Academy</th>
-                                    <th>Quiz</th>
-                                    <th>Trend</th>
-                                    <th>Consistency</th>
-                                    <th>Composite</th>
-                                    <th>Percentile</th>
+                                    <th>{{T .Locale "common.name"}}</th>
+                                    <th>{{T .Locale "common.email"}}</th>
+                                    <th>{{T .Locale "common.department"}}</th>
+                                    <th>{{T .Locale "reports.simulation"}}</th>
+                                    <th>{{T .Locale "reports.academy"}}</th>
+                                    <th>{{T .Locale "reports.quiz"}}</th>
+                                    <th>{{T .Locale "reports.trend"}}</th>
+                                    <th>{{T .Locale "reports.consistency"}}</th>
+                                    <th>{{T .Locale "reports.composite"}}</th>
+                                    <th>{{T .Locale "reports.percentile"}}</th>
                                 </tr>
                             </thead>
                             <tbody id="brsTableBody"></tbody>
@@ -247,7 +247,7 @@
                 <div class="row" id="brsBenchmarkRow" style="display:none;">
                     <div class="col-md-12">
                         <div class="panel panel-info">
-                            <div class="panel-heading"><strong>Benchmark Comparison</strong></div>
+                            <div class="panel-heading"><strong>{{T .Locale "reports.benchmark"}}</strong></div>
                             <div class="panel-body" id="brsBenchmarkContent"></div>
                         </div>
                     </div>
