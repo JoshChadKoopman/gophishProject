@@ -2,13 +2,25 @@ package worker
 
 import (
 	"context"
+	"sync/atomic"
 	"time"
 
 	log "github.com/gophish/gophish/logger"
 	"github.com/gophish/gophish/mailer"
+	"github.com/gophish/gophish/metrics"
 	"github.com/gophish/gophish/models"
 	"github.com/sirupsen/logrus"
 )
+
+// lastWorkerHeartbeat is the Unix timestamp (seconds) of the last campaign
+// processing tick. Updated atomically so it can be read without holding a lock.
+var lastWorkerHeartbeat int64
+
+// LastHeartbeat returns the Unix timestamp of the last campaign worker tick.
+// A zero value means the worker has not yet run. Used by /readyz.
+func LastHeartbeat() int64 {
+	return atomic.LoadInt64(&lastWorkerHeartbeat)
+}
 
 // Worker is an interface that defines the operations needed for a background worker
 type Worker interface {
@@ -48,6 +60,8 @@ func WithMailer(m mailer.Mailer) func(*DefaultWorker) error {
 // processCampaigns loads maillogs scheduled to be sent before the provided
 // time and sends them to the mailer.
 func (w *DefaultWorker) processCampaigns(t time.Time) error {
+	atomic.StoreInt64(&lastWorkerHeartbeat, time.Now().Unix())
+	metrics.WorkerLastRunTimestamp.SetToCurrentTime()
 	ms, err := models.GetQueuedMailLogs(t.UTC())
 	if err != nil {
 		log.Error(err)
@@ -100,8 +114,10 @@ func (w *DefaultWorker) processCampaigns(t time.Time) error {
 					if err := ml.SendSMS(); err != nil {
 						log.Error(err)
 						ml.Error(err)
+						metrics.EmailErrorsTotal.Inc()
 					} else {
 						ml.Success()
+						metrics.EmailsSentTotal.Inc()
 					}
 				}
 				return

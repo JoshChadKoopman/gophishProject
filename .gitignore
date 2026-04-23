@@ -29,10 +29,15 @@ gophish_admin.key
 *.exe
 gophish.db*
 gophish
+gophish_build_output
+mcp-server
 
 # Environment files with secrets
 .env
 docker/.env
 *.env.local
+
+# Application config (contains CSRF key, TLS certs, DB path — use config.example.json as template)
+config.json
 # Added by code-review-graph
 .code-review-graph/

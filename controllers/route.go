@@ -20,6 +20,7 @@ import (
 	log "github.com/gophish/gophish/logger"
 	mid "github.com/gophish/gophish/middleware"
 	"github.com/gophish/gophish/middleware/ratelimit"
+	"github.com/gophish/gophish/metrics"
 	"github.com/gophish/gophish/models"
 	"github.com/gophish/gophish/util"
 	"github.com/gophish/gophish/worker"
@@ -28,6 +29,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
 	"github.com/jordan-wright/unindexed"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // AdminServerOption is a functional option that is used to configure the
@@ -229,6 +231,11 @@ func (as *AdminServer) registerRoutes() {
 	router.HandleFunc("/network-events", mid.Use(as.NetworkEventsPage, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireLogin))
 	// AI Admin Assistant page
 	router.HandleFunc("/admin-assistant", mid.Use(as.AdminAssistantPage, mid.RequirePermission(models.PermissionModifyObjects), mid.RequireLogin))
+	// Health / readiness / metrics endpoints — unauthenticated, no CSRF.
+	// /metrics should be restricted to internal IPs at the nginx layer.
+	router.HandleFunc("/healthz", as.Health).Methods(http.MethodGet)
+	router.HandleFunc("/readyz", as.Readyz).Methods(http.MethodGet)
+	router.Handle("/metrics", promhttp.Handler()).Methods(http.MethodGet)
 	// Create the API routes
 	apiServer := api.NewServer(
 		api.WithWorker(as.worker),
@@ -253,7 +260,7 @@ func (as *AdminServer) registerRoutes() {
 		csrf.Secure(as.config.UseTLS),
 		csrf.TrustedOrigins(as.config.TrustedOrigins))
 	adminHandler := csrfHandler(router)
-	adminHandler = mid.Use(adminHandler.ServeHTTP, mid.CSRFExceptions, mid.GetContext, mid.ApplySecurityHeaders)
+	adminHandler = mid.Use(adminHandler.ServeHTTP, mid.CSRFExceptions, mid.GetContext, mid.ApplySecurityHeaders, mid.RequestID, mid.RequestLogger)
 
 	// Setup GZIP compression
 	gzipWrapper, _ := gziphandler.NewGzipLevelHandler(gzip.BestCompression)
@@ -262,6 +269,10 @@ func (as *AdminServer) registerRoutes() {
 	// Respect X-Forwarded-For and X-Real-IP headers in case we're behind a
 	// reverse proxy.
 	adminHandler = handlers.ProxyHeaders(adminHandler)
+
+	// Prometheus HTTP instrumentation — wraps outermost so it captures every
+	// request including static files, health checks, and the metrics endpoint.
+	adminHandler = metrics.Instrument("admin", adminHandler)
 
 	// Setup logging
 	adminHandler = handlers.CombinedLoggingHandler(log.Writer(), adminHandler)
@@ -750,6 +761,19 @@ func (as *AdminServer) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleLoginPost processes the POST side of the login flow.
+//
+// Security: on success this function does NOT immediately set session["id"]
+// or session["mfa_verified"] for roles that require MFA. Instead it parks
+// the authenticated user ID in session["pending_user_id"] and routes to the
+// appropriate MFA step:
+//
+//   - MFA required, not enrolled  → /mfa/enroll
+//   - MFA required, enrolled      → /mfa/verify
+//   - MFA not required            → full session granted here
+//
+// mfa_verified is ONLY ever set in mfaVerifyPost / mfaEnrollPost after a
+// successful TOTP/backup-code challenge, preventing the bypass that would
+// occur if it were set here before the challenge completes.
 func (as *AdminServer) handleLoginPost(w http.ResponseWriter, r *http.Request, session *sessions.Session) {
 	loginInput, password := r.FormValue("username"), r.FormValue("password")
 	u, err := models.GetUserByEmail(loginInput)
@@ -772,6 +796,15 @@ func (as *AdminServer) handleLoginPost(w http.ResponseWriter, r *http.Request, s
 	if err := auth.ValidatePassword(password, u.Hash); err != nil {
 		log.Error(err)
 		models.RecordFailedLogin(u.Id)
+		if auditErr := models.CreateAuditLog(&models.AuditLog{
+			OrgId:         u.OrgId,
+			ActorID:       u.Id,
+			ActorUsername: u.Username,
+			Action:        models.AuditActionLoginFailed,
+			IPAddress:     r.RemoteAddr,
+		}); auditErr != nil {
+			log.Error(auditErr)
+		}
 		as.handleInvalidLogin(w, r, "Invalid Email/Password")
 		return
 	}
@@ -780,6 +813,43 @@ func (as *AdminServer) handleLoginPost(w http.ResponseWriter, r *http.Request, s
 		log.Error(err)
 	}
 	models.ResetFailedLogins(u.Id)
+	if auditErr := models.CreateAuditLog(&models.AuditLog{
+		OrgId:         u.OrgId,
+		ActorID:       u.Id,
+		ActorUsername: u.Username,
+		Action:        models.AuditActionLoginSuccess,
+		IPAddress:     r.RemoteAddr,
+	}); auditErr != nil {
+		log.Error(auditErr)
+	}
+
+	// If the role requires MFA, route through the challenge before granting
+	// a full session. We only store the pending user ID — no "id" or
+	// "mfa_verified" — so the user cannot access protected resources yet.
+	if auth.MFARequired(u.Role.Slug) {
+		// Skip the interactive challenge if this device is already trusted
+		// (remember-device cookie valid for 30 days).
+		if as.isDeviceRemembered(r, u.Id) {
+			session.Values["id"] = u.Id
+			session.Values["mfa_verified"] = true
+			session.Save(r, w)
+			as.nextOrIndex(w, r, &u)
+			return
+		}
+		session.Values["pending_user_id"] = u.Id
+		session.Save(r, w)
+		device, devErr := models.GetMFADevice(u.Id)
+		if devErr != nil || !device.Enabled {
+			// MFA required but not yet enrolled — send to enrollment.
+			http.Redirect(w, r, routeMFAEnroll, http.StatusFound)
+			return
+		}
+		// MFA enrolled — send to TOTP challenge.
+		http.Redirect(w, r, routeMFAVerify, http.StatusFound)
+		return
+	}
+
+	// MFA not required for this role — grant full session immediately.
 	session.Values["id"] = u.Id
 	session.Values["mfa_verified"] = true
 	session.Save(r, w)
@@ -1031,17 +1101,19 @@ func (as *AdminServer) mfaEnrollGet(w http.ResponseWriter, r *http.Request, sess
 	}
 	locale := i18n.DetectLocale("", "", r.Header.Get(headerAcceptLang))
 	params := struct {
-		Title   string
-		Token   string
-		QRCode  string
-		Flashes []interface{}
-		Locale  string
+		Title     string
+		Token     string
+		QRCode    string
+		ManualKey string
+		Flashes   []interface{}
+		Locale    string
 	}{
-		Title:   "Enable Two-Factor Authentication",
-		Token:   csrf.Token(r),
-		QRCode:  qrURI,
-		Flashes: session.Flashes(),
-		Locale:  locale,
+		Title:     "Enable Two-Factor Authentication",
+		Token:     csrf.Token(r),
+		QRCode:    qrURI,
+		ManualKey: secret,
+		Flashes:   session.Flashes(),
+		Locale:    locale,
 	}
 	session.Save(r, w)
 	template.Must(templates, parseErr).ExecuteTemplate(w, "base", params)
@@ -1105,21 +1177,32 @@ func (as *AdminServer) MFAVerify(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case http.MethodGet:
-		as.mfaVerifyGet(w, r, session)
+		as.mfaVerifyGet(w, r, session, u)
 	case http.MethodPost:
 		as.mfaVerifyPost(w, r, session, u)
 	}
 }
 
 // mfaVerifyGet renders the TOTP input page for the MFA verification step.
-func (as *AdminServer) mfaVerifyGet(w http.ResponseWriter, r *http.Request, session *sessions.Session) {
+func (as *AdminServer) mfaVerifyGet(w http.ResponseWriter, r *http.Request, session *sessions.Session, u models.User) {
 	locale := i18n.DetectLocale("", "", r.Header.Get(headerAcceptLang))
+	failCount, _ := models.CountRecentMFAFailures(u.Id, time.Now().Add(-auth.MFALockoutDuration))
+	remaining := auth.MFAMaxAttempts - failCount
+	if remaining < 0 {
+		remaining = 0
+	}
 	params := struct {
-		Title   string
-		Token   string
-		Flashes []interface{}
-		Locale  string
-	}{Title: "Two-Factor Verification", Token: csrf.Token(r), Locale: locale}
+		Title             string
+		Token             string
+		Flashes           []interface{}
+		Locale            string
+		RemainingAttempts int
+	}{
+		Title:             "Two-Factor Verification",
+		Token:             csrf.Token(r),
+		Locale:            locale,
+		RemainingAttempts: remaining,
+	}
 	params.Flashes = session.Flashes()
 	session.Save(r, w)
 	templates := template.New("template").Funcs(templateFuncs)
@@ -1137,6 +1220,15 @@ func (as *AdminServer) mfaVerifyPost(w http.ResponseWriter, r *http.Request, ses
 	failCount, _ := models.CountRecentMFAFailures(u.Id, time.Now().Add(-auth.MFALockoutDuration))
 	if failCount >= auth.MFAMaxAttempts {
 		_ = models.RecordMFAAttempt(u.Id, false, r.RemoteAddr)
+		if auditErr := models.CreateAuditLog(&models.AuditLog{
+			OrgId:         u.OrgId,
+			ActorID:       u.Id,
+			ActorUsername: u.Username,
+			Action:        models.AuditActionMFALockout,
+			IPAddress:     r.RemoteAddr,
+		}); auditErr != nil {
+			log.Error(auditErr)
+		}
 		Flash(w, r, "danger", "Account temporarily locked due to too many failed attempts. Please try again in 15 minutes.")
 		http.Redirect(w, r, routeMFAVerify, http.StatusFound)
 		return
@@ -1158,9 +1250,28 @@ func (as *AdminServer) mfaVerifyPost(w http.ResponseWriter, r *http.Request, ses
 	_ = models.RecordMFAAttempt(u.Id, verified, r.RemoteAddr)
 
 	if !verified {
+		if auditErr := models.CreateAuditLog(&models.AuditLog{
+			OrgId:         u.OrgId,
+			ActorID:       u.Id,
+			ActorUsername: u.Username,
+			Action:        models.AuditActionMFAFailed,
+			IPAddress:     r.RemoteAddr,
+		}); auditErr != nil {
+			log.Error(auditErr)
+		}
 		Flash(w, r, "danger", "Invalid code — please try again")
 		http.Redirect(w, r, routeMFAVerify, http.StatusFound)
 		return
+	}
+
+	if auditErr := models.CreateAuditLog(&models.AuditLog{
+		OrgId:         u.OrgId,
+		ActorID:       u.Id,
+		ActorUsername: u.Username,
+		Action:        models.AuditActionMFAVerified,
+		IPAddress:     r.RemoteAddr,
+	}); auditErr != nil {
+		log.Error(auditErr)
 	}
 
 	// Promote the session.
@@ -1268,6 +1379,60 @@ func getTemplate(w http.ResponseWriter, tmpl string) *template.Template {
 		log.Error(err)
 	}
 	return template.Must(templates, err)
+}
+
+// Health handles GET /healthz. It pings the database and returns 200 OK when
+// the process is alive and the DB is reachable, or 503 when the DB is down.
+func (as *AdminServer) Health(w http.ResponseWriter, r *http.Request) {
+	type healthResponse struct {
+		Status  string `json:"status"`
+		DB      string `json:"db"`
+		Version string `json:"version"`
+	}
+	resp := healthResponse{Status: "ok", Version: config.Version}
+	code := http.StatusOK
+	if err := models.GetDB().DB().Ping(); err != nil {
+		resp.Status = "unhealthy"
+		resp.DB = "unreachable"
+		code = http.StatusServiceUnavailable
+	} else {
+		resp.DB = "connected"
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(resp) //nolint:errcheck
+}
+
+// Readyz handles GET /readyz. It checks both DB connectivity and whether the
+// background campaign worker has run within the last 5 minutes. Returns 200
+// when ready, 503 when not.
+func (as *AdminServer) Readyz(w http.ResponseWriter, r *http.Request) {
+	type readyResponse struct {
+		Status  string `json:"status"`
+		DB      string `json:"db"`
+		Worker  string `json:"worker"`
+		Version string `json:"version"`
+	}
+	resp := readyResponse{Status: "ok", Version: config.Version}
+	code := http.StatusOK
+	if err := models.GetDB().DB().Ping(); err != nil {
+		resp.Status = "not ready"
+		resp.DB = "unreachable"
+		code = http.StatusServiceUnavailable
+	} else {
+		resp.DB = "connected"
+	}
+	last := worker.LastHeartbeat()
+	if last == 0 || time.Since(time.Unix(last, 0)) > 5*time.Minute {
+		resp.Status = "not ready"
+		resp.Worker = "stalled"
+		code = http.StatusServiceUnavailable
+	} else {
+		resp.Worker = "ok"
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(resp) //nolint:errcheck
 }
 
 // Flash handles the rendering flash messages
