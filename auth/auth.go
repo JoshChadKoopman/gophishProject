@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 	"unicode"
 
@@ -53,6 +54,14 @@ var ErrPasswordNoLower = errors.New("Password must contain at least one lowercas
 // ErrPasswordNoDigit is thrown when a password lacks a digit.
 var ErrPasswordNoDigit = errors.New("Password must contain at least one digit")
 
+// ErrPasswordNoSpecial is thrown when a password lacks a special character.
+var ErrPasswordNoSpecial = errors.New("Password must contain at least one special character (!@#$%^&*()_+-=[]{}|;':\",./<>?)")
+
+// specialChars is the set of characters that satisfy the special-character
+// requirement. Using an explicit set avoids locale-dependent behaviour from
+// unicode.IsPunct / unicode.IsSymbol.
+const specialChars = "!@#$%^&*()_+-=[]{}|;':\",./<>?"
+
 // GenerateSecureKey returns the hex representation of key generated from n
 // random bytes. Panics if the system CSPRNG is unavailable, since this
 // indicates a fatal platform issue that cannot be recovered from.
@@ -75,8 +84,8 @@ func GeneratePasswordHash(password string) (string, error) {
 }
 
 // CheckPasswordPolicy ensures the provided password is valid according to our
-// password policy: minimum length plus at least one uppercase letter, one
-// lowercase letter, and one digit.
+// password policy: minimum length, at least one uppercase letter, one
+// lowercase letter, one digit, and one special character.
 func CheckPasswordPolicy(password string) error {
 	switch {
 	case password == "":
@@ -84,7 +93,7 @@ func CheckPasswordPolicy(password string) error {
 	case len(password) < MinPasswordLength:
 		return ErrPasswordTooShort
 	}
-	var hasUpper, hasLower, hasDigit bool
+	var hasUpper, hasLower, hasDigit, hasSpecial bool
 	for _, c := range password {
 		switch {
 		case unicode.IsUpper(c):
@@ -93,6 +102,10 @@ func CheckPasswordPolicy(password string) error {
 			hasLower = true
 		case unicode.IsDigit(c):
 			hasDigit = true
+		default:
+			if strings.ContainsRune(specialChars, c) {
+				hasSpecial = true
+			}
 		}
 	}
 	if !hasUpper {
@@ -103,6 +116,9 @@ func CheckPasswordPolicy(password string) error {
 	}
 	if !hasDigit {
 		return ErrPasswordNoDigit
+	}
+	if !hasSpecial {
+		return ErrPasswordNoSpecial
 	}
 	return nil
 }

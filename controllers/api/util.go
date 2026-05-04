@@ -2,8 +2,10 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/mail"
+	"strconv"
 	"time"
 
 	log "github.com/gophish/gophish/logger"
@@ -11,6 +13,22 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
 )
+
+// parseIDParam extracts and parses an int64 route variable. Returns the
+// parsed value or writes a 400 response and returns 0, false.
+func parseIDParam(w http.ResponseWriter, vars map[string]string, key string) (int64, bool) {
+	raw, ok := vars[key]
+	if !ok || raw == "" {
+		JSONResponse(w, models.Response{Success: false, Message: fmt.Sprintf("Missing required parameter: %s", key)}, http.StatusBadRequest)
+		return 0, false
+	}
+	id, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		JSONResponse(w, models.Response{Success: false, Message: fmt.Sprintf("Invalid %s: must be a number", key)}, http.StatusBadRequest)
+		return 0, false
+	}
+	return id, true
+}
 
 // SendTestEmail sends a test email using the template name
 // and Target given.

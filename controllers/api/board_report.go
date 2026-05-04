@@ -73,7 +73,10 @@ func (as *Server) BoardReports(w http.ResponseWriter, r *http.Request) {
 func (as *Server) BoardReport(w http.ResponseWriter, r *http.Request) {
 	user := ctx.Get(r, "user").(models.User)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 10, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	switch r.Method {
 	case http.MethodGet:
@@ -106,14 +109,14 @@ func (as *Server) BoardReport(w http.ResponseWriter, r *http.Request) {
 		br.PeriodEnd = update.PeriodEnd
 		br.Status = update.Status
 		if err := models.PutBoardReport(&br); err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+			JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 			return
 		}
 		JSONResponse(w, br, http.StatusOK)
 
 	case http.MethodDelete:
 		if err := models.DeleteBoardReport(id, user.OrgId); err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+			JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 			return
 		}
 		JSONResponse(w, models.Response{Success: true, Message: "Report deleted"}, http.StatusOK)
@@ -201,7 +204,10 @@ func (as *Server) BoardReportNarrative(w http.ResponseWriter, r *http.Request) {
 	}
 	user := ctx.Get(r, "user").(models.User)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 10, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	br, err := models.GetBoardReport(id, user.OrgId)
 	if err != nil {
@@ -226,7 +232,10 @@ func (as *Server) BoardReportExport(w http.ResponseWriter, r *http.Request) {
 	}
 	user := ctx.Get(r, "user").(models.User)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 10, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	br, err := models.GetBoardReport(id, user.OrgId)
 	if err != nil {

@@ -70,7 +70,10 @@ func (as *Server) TemplateLibraryDB(w http.ResponseWriter, r *http.Request) {
 // TemplateLibraryDBItem handles GET, PUT, DELETE for /api/template-library-db/{id}.
 func (as *Server) TemplateLibraryDBItem(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 10, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	switch r.Method {
 	case http.MethodGet:

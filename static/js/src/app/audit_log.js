@@ -31,19 +31,40 @@ function getFilters() {
     };
 }
 
-function formatDetails(details) {
-    if (!details) return '';
+function formatDetailsSummary(details) {
+    if (!details) return '<span class="text-muted">—</span>';
     try {
         var obj = JSON.parse(details);
         var parts = [];
         for (var key in obj) {
             if (obj.hasOwnProperty(key)) {
-                parts.push(escapeHtml(key) + ': ' + escapeHtml(obj[key]));
+                parts.push('<strong>' + escapeHtml(key) + '</strong>: ' + escapeHtml(String(obj[key])));
             }
         }
-        return '<small>' + parts.join(', ') + '</small>';
+        if (parts.length === 0) return '<span class="text-muted">—</span>';
+        return '<small class="text-muted"><i class="fa fa-info-circle"></i> Click to expand</small>';
     } catch (e) {
-        return escapeHtml(details);
+        if (!details) return '<span class="text-muted">—</span>';
+        return '<small class="text-muted"><i class="fa fa-info-circle"></i> Click to expand</small>';
+    }
+}
+
+function formatDetailsExpanded(details) {
+    if (!details) return '<em class="text-muted">No details</em>';
+    try {
+        var obj = JSON.parse(details);
+        var rows = [];
+        for (var key in obj) {
+            if (obj.hasOwnProperty(key)) {
+                rows.push('<tr><td style="padding:2px 8px; font-weight:600; white-space:nowrap;">' +
+                    escapeHtml(key) + '</td><td style="padding:2px 8px;">' +
+                    escapeHtml(String(obj[key])) + '</td></tr>');
+            }
+        }
+        if (rows.length === 0) return '<em class="text-muted">No details</em>';
+        return '<table style="font-size:0.9em;">' + rows.join('') + '</table>';
+    } catch (e) {
+        return '<pre style="font-size:0.85em; margin:0;">' + escapeHtml(details) + '</pre>';
     }
 }
 
@@ -71,23 +92,33 @@ function renderAuditLogs(data) {
                 target += ' <small class="text-muted">(' + escapeHtml(entry.target_type) + ')</small>';
             }
         }
+        var hasDetails = entry.details && entry.details !== '{}' && entry.details !== 'null';
+        var detailsAttr = hasDetails ? ' data-details="' + escapeHtml(entry.details) + '" style="cursor:pointer;"' : '';
+        var detailsCell = hasDetails
+            ? '<td class="detail-cell"' + detailsAttr + '>' + formatDetailsSummary(entry.details) + '</td>'
+            : '<td><span class="text-muted">—</span></td>';
+
         var row = '<tr>' +
             '<td style="white-space:nowrap;">' + moment(entry.timestamp).format('MMM D, YYYY h:mm:ss A') + '</td>' +
             '<td>' + escapeHtml(entry.actor_username || '') + '</td>' +
             '<td>' + actionHtml + '</td>' +
             '<td>' + target + '</td>' +
-            '<td style="max-width:250px; overflow:hidden; text-overflow:ellipsis;">' + formatDetails(entry.details) + '</td>' +
+            detailsCell +
             '<td><small>' + escapeHtml(entry.ip_address || '') + '</small></td>' +
             '</tr>';
         tbody.append(row);
     });
 
     // Pagination info
+    var totalPages = Math.ceil(totalEntries / pageSize);
+    var currentPage = Math.floor(currentOffset / pageSize) + 1;
     var start = currentOffset + 1;
     var end = Math.min(currentOffset + pageSize, totalEntries);
-    $("#paginationInfo").text('Showing ' + start + '-' + end + ' of ' + totalEntries);
+    $("#paginationInfo").text('Showing ' + start + '–' + end + ' of ' + totalEntries);
     $("#prevPage").prop("disabled", currentOffset === 0);
     $("#nextPage").prop("disabled", currentOffset + pageSize >= totalEntries);
+    $("#pageJump").val(currentPage);
+    $("#pageTotal").text(' of ' + totalPages);
 
     $("#auditLoading").hide();
     $("#auditContent").show();
@@ -108,6 +139,33 @@ function loadAuditLogs() {
         });
 }
 
+// Export the currently visible page to CSV
+function exportToCsv() {
+    var rows = [['Timestamp', 'Actor', 'Action', 'Target', 'Details', 'IP Address']];
+    $("#auditTableBody tr").each(function () {
+        var cells = $(this).find("td");
+        var detailsRaw = cells.eq(4).attr("data-details") || cells.eq(4).text().trim();
+        rows.push([
+            cells.eq(0).text().trim(),
+            cells.eq(1).text().trim(),
+            cells.eq(2).text().trim(),
+            cells.eq(3).text().trim(),
+            detailsRaw,
+            cells.eq(5).text().trim()
+        ]);
+    });
+    var csv = rows.map(function(row) {
+        return row.map(function(val) {
+            return '"' + String(val).replace(/"/g, '""') + '"';
+        }).join(',');
+    }).join('\n');
+    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'audit-log-' + moment().format('YYYY-MM-DD') + '.csv';
+    a.click();
+}
+
 $(document).ready(function () {
     // Date pickers
     if ($.fn.datetimepicker) {
@@ -122,6 +180,33 @@ $(document).ready(function () {
             useCurrent: false
         });
     }
+
+    // Date range presets
+    $(".date-preset").on("click", function () {
+        var preset = $(this).data("preset");
+        var today = moment().format("YYYY-MM-DD");
+        if (preset === "today") {
+            $("#filterDateFrom").val(today);
+            $("#filterDateTo").val(today);
+        } else if (preset === "7d") {
+            $("#filterDateFrom").val(moment().subtract(6, "days").format("YYYY-MM-DD"));
+            $("#filterDateTo").val(today);
+        } else if (preset === "30d") {
+            $("#filterDateFrom").val(moment().subtract(29, "days").format("YYYY-MM-DD"));
+            $("#filterDateTo").val(today);
+        } else if (preset === "month") {
+            $("#filterDateFrom").val(moment().startOf("month").format("YYYY-MM-DD"));
+            $("#filterDateTo").val(today);
+        } else if (preset === "clear") {
+            $("#filterDateFrom").val("");
+            $("#filterDateTo").val("");
+        }
+        currentOffset = 0;
+        loadAuditLogs();
+    });
+
+    // Export CSV
+    $("#exportCsv").on("click", exportToCsv);
 
     // Filter apply
     $("#applyFilters").on("click", function () {
@@ -140,6 +225,32 @@ $(document).ready(function () {
         if (currentOffset + pageSize < totalEntries) {
             currentOffset += pageSize;
             loadAuditLogs();
+        }
+    });
+
+    // Page jump
+    $("#pageJump").on("change keypress", function (e) {
+        if (e.type === "keypress" && e.which !== 13) return;
+        var page = parseInt($(this).val(), 10);
+        var totalPages = Math.ceil(totalEntries / pageSize);
+        if (page >= 1 && page <= totalPages) {
+            currentOffset = (page - 1) * pageSize;
+            loadAuditLogs();
+        }
+    });
+
+    // Expandable detail rows — click a detail cell to show formatted JSON
+    $("#auditTableBody").on("click", ".detail-cell", function () {
+        var details = $(this).attr("data-details");
+        if (!details) return;
+        var expanded = formatDetailsExpanded(details);
+        var $tr = $(this).closest("tr");
+        var $next = $tr.next(".detail-expanded-row");
+        if ($next.length) {
+            $next.remove();
+        } else {
+            $tr.after('<tr class="detail-expanded-row"><td colspan="6" style="background:#f9f9f9; padding:10px 20px;">' +
+                expanded + '</td></tr>');
         }
     });
 

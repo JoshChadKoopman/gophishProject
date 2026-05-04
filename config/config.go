@@ -28,11 +28,12 @@ type MFAConfig struct {
 // AIConfig holds settings for AI-powered template generation.
 // Provider must be "claude" or "openai". API keys can be set via env vars.
 type AIConfig struct {
-	Enabled            bool   `json:"enabled"`              // Whether AI features are enabled
-	Provider           string `json:"provider"`             // "claude" or "openai"
-	APIKey             string `json:"api_key"`              // API key for the provider
-	Model              string `json:"model"`                // e.g. "claude-sonnet-4-20250514", "gpt-4o"
-	MonthlyTokenBudget int    `json:"monthly_token_budget"` // 0 = unlimited
+	Enabled                bool   `json:"enabled"`                  // Whether AI features are enabled
+	Provider               string `json:"provider"`                 // "claude" or "openai"
+	APIKey                 string `json:"api_key"`                  // API key for the provider
+	Model                  string `json:"model"`                    // e.g. "claude-sonnet-4-20250514", "gpt-4o"
+	MonthlyTokenBudget     int    `json:"monthly_token_budget"`     // 0 = unlimited
+	TelephonyWebhookSecret string `json:"telephony_webhook_secret"` // Shared secret for vishing telephony callbacks
 }
 
 // AdminServer represents the Admin server configuration details

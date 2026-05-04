@@ -1,8 +1,26 @@
 package logger
 
-import "testing"
+import (
+	"testing"
 
-import "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
+)
+
+func TestJSONFormat(t *testing.T) {
+	if err := Setup(&Config{Format: "json"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := Logger.Formatter.(*logrus.JSONFormatter); !ok {
+		t.Fatalf("expected JSONFormatter, got %T", Logger.Formatter)
+	}
+	// Default (empty) format should restore text formatter.
+	if err := Setup(&Config{Format: ""}); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := Logger.Formatter.(*logrus.TextFormatter); !ok {
+		t.Fatalf("expected TextFormatter, got %T", Logger.Formatter)
+	}
+}
 
 func TestLogLevel(t *testing.T) {
 	tests := map[string]logrus.Level{

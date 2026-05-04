@@ -3,7 +3,6 @@ package api
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	ctx "github.com/gophish/gophish/context"
 	log "github.com/gophish/gophish/logger"
@@ -59,7 +58,10 @@ func (as *Server) ScheduledReports(w http.ResponseWriter, r *http.Request) {
 func (as *Server) ScheduledReport(w http.ResponseWriter, r *http.Request) {
 	user := ctx.Get(r, "user").(models.User)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 10, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	switch r.Method {
 	case http.MethodGet:
@@ -122,7 +124,10 @@ func (as *Server) ScheduledReportToggle(w http.ResponseWriter, r *http.Request) 
 	}
 	user := ctx.Get(r, "user").(models.User)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 10, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	var req struct {
 		IsActive bool `json:"is_active"`

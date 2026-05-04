@@ -9,6 +9,10 @@ import (
 	"time"
 )
 
+// maxResponseBytes caps how many bytes we will read from an AI API response
+// body. This prevents a runaway or malicious provider from exhausting memory.
+const maxResponseBytes = 1 << 20 // 1 MiB
+
 // Response represents a parsed LLM response with the generated content and
 // token usage statistics.
 type Response struct {
@@ -104,7 +108,7 @@ func (c *ClaudeClient) Generate(systemPrompt, userPrompt string) (*Response, err
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes))
 	if err != nil {
 		return nil, fmt.Errorf("ai/claude: read response: %w", err)
 	}
@@ -207,7 +211,7 @@ func (c *OpenAIClient) Generate(systemPrompt, userPrompt string) (*Response, err
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes))
 	if err != nil {
 		return nil, fmt.Errorf("ai/openai: read response: %w", err)
 	}

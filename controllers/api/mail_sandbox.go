@@ -99,7 +99,10 @@ func (as *Server) SandboxTests(w http.ResponseWriter, r *http.Request) {
 func (as *Server) SandboxTest(w http.ResponseWriter, r *http.Request) {
 	user := ctx.Get(r, "user").(models.User)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 10, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	test, err := models.GetSandboxTest(id, user.OrgId)
 	if err != nil {
@@ -127,7 +130,10 @@ func (as *Server) SandboxTest(w http.ResponseWriter, r *http.Request) {
 func (as *Server) SandboxTestReview(w http.ResponseWriter, r *http.Request) {
 	user := ctx.Get(r, "user").(models.User)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 10, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	if r.Method != http.MethodPost {
 		JSONResponse(w, models.Response{Success: false, Message: msgMethodNotAllowed}, http.StatusMethodNotAllowed)

@@ -18,7 +18,7 @@
                     <h3 class="panel-title"><i class="fa fa-rocket"></i> Getting Started — Onboarding Checklist</h3>
                 </div>
                 <div class="panel-body">
-                    <p class="text-muted" style="margin-bottom:15px;">
+                    <p class="text-muted" class="u-mb15">
                         Complete these steps to get the most out of the Nivoxis CyberAwareness Platform. 
                         Your AI assistant can guide you through each one.
                     </p>
@@ -28,7 +28,7 @@
                         </div>
                     </div>
                     <div id="onboardingSteps" class="row"></div>
-                    <div class="text-right" style="margin-top:10px;">
+                    <div class="text-right" class="u-mt10">
                         <button class="btn btn-sm btn-default" id="dismissOnboarding">
                             <i class="fa fa-times"></i> Dismiss
                         </button>
@@ -47,7 +47,7 @@
                 </div>
                 <div class="panel-body" style="padding:0; max-height:600px; overflow-y:auto;">
                     <div id="conversationList">
-                        <p class="text-center text-muted" style="padding:20px;">
+                        <p class="text-center text-muted" class="u-p20">
                             <i class="fa fa-spinner fa-spin"></i> Loading…
                         </p>
                     </div>
@@ -58,25 +58,25 @@
                     <h3 class="panel-title"><i class="fa fa-lightbulb-o"></i> Quick Actions</h3>
                 </div>
                 <div class="panel-body" style="padding:8px;">
-                    <button class="btn btn-sm btn-block btn-default quick-ask" data-q="How do I create my first phishing campaign?" style="text-align:left; margin-bottom:4px;">
+                    <button class="btn btn-sm btn-block btn-default quick-ask" data-q="How do I create my first phishing campaign?" class="u-label-row">
                         <i class="fa fa-paper-plane text-primary"></i> Create a campaign
                     </button>
-                    <button class="btn btn-sm btn-block btn-default quick-ask" data-q="How do I set up user groups and import employees?" style="text-align:left; margin-bottom:4px;">
+                    <button class="btn btn-sm btn-block btn-default quick-ask" data-q="How do I set up user groups and import employees?" class="u-label-row">
                         <i class="fa fa-users text-primary"></i> Set up groups
                     </button>
-                    <button class="btn btn-sm btn-block btn-default quick-ask" data-q="How do I configure training assignments and content?" style="text-align:left; margin-bottom:4px;">
+                    <button class="btn btn-sm btn-block btn-default quick-ask" data-q="How do I configure training assignments and content?" class="u-label-row">
                         <i class="fa fa-graduation-cap text-primary"></i> Configure training
                     </button>
-                    <button class="btn btn-sm btn-block btn-default quick-ask" data-q="Explain the ROI reporting features and how to interpret the results" style="text-align:left; margin-bottom:4px;">
+                    <button class="btn btn-sm btn-block btn-default quick-ask" data-q="Explain the ROI reporting features and how to interpret the results" class="u-label-row">
                         <i class="fa fa-line-chart text-primary"></i> Understand ROI
                     </button>
-                    <button class="btn btn-sm btn-block btn-default quick-ask" data-q="How do I read and use the board-ready reports for executives?" style="text-align:left; margin-bottom:4px;">
+                    <button class="btn btn-sm btn-block btn-default quick-ask" data-q="How do I read and use the board-ready reports for executives?" class="u-label-row">
                         <i class="fa fa-briefcase text-primary"></i> Board reports
                     </button>
-                    <button class="btn btn-sm btn-block btn-default quick-ask" data-q="How do I configure the MITRE ATT&CK mapping and network event correlation?" style="text-align:left; margin-bottom:4px;">
+                    <button class="btn btn-sm btn-block btn-default quick-ask" data-q="How do I configure the MITRE ATT&CK mapping and network event correlation?" class="u-label-row">
                         <i class="fa fa-shield text-primary"></i> Network events
                     </button>
-                    <button class="btn btn-sm btn-block btn-default quick-ask" data-q="What compliance frameworks are supported and how do I enable them?" style="text-align:left; margin-bottom:4px;">
+                    <button class="btn btn-sm btn-block btn-default quick-ask" data-q="What compliance frameworks are supported and how do I enable them?" class="u-label-row">
                         <i class="fa fa-check-square text-primary"></i> Compliance
                     </button>
                 </div>
@@ -102,7 +102,7 @@
                             I can help you navigate the platform, set up campaigns, configure training, 
                             understand reports, and answer questions about cybersecurity awareness best practices.
                         </p>
-                        <p class="text-muted" style="margin-top:15px;">
+                        <p class="text-muted" class="u-mt15">
                             <i class="fa fa-keyboard-o"></i> Type a question below or use a Quick Action to get started.
                         </p>
                     </div>
@@ -187,7 +187,7 @@ $(document).ready(function () {
                 : '<button class="btn btn-xs btn-primary mark-complete-step" data-step="' + step.key + '"><i class="fa fa-check"></i> Mark Done</button>' +
                   ' <button class="btn btn-xs btn-default quick-ask" data-q="Walk me through: ' + escapeHtml(step.label) + '" style="margin-left:3px;"><i class="fa fa-question-circle"></i> Help</button>';
             container.append(
-                '<div class="col-md-4" style="margin-bottom:10px;">' +
+                '<div class="col-md-4" class="u-mb10">' +
                 '<div class="well" style="margin:0; padding:10px; min-height:80px;">' +
                 '<i class="fa ' + icon + ' ' + statusClass + '" style="font-size:18px; margin-right:6px;"></i> ' +
                 '<strong>' + escapeHtml(step.label) + '</strong><br>' +
@@ -234,7 +234,7 @@ $(document).ready(function () {
             return;
         }
 
-        var ul = $('<div class="list-group" style="margin:0;"></div>');
+        var ul = $('<div class="list-group" class="u-m0"></div>');
         $.each(convs, function (i, c) {
             var active = c.id === currentConversationId ? ' active' : '';
             var title = c.title || ("Conversation #" + c.id);
@@ -379,7 +379,7 @@ $(document).ready(function () {
 
     function appendTypingIndicator(id) {
         var html = '<div id="' + id + '" class="chat-bubble text-left" style="margin-bottom:12px;">' +
-            '<div style="display:inline-block;">' +
+            '<div class="u-inline-block">' +
             '<small class="text-muted"><i class="fa fa-robot"></i> AI Assistant</small>' +
             '<div style="background:#f1f3f4; color:#333; padding:12px 16px; border-radius:12px; margin-top:3px;">' +
             '<i class="fa fa-circle-o-notch fa-spin"></i> Thinking…' +

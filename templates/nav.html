@@ -2,7 +2,20 @@
 <div class="container-fluid">
     <div class="row">
         <div class="col-sm-3 col-md-2 sidebar">
-            <ul class="nav nav-sidebar">
+            <!-- Sidebar search -->
+            <div style="padding:8px 10px 4px;">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-addon" style="background:transparent; border-color:#3a3f51;">
+                        <i class="fa fa-search" style="color:#aaa;"></i>
+                    </span>
+                    <input type="text" id="nav-search" class="form-control"
+                           placeholder="Search menu..."
+                           style="background:#2a2f42; border-color:#3a3f51; color:#ccc;
+                                  border-left:none; box-shadow:none;"
+                           autocomplete="off" />
+                </div>
+            </div>
+            <ul class="nav nav-sidebar" id="nav-sidebar-list">
                 {{if .ModifyObjects}}
                 <li>
                     <a href="/">{{T .Locale "nav.dashboard"}}</a>
@@ -10,10 +23,10 @@
                 {{end}}
                 {{if .ModifyObjects}}
                 <li>
-                    <a data-toggle="collapse" href="#phishingMenu" style="cursor:pointer;">
+                    <a data-toggle="collapse" href="#phishingMenu" class="u-cursor-ptr">
                         <i class="fa fa-crosshairs"></i> {{T .Locale "nav.phishing"}} <span class="fa fa-chevron-down pull-right" style="font-size:10px; margin-top:4px;"></span>
                     </a>
-                    <ul class="nav collapse in" id="phishingMenu" style="padding-left:15px;">
+                    <ul class="nav collapse in" id="phishingMenu" data-nav-key="phishingMenu" style="padding-left:15px;">
                         <li>
                             <a href="/campaigns">{{T .Locale "nav.campaigns"}}</a>
                         </li>
@@ -135,10 +148,10 @@
                     <hr>
                 </li>
                 <li>
-                    <a data-toggle="collapse" href="#infoMenu" style="cursor:pointer;">
+                    <a data-toggle="collapse" href="#infoMenu" class="u-cursor-ptr">
                         <i class="fa fa-info-circle"></i> {{T .Locale "nav.information"}} <span class="fa fa-chevron-down pull-right" style="font-size:10px; margin-top:4px;"></span>
                     </a>
-                    <ul class="nav collapse in" id="infoMenu" style="padding-left:15px;">
+                    <ul class="nav collapse in" id="infoMenu" data-nav-key="infoMenu" style="padding-left:15px;">
                         <li>
                             <a href="https://docs.getgophish.com/user-guide/">{{T .Locale "nav.user_guide"}}</a>
                         </li>
@@ -152,4 +165,74 @@
         </div>
     </div>
 </div>
+<script>
+(function() {
+    // Restore collapse state from localStorage
+    document.querySelectorAll('[data-nav-key]').forEach(function(el) {
+        var key = 'nav.collapsed.' + el.getAttribute('data-nav-key');
+        var isCollapsed = localStorage.getItem(key) === 'true';
+        if (isCollapsed) {
+            el.classList.remove('in');
+        }
+    });
+
+    // Persist collapse state on toggle
+    document.addEventListener('click', function(e) {
+        var toggle = e.target.closest('[data-toggle="collapse"]');
+        if (!toggle) return;
+        var targetId = toggle.getAttribute('href') || toggle.getAttribute('data-target');
+        if (!targetId) return;
+        var targetEl = document.querySelector(targetId);
+        if (!targetEl || !targetEl.getAttribute('data-nav-key')) return;
+        var key = 'nav.collapsed.' + targetEl.getAttribute('data-nav-key');
+        // The collapse class is toggled after click; check current state (before toggle)
+        var willCollapse = targetEl.classList.contains('in');
+        localStorage.setItem(key, willCollapse ? 'true' : 'false');
+    });
+
+    // Sidebar search filter
+    var searchInput = document.getElementById('nav-search');
+    if (!searchInput) return;
+    searchInput.addEventListener('input', function() {
+        var query = this.value.toLowerCase().trim();
+        var list = document.getElementById('nav-sidebar-list');
+        if (!list) return;
+
+        if (!query) {
+            // Restore all items and sub-menus
+            list.querySelectorAll('li').forEach(function(li) { li.style.display = ''; });
+            list.querySelectorAll('[data-nav-key]').forEach(function(el) {
+                var key = 'nav.collapsed.' + el.getAttribute('data-nav-key');
+                var isCollapsed = localStorage.getItem(key) === 'true';
+                el.classList.toggle('in', !isCollapsed);
+            });
+            return;
+        }
+
+        // Expand all sub-menus during search so items are visible
+        list.querySelectorAll('[data-nav-key]').forEach(function(el) {
+            el.classList.add('in');
+        });
+
+        // Show/hide top-level <li> items based on text match
+        list.children && Array.from(list.children).forEach(function(li) {
+            var text = li.textContent.toLowerCase();
+            var isGroup = li.querySelector('[data-nav-key]');
+            if (isGroup) {
+                // For collapsible groups, check sub-items
+                var subItems = li.querySelectorAll('ul li');
+                var anyMatch = false;
+                subItems.forEach(function(sub) {
+                    var match = sub.textContent.toLowerCase().indexOf(query) !== -1;
+                    sub.style.display = match ? '' : 'none';
+                    if (match) anyMatch = true;
+                });
+                li.style.display = anyMatch ? '' : 'none';
+            } else {
+                li.style.display = text.indexOf(query) !== -1 ? '' : 'none';
+            }
+        });
+    });
+})();
+</script>
 {{end}}

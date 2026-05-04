@@ -12,13 +12,13 @@
     <div id="loading">
         <i class="fa fa-spinner fa-spin fa-4x"></i>
     </div>
-    <div id="emptyMessage" class="row" style="display:none;">
+    <div id="emptyMessage" class="row" class="u-hidden">
         <div class="alert alert-info">
             No pages created yet. Let's create one!
         </div>
     </div>
     <div class="row">
-        <table id="pagesTable" class="table" style="display:none;">
+        <table id="pagesTable" class="table" class="u-hidden">
             <thead>
                 <tr>
                     <th>Name</th>
@@ -70,11 +70,10 @@
                 <div class="checkbox checkbox-primary" id="capture_passwords">
                     <input id="capture_passwords_checkbox" type="checkbox">
                     <label for="capture_passwords_checkbox">Capture Passwords</label>
-                    <div class="alert alert-warning">
-                        <i class="fa fa-exclamation-circle"></i> <b>Warning:</b> Credentials are currently <b>not
-                            encrypted</b>. This means that captured passwords are stored in the database as cleartext.
-                        Be careful with this!
-                    </div>
+                </div>
+                <div id="cleartext-password-warning" class="alert alert-danger" role="alert" style="display:none; margin-top:6px;">
+                    <i class="fa fa-exclamation-triangle"></i> <strong>Passwords will be stored in CLEARTEXT.</strong>
+                    Only enable if required by your assessment scope.
                 </div>
                 <div id="redirect_url">
                     <label class="control-label" for="redirect_url_input">Redirect to: <i class="fa fa-question-circle"

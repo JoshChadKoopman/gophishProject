@@ -19,7 +19,7 @@
     <div id="flashes" class="row"></div>
 
     <!-- Period & Config -->
-    <div class="row" style="margin-bottom:20px;">
+    <div class="row" class="u-mb20">
         <div class="col-md-8">
             <div class="panel panel-default">
                 <div class="panel-heading">
@@ -38,7 +38,7 @@
                         <button class="btn btn-primary" type="submit">
                             <i class="fa fa-refresh"></i> {{T .Locale "roi.generate"}}
                         </button>
-                        <button class="btn btn-success" type="button" id="generateAndSaveBtn" style="margin-left:8px;">
+                        <button class="btn btn-success" type="button" id="generateAndSaveBtn" class="u-ml8">
                             <i class="fa fa-save"></i> {{T .Locale "roi.generate_and_save"}}
                         </button>
                     </form>
@@ -60,14 +60,14 @@
     </div>
 
     <!-- ROI Score Card -->
-    <div id="roiContent" style="display:none;">
-        <div class="row" style="margin-bottom:20px;">
+    <div id="roiContent" class="u-hidden">
+        <div class="row" class="u-mb20">
             <div class="col-md-3">
                 <div class="panel panel-success text-center">
                     <div class="panel-body">
                         <h2 id="roiPct" style="margin:5px 0;color:#27ae60;">—</h2>
-                        <p style="color:#888;margin:0;font-size:13px;">{{T .Locale "roi.return_on_investment"}}</p>
-                        <div id="roiPctCI" style="font-size:11px;color:#999;"></div>
+                        <p class="u-muted-sm2">{{T .Locale "roi.return_on_investment"}}</p>
+                        <div id="roiPctCI" class="u-fs11-muted2"></div>
                     </div>
                 </div>
             </div>
@@ -75,8 +75,8 @@
                 <div class="panel panel-primary text-center">
                     <div class="panel-body">
                         <h2 id="costAvoidance" style="margin:5px 0;color:#2980b9;">—</h2>
-                        <p style="color:#888;margin:0;font-size:13px;">{{T .Locale "roi.cost_avoidance"}}</p>
-                        <div id="costAvoidanceCI" style="font-size:11px;color:#999;"></div>
+                        <p class="u-muted-sm2">{{T .Locale "roi.cost_avoidance"}}</p>
+                        <div id="costAvoidanceCI" class="u-fs11-muted2"></div>
                     </div>
                 </div>
             </div>
@@ -84,23 +84,23 @@
                 <div class="panel panel-warning text-center">
                     <div class="panel-body">
                         <h2 id="riskReduction" style="margin:5px 0;color:#e67e22;">—</h2>
-                        <p style="color:#888;margin:0;font-size:13px;">{{T .Locale "roi.risk_reduction"}}</p>
+                        <p class="u-muted-sm2">{{T .Locale "roi.risk_reduction"}}</p>
                     </div>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="panel panel-default text-center">
                     <div class="panel-body">
-                        <h2 id="incidentsAvoided" style="margin:5px 0;">—</h2>
-                        <p style="color:#888;margin:0;font-size:13px;">{{T .Locale "roi.incidents_avoided"}}</p>
-                        <div id="incidentsAvoidedCI" style="font-size:11px;color:#999;"></div>
+                        <h2 id="incidentsAvoided" class="u-my5">—</h2>
+                        <p class="u-muted-sm2">{{T .Locale "roi.incidents_avoided"}}</p>
+                        <div id="incidentsAvoidedCI" class="u-fs11-muted2"></div>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- ═══ Monte Carlo Confidence Intervals ═══ -->
-        <div class="panel panel-info" id="monteCarloPanel" style="display:none;">
+        <div class="panel panel-info" id="monteCarloPanel" class="u-hidden">
             <div class="panel-heading">
                 <h3 class="panel-title"><i class="fa fa-random"></i> {{T .Locale "roi.monte_carlo"}}</h3>
             </div>
@@ -109,22 +109,22 @@
                     <div class="col-md-3 text-center">
                         <strong>{{T .Locale "roi.incidents_avoided"}}</strong>
                         <div id="mcIncidents" style="font-size:20px; font-weight:700; color:#2c3e50;"></div>
-                        <div id="mcIncidentsDetail" style="font-size:11px; color:#888;"></div>
+                        <div id="mcIncidentsDetail" class="u-fs11-muted"></div>
                     </div>
                     <div class="col-md-3 text-center">
                         <strong>{{T .Locale "roi.cost_avoidance"}}</strong>
                         <div id="mcCost" style="font-size:20px; font-weight:700; color:#2980b9;"></div>
-                        <div id="mcCostDetail" style="font-size:11px; color:#888;"></div>
+                        <div id="mcCostDetail" class="u-fs11-muted"></div>
                     </div>
                     <div class="col-md-3 text-center">
                         <strong>{{T .Locale "roi.roi_range"}}</strong>
                         <div id="mcROI" style="font-size:20px; font-weight:700; color:#27ae60;"></div>
-                        <div id="mcROIDetail" style="font-size:11px; color:#888;"></div>
+                        <div id="mcROIDetail" class="u-fs11-muted"></div>
                     </div>
                     <div class="col-md-3 text-center">
                         <strong>{{T .Locale "roi.breach_risk_reduction"}}</strong>
                         <div id="mcBreach" style="font-size:20px; font-weight:700; color:#e67e22;"></div>
-                        <div id="mcBreachDetail" style="font-size:11px; color:#888;"></div>
+                        <div id="mcBreachDetail" class="u-fs11-muted"></div>
                     </div>
                 </div>
                 <p class="text-muted" style="margin:10px 0 0; font-size:11px;">
@@ -134,7 +134,7 @@
         </div>
 
         <!-- ═══ Industry Benchmark Comparison ═══ -->
-        <div class="panel panel-default" id="benchmarkPanel" style="display:none;">
+        <div class="panel panel-default" id="benchmarkPanel" class="u-hidden">
             <div class="panel-heading">
                 <h3 class="panel-title">
                     <i class="fa fa-bar-chart"></i> {{T .Locale "roi.benchmark_comparison"}}
@@ -146,9 +146,9 @@
                     <thead>
                         <tr>
                             <th>{{T .Locale "roi.metric"}}</th>
-                            <th style="text-align:right;">{{T .Locale "roi.your_value"}}</th>
-                            <th style="text-align:right;">{{T .Locale "roi.industry_avg"}}</th>
-                            <th style="text-align:right;">{{T .Locale "roi.delta"}}</th>
+                            <th class="u-text-right">{{T .Locale "roi.your_value"}}</th>
+                            <th class="u-text-right">{{T .Locale "roi.industry_avg"}}</th>
+                            <th class="u-text-right">{{T .Locale "roi.delta"}}</th>
                             <th>{{T .Locale "roi.quartile"}}</th>
                             <th>{{T .Locale "roi.source"}}</th>
                         </tr>
@@ -159,7 +159,7 @@
         </div>
 
         <!-- ═══ Quarterly ROI Trend ═══ -->
-        <div class="panel panel-default" id="trendPanel" style="display:none;">
+        <div class="panel panel-default" id="trendPanel" class="u-hidden">
             <div class="panel-heading">
                 <h3 class="panel-title"><i class="fa fa-area-chart"></i> {{T .Locale "roi.trend_over_time"}}</h3>
             </div>
@@ -225,23 +225,23 @@
                         <tr>
                             <th>{{T .Locale "roi.col_period"}}</th>
                             <th>{{T .Locale "roi.col_quarter"}}</th>
-                            <th style="text-align:right;">{{T .Locale "roi.col_roi"}}</th>
-                            <th style="text-align:right;">{{T .Locale "roi.col_cost_avoidance"}}</th>
-                            <th style="text-align:right;">{{T .Locale "roi.col_click_rate"}}</th>
+                            <th class="u-text-right">{{T .Locale "roi.col_roi"}}</th>
+                            <th class="u-text-right">{{T .Locale "roi.col_cost_avoidance"}}</th>
+                            <th class="u-text-right">{{T .Locale "roi.col_click_rate"}}</th>
                             <th>{{T .Locale "roi.col_generated"}}</th>
                             <th></th>
                         </tr>
                     </thead>
                     <tbody id="historyBody"></tbody>
                 </table>
-                <p class="text-muted" id="historyEmpty" style="display:none;">{{T .Locale "roi.history_empty"}}</p>
+                <p class="text-muted" id="historyEmpty" class="u-hidden">{{T .Locale "roi.history_empty"}}</p>
             </div>
         </div>
     </div>
 
     <div id="roiLoading" style="text-align:center; padding:40px; display:none;">
         <i class="fa fa-spinner fa-spin fa-3x"></i>
-        <p class="text-muted" style="margin-top:10px;">{{T .Locale "roi.loading"}}</p>
+        <p class="text-muted" class="u-mt10">{{T .Locale "roi.loading"}}</p>
     </div>
 </div>
 
@@ -457,11 +457,11 @@ function generateROI(saveToHistory){
                 tbody.append(
                     '<tr>' +
                     '<td>' + escapeHtml(b.metric_label) + '</td>' +
-                    '<td style="text-align:right; font-weight:700;">' + fmtBenchVal(b.org_value) + '</td>' +
-                    '<td style="text-align:right;">' + fmtBenchVal(b.industry_avg) + '</td>' +
+                    '<td class="u-right-bold">' + fmtBenchVal(b.org_value) + '</td>' +
+                    '<td class="u-text-right">' + fmtBenchVal(b.industry_avg) + '</td>' +
                     '<td style="text-align:right; color:' + deltaColor + '; font-weight:600;">' + (b.delta > 0 ? '+' : '') + fmtBenchVal(b.delta) + '</td>' +
                     '<td>' + quartileLabel + '</td>' +
-                    '<td style="font-size:11px; color:#888;">' + escapeHtml(b.source) + '</td>' +
+                    '<td class="u-fs11-muted">' + escapeHtml(b.source) + '</td>' +
                     '</tr>'
                 );
             });
@@ -550,12 +550,12 @@ function loadHistory(){
             var periodLabel = moment(r.period_start).format('MMM D, YYYY') + ' — ' + moment(r.period_end).format('MMM D, YYYY');
             tbody.append(
                 '<tr>' +
-                '<td style="font-size:12px;">' + periodLabel + '</td>' +
+                '<td class="u-fs12">' + periodLabel + '</td>' +
                 '<td>' + escapeHtml(r.quarter) + '</td>' +
-                '<td style="text-align:right; font-weight:700;">' + r.roi_percentage.toFixed(0) + '%</td>' +
-                '<td style="text-align:right;">$' + Number(r.cost_avoidance.toFixed(0)).toLocaleString() + '</td>' +
-                '<td style="text-align:right;">' + r.click_rate.toFixed(1) + '%</td>' +
-                '<td style="font-size:11px; color:#888;">' + moment(r.generated_at).format('MMM D, YYYY HH:mm') + '</td>' +
+                '<td class="u-right-bold">' + r.roi_percentage.toFixed(0) + '%</td>' +
+                '<td class="u-text-right">$' + Number(r.cost_avoidance.toFixed(0)).toLocaleString() + '</td>' +
+                '<td class="u-text-right">' + r.click_rate.toFixed(1) + '%</td>' +
+                '<td class="u-fs11-muted">' + moment(r.generated_at).format('MMM D, YYYY HH:mm') + '</td>' +
                 '<td><button class="btn btn-xs btn-danger" onclick="deleteHistoryItem(' + r.id + ')"><i class="fa fa-trash-o"></i></button></td>' +
                 '</tr>'
             );
@@ -606,8 +606,8 @@ function loadQuarterlyTrend(){
 }
 
 function metricTable(rows){
-    var h = '<table class="table table-condensed table-striped" style="margin:0;">';
-    rows.forEach(function(r){ h+='<tr><td>'+r[0]+'</td><td style="text-align:right;"><strong>'+r[1]+'</strong></td></tr>'; });
+    var h = '<table class="table table-condensed table-striped" class="u-m0">';
+    rows.forEach(function(r){ h+='<tr><td>'+r[0]+'</td><td class="u-text-right"><strong>'+r[1]+'</strong></td></tr>'; });
     return h+'</table>';
 }
 

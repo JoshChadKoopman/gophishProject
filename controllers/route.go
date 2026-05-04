@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"net/http"
 	"net/url"
@@ -73,10 +74,6 @@ var defaultTLSConfig = &tls.Config{
 		tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
 		tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
 		tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-
-		// Kept for backwards compatibility with some clients
-		tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
-		tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
 	},
 }
 
@@ -432,11 +429,16 @@ func (as *AdminServer) UserManagement(w http.ResponseWriter, r *http.Request) {
 
 func (as *AdminServer) nextOrIndex(w http.ResponseWriter, r *http.Request, u *models.User) {
 	next := "/"
-	url, err := url.Parse(r.FormValue("next"))
-	if err == nil {
-		path := url.EscapedPath()
-		if path != "" {
-			next = "/" + strings.TrimLeft(path, "/")
+	if raw := r.FormValue("next"); raw != "" {
+		parsed, err := url.Parse(raw)
+		// Accept only relative paths: no scheme, no host, path must start with "/".
+		// This prevents open-redirect to external origins (e.g. next=https://evil.com
+		// or next=/%2F%2Fevil.com which some browsers normalise to //evil.com).
+		if err == nil && parsed.Scheme == "" && parsed.Host == "" {
+			path := parsed.EscapedPath()
+			if strings.HasPrefix(path, "/") && !strings.HasPrefix(path, "//") {
+				next = path
+			}
 		}
 	}
 	// If the user is a reader (no ModifyObjects permission), redirect to training
@@ -805,7 +807,12 @@ func (as *AdminServer) handleLoginPost(w http.ResponseWriter, r *http.Request, s
 		}); auditErr != nil {
 			log.Error(auditErr)
 		}
-		as.handleInvalidLogin(w, r, "Invalid Email/Password")
+		remaining := auth.MaxFailedLogins - (u.FailedLogins + 1)
+		loginMsg := "Invalid Email/Password"
+		if remaining > 0 {
+			loginMsg = fmt.Sprintf("Invalid Email/Password. %d attempt(s) remaining before temporary lockout.", remaining)
+		}
+		as.handleInvalidLogin(w, r, loginMsg)
 		return
 	}
 	u.LastLogin = time.Now().UTC()

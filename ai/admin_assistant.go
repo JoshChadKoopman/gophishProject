@@ -26,16 +26,22 @@ Platform context you can rely on:
 Never expose API keys, session tokens, or other secrets in your responses.`
 
 // BuildAdminAssistantPrompt builds the user-turn prompt for the admin
-// assistant, combining conversation history, onboarding progress, and the
-// admin's current question.
+// assistant, combining conversation history, an onboarding progress summary,
+// and the admin's current question.
+//
+// Only a summary (count of completed steps out of total) is included —
+// individual step names are not sent to the external AI provider.
 func BuildAdminAssistantPrompt(history []AssistantTurn, completedSteps []string, question string) string {
+	// Onboarding step count is defined here to avoid importing models.
+	const totalOnboardingSteps = 9
 	var sb strings.Builder
-	if len(completedSteps) > 0 {
-		sb.WriteString("Admin has completed onboarding steps: ")
-		sb.WriteString(strings.Join(completedSteps, ", "))
-		sb.WriteString("\n\n")
+	completed := len(completedSteps)
+	if completed == 0 {
+		sb.WriteString("Admin onboarding progress: 0 of 9 steps completed (not started).\n\n")
+	} else if completed >= totalOnboardingSteps {
+		sb.WriteString("Admin onboarding progress: fully completed.\n\n")
 	} else {
-		sb.WriteString("Admin has not completed any onboarding steps yet.\n\n")
+		sb.WriteString(fmt.Sprintf("Admin onboarding progress: %d of %d steps completed.\n\n", completed, totalOnboardingSteps))
 	}
 	if len(history) > 0 {
 		sb.WriteString("Recent conversation:\n")

@@ -8,16 +8,16 @@
     </div>
     {{template "flashes" .Flashes}}
 
-    <div id="pageContent" style="display:none;">
+    <div id="pageContent" class="u-hidden">
         <!-- Summary Cards -->
-        <div class="row" style="margin-bottom:20px;">
+        <div class="row" class="u-mb20">
             <div class="col-md-3">
                 <div class="panel panel-primary">
                     <div class="panel-heading" style="background:#1a73e8;">
                         <h4 class="panel-title"><i class="fa fa-calendar"></i> Total Schedules</h4>
                     </div>
                     <div class="panel-body text-center">
-                        <h2 id="totalSchedules" style="margin:0;">0</h2>
+                        <h2 id="totalSchedules" class="u-m0">0</h2>
                     </div>
                 </div>
             </div>
@@ -27,7 +27,7 @@
                         <h4 class="panel-title"><i class="fa fa-check-circle"></i> Active</h4>
                     </div>
                     <div class="panel-body text-center">
-                        <h2 id="activeSchedules" style="margin:0;">0</h2>
+                        <h2 id="activeSchedules" class="u-m0">0</h2>
                     </div>
                 </div>
             </div>
@@ -37,7 +37,7 @@
                         <h4 class="panel-title"><i class="fa fa-paper-plane"></i> Total Runs</h4>
                     </div>
                     <div class="panel-body text-center">
-                        <h2 id="totalRuns" style="margin:0;">0</h2>
+                        <h2 id="totalRuns" class="u-m0">0</h2>
                     </div>
                 </div>
             </div>
@@ -47,14 +47,14 @@
                         <h4 class="panel-title"><i class="fa fa-exclamation-triangle"></i> Failed (24h)</h4>
                     </div>
                     <div class="panel-body text-center">
-                        <h2 id="failedLast24h" style="margin:0;">0</h2>
+                        <h2 id="failedLast24h" class="u-m0">0</h2>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Quick Export Section -->
-        <div class="row" style="margin-bottom:20px;">
+        <div class="row" class="u-mb20">
             <div class="col-lg-12">
                 <div class="panel panel-default" style="border-left:4px solid #27ae60;">
                     <div class="panel-heading">
@@ -62,11 +62,11 @@
                     </div>
                     <div class="panel-body">
                         <form class="form-inline" id="quickExportForm">
-                            <div class="form-group" style="margin-right:10px;">
+                            <div class="form-group" class="u-mr10">
                                 <label>Report Type</label>
                                 <select class="form-control" id="qeType"></select>
                             </div>
-                            <div class="form-group" style="margin-right:10px;">
+                            <div class="form-group" class="u-mr10">
                                 <label>Format</label>
                                 <select class="form-control" id="qeFormat">
                                     <option value="pdf">PDF</option>
@@ -74,11 +74,11 @@
                                     <option value="csv">CSV</option>
                                 </select>
                             </div>
-                            <div class="form-group" style="margin-right:10px;">
+                            <div class="form-group" class="u-mr10">
                                 <label>Start</label>
                                 <input type="date" class="form-control" id="qeStart">
                             </div>
-                            <div class="form-group" style="margin-right:10px;">
+                            <div class="form-group" class="u-mr10">
                                 <label>End</label>
                                 <input type="date" class="form-control" id="qeEnd">
                             </div>
@@ -96,7 +96,7 @@
             <div class="col-lg-12">
                 <div class="panel panel-default">
                     <div class="panel-heading">
-                        <h3 class="panel-title" style="display:inline-block;">
+                        <h3 class="panel-title" class="u-inline-block">
                             <i class="fa fa-list"></i> Report Schedules
                         </h3>
                         <button class="btn btn-primary btn-sm pull-right" onclick="showCreateModal()">
@@ -175,7 +175,7 @@
                                     <option value="6">Saturday</option>
                                 </select>
                             </div>
-                            <div class="form-group" id="dayOfMonthGroup" style="display:none;">
+                            <div class="form-group" id="dayOfMonthGroup" class="u-hidden">
                                 <label>Day of Month (1-28)</label>
                                 <input type="number" class="form-control" id="srDayOfMonth" min="1" max="28" value="1">
                             </div>
@@ -333,7 +333,7 @@ function renderSchedulesTable(schedules){
     tbody.empty();
 
     if(schedules.length === 0){
-        tbody.append('<tr><td colspan="10" class="text-center text-muted" style="padding:30px;"><i class="fa fa-calendar-o fa-3x" style="opacity:0.3;"></i><p style="margin-top:10px;">No scheduled reports yet. Click "New Schedule" to create one.</p></td></tr>');
+        tbody.append('<tr><td colspan="10" class="text-center text-muted" class="u-p30"><i class="fa fa-calendar-o fa-3x" style="opacity:0.3;"></i><p class="u-mt10">No scheduled reports yet. Click "New Schedule" to create one.</p></td></tr>');
         return;
     }
 
@@ -354,7 +354,7 @@ function renderSchedulesTable(schedules){
         }
 
         var nextRun = s.next_run_at ? new Date(s.next_run_at).toLocaleString() : '-';
-        var activeToggle = '<label class="switch" style="margin:0;"><input type="checkbox" '+(s.is_active?'checked':'')+' onchange="toggleSchedule('+s.id+', this.checked)"><span class="slider round"></span></label>';
+        var activeToggle = '<label class="switch" class="u-m0"><input type="checkbox" '+(s.is_active?'checked':'')+' onchange="toggleSchedule('+s.id+', this.checked)"><span class="slider round"></span></label>';
 
         var recipientCount = (s.recipients || '').split(',').filter(function(r){return r.trim();}).length;
 

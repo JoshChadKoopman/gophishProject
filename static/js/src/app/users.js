@@ -11,8 +11,9 @@ const roleDescriptions = {
 
 // Save attempts to POST or PUT to /users/
 const save = (id) => {
-    // Validate that the passwords match
-    if ($("#password").val() !== $("#confirm_password").val()) {
+    var changingPassword = id == -1 || $("#password-fields").is(":visible")
+    // Validate that the passwords match (only when password fields are shown)
+    if (changingPassword && $("#password").val() !== $("#confirm_password").val()) {
         modalError("Passwords must match.")
         return
     }
@@ -29,7 +30,7 @@ const save = (id) => {
 
     let user = {
         username: emailVal,
-        password: $("#password").val(),
+        password: changingPassword ? $("#password").val() : undefined,
         first_name: firstName,
         last_name: lastName,
         email: emailVal,
@@ -80,6 +81,21 @@ const dismiss = () => {
     $("#force_password_change_checkbox").prop('checked', true)
     $("#account_locked_checkbox").prop('checked', false)
     $("#modal\\.flashes").empty()
+    // Reset password section for next open
+    $("#change-password-toggle-row").hide()
+    $("#password-fields").show()
+    $("#change-password-toggle").html('<i class="fa fa-lock"></i> Change password')
+}
+
+function toggleChangePassword(e) {
+    e.preventDefault()
+    var $fields = $("#password-fields")
+    $fields.slideToggle(150, function () {
+        var visible = $fields.is(":visible")
+        $("#change-password-toggle").html(visible
+            ? '<i class="fa fa-lock-open"></i> Hide password fields'
+            : '<i class="fa fa-lock"></i> Change password')
+    })
 }
 
 const edit = (id) => {
@@ -91,8 +107,15 @@ const edit = (id) => {
         $("#userModalLabel").text("New User")
         $("#role").val("reader")
         $("#role").trigger("change")
+        // New user: show password fields, hide toggle link
+        $("#change-password-toggle-row").hide()
+        $("#password-fields").show()
     } else {
         $("#userModalLabel").text("Edit User")
+        // Edit: hide password fields behind toggle
+        $("#change-password-toggle-row").show()
+        $("#password-fields").hide()
+        $("#change-password-toggle").html('<i class="fa fa-lock"></i> Change password')
         api.userId.get(id)
             .success((user) => {
                 $("#first_name").val(user.first_name || '')
@@ -153,13 +176,21 @@ const deleteUser = (id) => {
         return
     }
     Swal.fire({
-        title: "Are you sure?",
-        text: "This will delete the account for " + escapeHtml(displayName) + " as well as all of the objects they have created.\n\nThis can't be undone!",
+        title: "Delete " + escapeHtml(displayName) + "?",
+        html: "<p>This will permanently delete the account for <strong>" + escapeHtml(displayName) + "</strong>.</p>" +
+              "<p><strong>The following will also be deleted:</strong></p>" +
+              "<ul style='text-align:left; margin-left:20px;'>" +
+              "<li>Campaigns they created</li>" +
+              "<li>Training records and assignments</li>" +
+              "<li>Audit log entries</li>" +
+              "</ul>" +
+              "<p class='text-danger' style='margin-top:8px;'><strong>This cannot be undone.</strong></p>",
         type: "warning",
         animation: false,
         showCancelButton: true,
-        confirmButtonText: "Delete",
-        confirmButtonColor: "#428bca",
+        confirmButtonText: "Delete User",
+        confirmButtonColor: "#E94560",
+        cancelButtonText: "Cancel",
         reverseButtons: true,
         allowOutsideClick: false,
         preConfirm: function () {

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"net/http"
 
@@ -21,15 +22,13 @@ func (as *Server) TelephonyWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify webhook secret
-	secret := r.URL.Query().Get("secret")
-	if secret == "" {
-		secret = r.Header.Get("X-Webhook-Secret")
-	}
-	// Webhook secret validation: in production, validate the secret against
-	// the stored config. For now, we log the secret and proceed.
-	if secret == "" {
-		log.Warn("telephony webhook received without secret — check provider configuration")
+	// Verify webhook secret — header only, never from URL params (which appear in logs).
+	// Use constant-time comparison to prevent timing attacks.
+	secret := r.Header.Get("X-Webhook-Secret")
+	configured := as.aiConfig.TelephonyWebhookSecret
+	if configured == "" || secret == "" || subtle.ConstantTimeCompare([]byte(secret), []byte(configured)) != 1 {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
 	}
 
 	var payload struct {

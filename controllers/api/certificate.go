@@ -3,7 +3,6 @@ package api
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	ctx "github.com/gophish/gophish/context"
 	"github.com/gophish/gophish/models"
@@ -95,7 +94,7 @@ func (as *Server) TrainingCertificateIssue(w http.ResponseWriter, r *http.Reques
 		TemplateSlug   string `json:"template_slug"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusBadRequest)
+		JSONResponse(w, models.Response{Success: false, Message: ErrInvalidJSON}, http.StatusBadRequest)
 		return
 	}
 	if req.UserId == 0 || req.PresentationId == 0 {
@@ -112,7 +111,7 @@ func (as *Server) TrainingCertificateIssue(w http.ResponseWriter, r *http.Reques
 
 	cert, err := models.IssueCertificateWithTemplate(req.UserId, req.PresentationId, 0, req.TemplateSlug)
 	if err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+		JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 		return
 	}
 	JSONResponse(w, models.EnrichCertificate(*cert), http.StatusCreated)
@@ -129,10 +128,13 @@ func (as *Server) TrainingCertificateRevoke(w http.ResponseWriter, r *http.Reque
 	}
 
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	if err := models.RevokeCertificate(id); err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+		JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 		return
 	}
 	JSONResponse(w, models.Response{Success: true, Message: "Certificate revoked"}, http.StatusOK)
@@ -149,11 +151,14 @@ func (as *Server) TrainingCertificateRenew(w http.ResponseWriter, r *http.Reques
 	}
 
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	cert, err := models.RenewCertificate(id)
 	if err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+		JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 		return
 	}
 	JSONResponse(w, models.EnrichCertificate(*cert), http.StatusCreated)

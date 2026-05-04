@@ -3,7 +3,6 @@ package api
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	log "github.com/gophish/gophish/logger"
 	"github.com/gophish/gophish/models"
@@ -45,7 +44,10 @@ func (as *Server) SMSProviders(w http.ResponseWriter, r *http.Request) {
 // SMSProvider handles requests for the /api/sms/:id endpoint
 func (as *Server) SMSProvider(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 	scope := getOrgScope(r)
 	sp, err := models.GetSMSProvider(id, scope)
 	if err != nil {

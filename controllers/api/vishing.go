@@ -49,7 +49,10 @@ func (as *Server) VishingScenarios(w http.ResponseWriter, r *http.Request) {
 func (as *Server) VishingScenario(w http.ResponseWriter, r *http.Request) {
 	user := ctx.Get(r, "user").(models.User)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 10, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	switch r.Method {
 	case http.MethodGet:
@@ -141,7 +144,10 @@ func (as *Server) VishingCampaigns(w http.ResponseWriter, r *http.Request) {
 func (as *Server) VishingCampaign(w http.ResponseWriter, r *http.Request) {
 	user := ctx.Get(r, "user").(models.User)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 10, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	switch r.Method {
 	case http.MethodGet:
@@ -171,7 +177,10 @@ func (as *Server) VishingCampaignStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 10, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 	stats := models.GetVishingCampaignStats(id)
 	JSONResponse(w, stats, http.StatusOK)
 }
@@ -269,7 +278,10 @@ func (as *Server) VishingCampaignLaunch(w http.ResponseWriter, r *http.Request) 
 	}
 	user := ctx.Get(r, "user").(models.User)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 10, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	if err := models.LaunchVishingCampaign(id, user.OrgId); err != nil {
 		log.Error(err)
@@ -287,7 +299,10 @@ func (as *Server) VishingCampaignComplete(w http.ResponseWriter, r *http.Request
 	}
 	user := ctx.Get(r, "user").(models.User)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 10, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	if err := models.CompleteVishingCampaign(id, user.OrgId); err != nil {
 		log.Error(err)

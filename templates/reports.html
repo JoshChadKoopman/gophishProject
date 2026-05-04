@@ -6,7 +6,7 @@
     <div id="flashes" class="row"></div>
 
     <!-- Tab navigation -->
-    <ul class="nav nav-tabs" id="reportTabs" style="margin-bottom:20px;">
+    <ul class="nav nav-tabs" id="reportTabs" class="u-mb20">
         <li class="active"><a href="#overviewTab" data-toggle="tab">{{T .Locale "reports.tab_overview"}}</a></li>
         <li><a href="#trendTab" data-toggle="tab">{{T .Locale "reports.tab_trend"}}</a></li>
         <li><a href="#groupsTab" data-toggle="tab">{{T .Locale "reports.tab_groups"}}</a></li>
@@ -41,17 +41,17 @@
     <div class="tab-content">
         <!-- Overview Tab -->
         <div class="tab-pane active" id="overviewTab">
-            <div id="overviewLoading" style="text-align:center; padding:40px;">
+            <div id="overviewLoading" class="u-center-pad">
                 <i class="fa fa-spinner fa-spin fa-3x"></i>
             </div>
-            <div id="overviewContent" style="display:none;">
+            <div id="overviewContent" class="u-hidden">
                 <!-- Summary cards -->
                 <div class="row" id="overviewCards"></div>
                 <!-- Donut charts -->
-                <div class="row" style="margin-top:20px;">
-                    <div class="col-md-4"><div id="overviewSentChart" style="height:250px;"></div></div>
-                    <div class="col-md-4"><div id="overviewClickedChart" style="height:250px;"></div></div>
-                    <div class="col-md-4"><div id="overviewReportedChart" style="height:250px;"></div></div>
+                <div class="row" class="u-mt20">
+                    <div class="col-md-4"><div id="overviewSentChart" class="u-h250"></div></div>
+                    <div class="col-md-4"><div id="overviewClickedChart" class="u-h250"></div></div>
+                    <div class="col-md-4"><div id="overviewReportedChart" class="u-h250"></div></div>
                 </div>
                 <div style="margin-top:15px; text-align:right;">
                     <a class="btn btn-default btn-sm" href="/api/reports/export?type=overview&format=csv">
@@ -69,11 +69,11 @@
 
         <!-- Trend Tab -->
         <div class="tab-pane" id="trendTab">
-            <div id="trendLoading" style="text-align:center; padding:40px;">
+            <div id="trendLoading" class="u-center-pad">
                 <i class="fa fa-spinner fa-spin fa-3x"></i>
             </div>
-            <div id="trendContent" style="display:none;">
-                <div class="row" style="margin-bottom:15px;">
+            <div id="trendContent" class="u-hidden">
+                <div class="row" class="u-mb15">
                     <div class="col-md-4">
                         <label for="trendDays">{{T .Locale "reports.time_period"}}</label>
                         <select id="trendDays" class="form-control input-sm">
@@ -88,16 +88,16 @@
                     </div>
                 </div>
                 <div id="trendChart" style="height:400px;"></div>
-                <div id="trendSummary" class="row" style="margin-top:20px;"></div>
+                <div id="trendSummary" class="row" class="u-mt20"></div>
             </div>
         </div>
 
         <!-- Groups Tab -->
         <div class="tab-pane" id="groupsTab">
-            <div id="groupsLoading" style="text-align:center; padding:40px;">
+            <div id="groupsLoading" class="u-center-pad">
                 <i class="fa fa-spinner fa-spin fa-3x"></i>
             </div>
-            <div id="groupsContent" style="display:none;">
+            <div id="groupsContent" class="u-hidden">
                 <div id="groupsChart" style="height:350px; margin-bottom:20px;"></div>
                 <table id="groupsTable" class="table table-striped table-hover">
                     <thead>
@@ -114,7 +114,7 @@
                     </thead>
                     <tbody id="groupsTableBody"></tbody>
                 </table>
-                <div style="text-align:right;">
+                <div class="u-text-right">
                     <a class="btn btn-default btn-sm" href="/api/reports/export?type=groups&format=csv">
                         <i class="fa fa-download"></i> {{T .Locale "common.export_csv"}}
                     </a>
@@ -130,13 +130,13 @@
 
         <!-- Training Tab -->
         <div class="tab-pane" id="trainingTab">
-            <div id="trainingLoading" style="text-align:center; padding:40px;">
+            <div id="trainingLoading" class="u-center-pad">
                 <i class="fa fa-spinner fa-spin fa-3x"></i>
             </div>
-            <div id="trainingContent" style="display:none;">
+            <div id="trainingContent" class="u-hidden">
                 <div class="row" id="trainingCards"></div>
-                <div class="row" style="margin-top:20px;">
-                    <div class="col-md-5"><div id="trainingStatusChart" style="height:300px;"></div></div>
+                <div class="row" class="u-mt20">
+                    <div class="col-md-5"><div id="trainingStatusChart" class="u-h300"></div></div>
                     <div class="col-md-7"><div id="trainingMetricsPanel"></div></div>
                 </div>
                 <div style="margin-top:15px; text-align:right;">
@@ -155,10 +155,10 @@
 
         <!-- Risk Assessment Tab -->
         <div class="tab-pane" id="riskTab">
-            <div id="riskLoading" style="text-align:center; padding:40px;">
+            <div id="riskLoading" class="u-center-pad">
                 <i class="fa fa-spinner fa-spin fa-3x"></i>
             </div>
-            <div id="riskContent" style="display:none;">
+            <div id="riskContent" class="u-hidden">
                 <div id="riskHistogram" style="height:300px; margin-bottom:20px;"></div>
                 <table id="riskTable" class="table table-striped table-hover">
                     <thead>
@@ -174,7 +174,7 @@
                     </thead>
                     <tbody id="riskTableBody"></tbody>
                 </table>
-                <div style="text-align:right;">
+                <div class="u-text-right">
                     <a class="btn btn-default btn-sm" href="/api/reports/export?type=risk-scores&format=csv">
                         <i class="fa fa-download"></i> {{T .Locale "common.export_csv"}}
                     </a>
@@ -189,19 +189,19 @@
         </div>
         <!-- BRS Tab -->
         <div class="tab-pane" id="brsTab">
-            <div id="brsLoading" style="text-align:center; padding:40px;">
+            <div id="brsLoading" class="u-center-pad">
                 <i class="fa fa-spinner fa-spin fa-3x"></i>
             </div>
-            <div id="brsContent" style="display:none;">
+            <div id="brsContent" class="u-hidden">
                 <!-- Summary cards -->
                 <div class="row" id="brsCards"></div>
                 <!-- Charts row -->
-                <div class="row" style="margin-top:20px;">
+                <div class="row" class="u-mt20">
                     <div class="col-md-6">
                         <div class="panel panel-default">
                             <div class="panel-heading"><strong>{{T .Locale "reports.score_distribution"}}</strong></div>
                             <div class="panel-body">
-                                <div id="brsDistributionChart" style="height:300px;"></div>
+                                <div id="brsDistributionChart" class="u-h300"></div>
                             </div>
                         </div>
                     </div>
@@ -209,21 +209,21 @@
                         <div class="panel panel-default">
                             <div class="panel-heading"><strong>{{T .Locale "reports.dept_comparison"}}</strong></div>
                             <div class="panel-body">
-                                <div id="brsDepartmentChart" style="height:300px;"></div>
+                                <div id="brsDepartmentChart" class="u-h300"></div>
                             </div>
                         </div>
                     </div>
                 </div>
                 <!-- Leaderboard table -->
-                <div class="panel panel-default" style="margin-top:20px;">
+                <div class="panel panel-default" class="u-mt20">
                     <div class="panel-heading">
                         <strong>{{T .Locale "reports.leaderboard"}}</strong> <small class="text-muted">{{T .Locale "reports.leaderboard_hint"}}</small>
                         <button id="brsRecalcBtn" class="btn btn-xs btn-default pull-right" title="{{T .Locale "reports.recalculate_title"}}">
                             <i class="fa fa-refresh"></i> {{T .Locale "reports.recalculate"}}
                         </button>
                     </div>
-                    <div class="panel-body" style="padding:0;">
-                        <table id="brsTable" class="table table-striped table-hover" style="margin-bottom:0;">
+                    <div class="panel-body" class="u-p0">
+                        <table id="brsTable" class="table table-striped table-hover" class="u-mb0">
                             <thead>
                                 <tr>
                                     <th>#</th>
@@ -244,7 +244,7 @@
                     </div>
                 </div>
                 <!-- Benchmark -->
-                <div class="row" id="brsBenchmarkRow" style="display:none;">
+                <div class="row" id="brsBenchmarkRow" class="u-hidden">
                     <div class="col-md-12">
                         <div class="panel panel-info">
                             <div class="panel-heading"><strong>{{T .Locale "reports.benchmark"}}</strong></div>

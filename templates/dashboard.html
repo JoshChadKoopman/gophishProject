@@ -23,19 +23,19 @@
         <i class="fa fa-spinner fa-spin fa-4x"></i>
     </div>
     {{template "flashes" .Flashes}}
-    <div id="emptyMessage" style="display:none;">
+    <div id="emptyMessage" class="u-hidden">
         <div class="alert alert-info">
             {{T .Locale "dashboard.empty"}}
         </div>
     </div>
-    <div id="dashboard" style="display:none;">
+    <div id="dashboard" class="u-hidden">
 
         <!-- ═══ Real-Time Summary Cards with Sparklines ═══ -->
         <div class="row" id="realtimeCards">
             <!-- Campaigns Card -->
             <div class="col-md-4 col-lg-2">
                 <div class="panel panel-default rt-card">
-                    <div class="panel-body text-center" style="padding:12px;">
+                    <div class="panel-body text-center" class="u-p12">
                         <i class="fa fa-bullhorn fa-lg" style="color:#3498db;"></i>
                         <div class="rt-value" id="rtActiveCampaigns">–</div>
                         <div class="rt-label">{{T .Locale "dashboard.active_campaigns"}}</div>
@@ -47,7 +47,7 @@
             <!-- Emails Sent Today Card -->
             <div class="col-md-4 col-lg-2">
                 <div class="panel panel-default rt-card">
-                    <div class="panel-body text-center" style="padding:12px;">
+                    <div class="panel-body text-center" class="u-p12">
                         <i class="fa fa-envelope fa-lg" style="color:#1abc9c;"></i>
                         <div class="rt-value" id="rtEmailsSent">–</div>
                         <div class="rt-label">{{T .Locale "dashboard.emails_sent_today"}}</div>
@@ -59,7 +59,7 @@
             <!-- Click Rate Card -->
             <div class="col-md-4 col-lg-2">
                 <div class="panel panel-default rt-card">
-                    <div class="panel-body text-center" style="padding:12px;">
+                    <div class="panel-body text-center" class="u-p12">
                         <i class="fa fa-mouse-pointer fa-lg" style="color:#e74c3c;"></i>
                         <div class="rt-value" id="rtClickRate">–</div>
                         <div class="rt-label">{{T .Locale "dashboard.avg_click_rate"}}</div>
@@ -71,7 +71,7 @@
             <!-- Report Rate Card -->
             <div class="col-md-4 col-lg-2">
                 <div class="panel panel-default rt-card">
-                    <div class="panel-body text-center" style="padding:12px;">
+                    <div class="panel-body text-center" class="u-p12">
                         <i class="fa fa-flag fa-lg" style="color:#2ecc71;"></i>
                         <div class="rt-value" id="rtReportRate">–</div>
                         <div class="rt-label">{{T .Locale "dashboard.avg_report_rate"}}</div>
@@ -83,7 +83,7 @@
             <!-- Open Tickets Card -->
             <div class="col-md-4 col-lg-2">
                 <div class="panel panel-default rt-card">
-                    <div class="panel-body text-center" style="padding:12px;">
+                    <div class="panel-body text-center" class="u-p12">
                         <i class="fa fa-ticket fa-lg" style="color:#9b59b6;"></i>
                         <div class="rt-value" id="rtOpenTickets">–</div>
                         <div class="rt-label">{{T .Locale "dashboard.open_tickets"}}</div>
@@ -95,7 +95,7 @@
             <!-- Training Completion Card -->
             <div class="col-md-4 col-lg-2">
                 <div class="panel panel-default rt-card">
-                    <div class="panel-body text-center" style="padding:12px;">
+                    <div class="panel-body text-center" class="u-p12">
                         <i class="fa fa-graduation-cap fa-lg" style="color:#f39c12;"></i>
                         <div class="rt-value" id="rtTrainingCompletion">–</div>
                         <div class="rt-label">{{T .Locale "dashboard.training_completion"}}</div>
@@ -128,24 +128,24 @@
         <!-- Trend Chart with date range selector -->
         <div class="row">
             <div class="col-lg-12">
-                <div style="margin-bottom:10px;">
+                <div class="u-mb10">
                     <div class="btn-group btn-group-sm" id="trendRange">
                         <button class="btn btn-default" data-days="7">7d</button>
                         <button class="btn btn-default active" data-days="30">30d</button>
                         <button class="btn btn-default" data-days="90">90d</button>
                     </div>
                 </div>
-                <div id="trendChart" style="height:280px;"></div>
+                <div id="trendChart" class="u-h280"></div>
             </div>
         </div>
 
         <!-- Risk Gauge + Training Completion + Top Vulnerable -->
-        <div class="row" style="margin-top:20px;">
+        <div class="row" class="u-mt20">
             <div class="col-md-4">
                 <div class="panel panel-default">
                     <div class="panel-heading"><strong><i class="fa fa-tachometer"></i> {{T .Locale "dashboard.org_risk"}}</strong></div>
-                    <div class="panel-body" style="text-align:center;">
-                        <div id="riskGauge" style="height:200px;"></div>
+                    <div class="panel-body" class="u-text-center">
+                        <div id="riskGauge" class="u-h200"></div>
                     </div>
                 </div>
             </div>
@@ -153,7 +153,7 @@
                 <div class="panel panel-default">
                     <div class="panel-heading"><strong><i class="fa fa-graduation-cap"></i> {{T .Locale "dashboard.training_completion"}}</strong></div>
                     <div class="panel-body" id="trainingWidget">
-                        <div style="text-align:center; padding:20px;">
+                        <div class="u-center-pad2">
                             <i class="fa fa-spinner fa-spin"></i>
                         </div>
                     </div>
@@ -162,8 +162,8 @@
             <div class="col-md-4">
                 <div class="panel panel-default">
                     <div class="panel-heading"><strong><i class="fa fa-exclamation-triangle"></i> {{T .Locale "dashboard.top_vulnerable"}}</strong></div>
-                    <div class="panel-body" style="padding:0;">
-                        <table class="table table-condensed" style="margin:0;" id="topRiskTable">
+                    <div class="panel-body" class="u-p0">
+                        <table class="table table-condensed" class="u-m0" id="topRiskTable">
                             <thead><tr><th>{{T .Locale "common.email"}}</th><th>{{T .Locale "dashboard.risk"}}</th></tr></thead>
                             <tbody id="topRiskBody"></tbody>
                         </table>
@@ -173,14 +173,14 @@
         </div>
 
         <!-- Donut charts row -->
-        <div class="row" style="margin-top:10px;">
-            <div style="height:200px;" class="col-lg-1 col-md-1"></div>
-            <div id="sent_chart" style="height:200px;" class="col-lg-2 col-md-2"></div>
-            <div id="opened_chart" style="height:200px;" class="col-lg-2 col-md-2"></div>
-            <div id="clicked_chart" style="height:200px;" class="col-lg-2 col-md-2"></div>
-            <div id="submitted_data_chart" style="height:200px;" class="col-lg-2 col-md-2"></div>
-            <div id="email_reported_chart" style="height:200px;" class="col-lg-2 col-md-2"></div>
-            <div style="height:200px;" class="col-lg-1 col-md-1"></div>
+        <div class="row" class="u-mt10">
+            <div class="u-h200" class="col-lg-1 col-md-1"></div>
+            <div id="sent_chart" class="u-h200" class="col-lg-2 col-md-2"></div>
+            <div id="opened_chart" class="u-h200" class="col-lg-2 col-md-2"></div>
+            <div id="clicked_chart" class="u-h200" class="col-lg-2 col-md-2"></div>
+            <div id="submitted_data_chart" class="u-h200" class="col-lg-2 col-md-2"></div>
+            <div id="email_reported_chart" class="u-h200" class="col-lg-2 col-md-2"></div>
+            <div class="u-h200" class="col-lg-1 col-md-1"></div>
         </div>
 
         <!-- Recent Campaigns -->

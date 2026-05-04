@@ -1,15 +1,30 @@
 $(document).ready(function () {
     $('[data-toggle="tooltip"]').tooltip();
     $("#apiResetForm").submit(function (e) {
-        api.reset()
-            .success(function (response) {
-                user.api_key = response.data
-                successFlash(response.message)
-                $("#api_key").val(user.api_key)
-            })
-            .error(function (data) {
-                errorFlash(data.message)
-            })
+        e.preventDefault()
+        Swal.fire({
+            title: "Reset API Key?",
+            html: "This will immediately invalidate your current API key.<br>All existing integrations using this key will stop working.",
+            type: "warning",
+            showCancelButton: true,
+            confirmButtonText: "Reset Key",
+            confirmButtonColor: "#E94560",
+            cancelButtonText: "Cancel",
+            reverseButtons: true,
+            allowOutsideClick: false
+        }).then(function(result) {
+            if (result.value) {
+                api.reset()
+                    .success(function (response) {
+                        user.api_key = response.data
+                        successFlash(response.message)
+                        $("#api_key").val(user.api_key)
+                    })
+                    .error(function (data) {
+                        errorFlash(data.message)
+                    })
+            }
+        })
         return false
     })
     $("#settingsForm").submit(function (e) {

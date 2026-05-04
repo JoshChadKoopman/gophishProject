@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strconv"
 
 	"github.com/gophish/gophish/auth"
 	ctx "github.com/gophish/gophish/context"
@@ -100,7 +99,7 @@ func (as *Server) Users(w http.ResponseWriter, r *http.Request) {
 		scope := getOrgScope(r)
 		us, err := models.GetUsersByOrg(scope)
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+			JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 			return
 		}
 		JSONResponse(w, us, http.StatusOK)
@@ -109,7 +108,7 @@ func (as *Server) Users(w http.ResponseWriter, r *http.Request) {
 		ur := &userRequest{}
 		err := json.NewDecoder(r.Body).Decode(ur)
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusBadRequest)
+			JSONResponse(w, models.Response{Success: false, Message: ErrInvalidJSON}, http.StatusBadRequest)
 			return
 		}
 		err = ur.Validate(nil)
@@ -124,12 +123,12 @@ func (as *Server) Users(w http.ResponseWriter, r *http.Request) {
 		}
 		hash, err := auth.GeneratePasswordHash(ur.Password)
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+			JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 			return
 		}
 		role, err := models.GetRoleBySlug(ur.Role)
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+			JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 			return
 		}
 		scope := getOrgScope(r)
@@ -149,7 +148,7 @@ func (as *Server) Users(w http.ResponseWriter, r *http.Request) {
 		}
 		err = models.PutUser(&user)
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+			JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 			return
 		}
 		JSONResponse(w, user, http.StatusOK)
@@ -162,13 +161,16 @@ func (as *Server) Users(w http.ResponseWriter, r *http.Request) {
 // may only view or delete their own account.
 func (as *Server) User(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 	// If the user doesn't have ModifySystem permissions, we need to verify
 	// that they're only taking action on their account.
 	currentUser := ctx.Get(r, "user").(models.User)
 	hasSystem, err := currentUser.HasPermission(models.PermissionModifySystem)
 	if err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+		JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 		return
 	}
 	if !hasSystem && currentUser.Id != id {
@@ -186,7 +188,7 @@ func (as *Server) User(w http.ResponseWriter, r *http.Request) {
 	case r.Method == "DELETE":
 		err = models.DeleteUser(id)
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+			JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 			return
 		}
 		log.Infof("Deleted user account for %s", existingUser.Username)
@@ -196,7 +198,7 @@ func (as *Server) User(w http.ResponseWriter, r *http.Request) {
 		err = json.NewDecoder(r.Body).Decode(ur)
 		if err != nil {
 			log.Errorf("error decoding user request: %v", err)
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusBadRequest)
+			JSONResponse(w, models.Response{Success: false, Message: ErrInvalidJSON}, http.StatusBadRequest)
 			return
 		}
 		err = ur.Validate(&existingUser)
@@ -222,7 +224,7 @@ func (as *Server) User(w http.ResponseWriter, r *http.Request) {
 		}
 		role, err := models.GetRoleBySlug(ur.Role)
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+			JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 			return
 		}
 		// If our user is trying to change the role of an admin, we need to
@@ -230,7 +232,7 @@ func (as *Server) User(w http.ResponseWriter, r *http.Request) {
 		if existingUser.Role.Slug == models.RoleAdmin && existingUser.Role.ID != role.ID {
 			err = models.EnsureEnoughAdmins()
 			if err != nil {
-				JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+				JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 				return
 			}
 		}
@@ -254,7 +256,7 @@ func (as *Server) User(w http.ResponseWriter, r *http.Request) {
 			}
 			hash, err := auth.GeneratePasswordHash(ur.Password)
 			if err != nil {
-				JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+				JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 				return
 			}
 			existingUser.Hash = hash
@@ -262,7 +264,7 @@ func (as *Server) User(w http.ResponseWriter, r *http.Request) {
 		existingUser.AccountLocked = ur.AccountLocked
 		err = models.PutUser(&existingUser)
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+			JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 			return
 		}
 		// Emit an audit log entry if the role changed.

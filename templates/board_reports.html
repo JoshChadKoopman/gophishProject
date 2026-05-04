@@ -7,7 +7,7 @@
             <button class="btn btn-primary pull-right" id="newReportBtn">
                 <i class="fa fa-plus"></i> {{T .Locale "board.new"}}
             </button>
-            <button class="btn btn-default pull-right" id="previewBtn" style="margin-right:8px;">
+            <button class="btn btn-default pull-right" id="previewBtn" class="u-mr8">
                 <i class="fa fa-eye"></i> {{T .Locale "board.quick_preview"}}
             </button>
             {{end}}
@@ -16,7 +16,7 @@
     <div id="flashes" class="row"></div>
 
     <!-- Quick Preview Panel -->
-    <div id="previewPanel" style="display:none;">
+    <div id="previewPanel" class="u-hidden">
         <div class="panel panel-info">
             <div class="panel-heading">
                 <h3 class="panel-title"><i class="fa fa-eye"></i> {{T .Locale "board.live_preview"}}
@@ -39,7 +39,7 @@
         </div>
         <div class="panel-body" style="padding:0; overflow-x:auto;">
             <div id="heatmapContent">
-                <p class="text-muted text-center" style="padding:30px;"><i class="fa fa-spinner fa-spin"></i> {{T .Locale "board.heatmap_loading"}}</p>
+                <p class="text-muted text-center" class="u-p30"><i class="fa fa-spinner fa-spin"></i> {{T .Locale "board.heatmap_loading"}}</p>
             </div>
         </div>
     </div>
@@ -49,8 +49,8 @@
         <div class="panel-heading">
             <h3 class="panel-title"><i class="fa fa-list"></i> {{T .Locale "board.saved"}}</h3>
         </div>
-        <div class="panel-body" style="padding:0;">
-            <table class="table table-hover table-striped" id="reportsTable" style="margin:0;">
+        <div class="panel-body" class="u-p0">
+            <table class="table table-hover table-striped" id="reportsTable" class="u-m0">
                 <thead>
                     <tr>
                         <th>{{T .Locale "board.col_title"}}</th>
@@ -64,7 +64,7 @@
             </table>
         </div>
     </div>
-    <div id="reportsEmpty" style="display:none; text-align:center; padding:40px 0; color:#999;">
+    <div id="reportsEmpty" class="u-empty-state">
         <i class="fa fa-briefcase fa-3x"></i>
         <h3>{{T .Locale "board.empty_heading"}}</h3>
         <p>{{T .Locale "board.empty_body"}}</p>
@@ -72,7 +72,7 @@
 
     <!-- Enhanced Report Detail Modal -->
     <div class="modal fade" id="reportDetailModal" tabindex="-1" role="dialog">
-        <div class="modal-dialog modal-lg" role="document" style="width:90%; max-width:1100px;">
+        <div class="modal-dialog modal-lg" role="document" class="u-w90p-max1100">
             <div class="modal-content">
                 <div class="modal-header">
                     <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
@@ -83,7 +83,7 @@
                     <p class="text-muted"><i class="fa fa-spinner fa-spin"></i> {{T .Locale "common.loading"}}</p>
                 </div>
                 <div class="modal-footer">
-                    <div class="btn-group" style="margin-right:10px;">
+                    <div class="btn-group" class="u-mr10">
                         <a class="btn btn-primary btn-sm" id="exportPDF" target="_blank"><i class="fa fa-file-pdf-o"></i> PDF</a>
                         <a class="btn btn-success btn-sm" id="exportXLSX" target="_blank"><i class="fa fa-file-excel-o"></i> XLSX</a>
                         <a class="btn btn-default btn-sm" id="exportCSV" target="_blank"><i class="fa fa-download"></i> CSV</a>

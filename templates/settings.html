@@ -68,6 +68,13 @@
                             </div>
                             <span id="password-strength-description"></span>
                         </div>
+                        <ul id="password-policy-checklist" style="list-style:none; padding:6px 0; margin:4px 0 0; font-size:0.85em; display:none;">
+                            <li id="policy-length"><i class="fa fa-times text-danger"></i> At least 10 characters</li>
+                            <li id="policy-upper"><i class="fa fa-times text-danger"></i> One uppercase letter</li>
+                            <li id="policy-lower"><i class="fa fa-times text-danger"></i> One lowercase letter</li>
+                            <li id="policy-digit"><i class="fa fa-times text-danger"></i> One number</li>
+                            <li id="policy-special"><i class="fa fa-times text-danger"></i> One special character</li>
+                        </ul>
                     </div>
                 </div>
                 <br />
@@ -163,7 +170,7 @@
             </div>
 
              <!-- Advanced Settings-->
-            <div id="advancedarea" style="display: none;">
+            <div id="advancedarea" class="u-hidden">
                 <hr>
                 <div class="row">
                 <label for="folder" class="col-sm-2 control-label form-label">Folder:</label>

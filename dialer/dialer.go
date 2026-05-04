@@ -79,9 +79,30 @@ func (d *RestrictedDialer) Dialer() *net.Dialer {
 	}
 }
 
-// defaultDenyStr represents the raw CIDR strings for the default deny list.
+// defaultDenyStr is the default SSRF deny list applied when no AllowedInternalHosts
+// are configured. It blocks all private, loopback, link-local, and reserved ranges
+// so that user-supplied URLs (webhooks, SMTP, etc.) cannot reach internal services
+// by default. Operators may open specific ranges via AllowedInternalHosts.
 var defaultDenyStr = []string{
-	"169.254.0.0/16", // Link-local (used for VPS instance metadata)
+	"0.0.0.0/8",
+	"127.0.0.0/8",        // IPv4 loopback
+	"10.0.0.0/8",         // RFC1918
+	"100.64.0.0/10",      // CGNAT
+	"172.16.0.0/12",      // RFC1918
+	"169.254.0.0/16",     // RFC3927 link-local / instance metadata
+	"192.88.99.0/24",     // IPv6-to-IPv4 relay
+	"192.168.0.0/16",     // RFC1918
+	"198.51.100.0/24",    // TEST-NET-2
+	"203.0.113.0/24",     // TEST-NET-3
+	"224.0.0.0/4",        // Multicast
+	"240.0.0.0/4",        // Reserved
+	"255.255.255.255/32", // Broadcast
+	"::/128",             // Unspecified
+	"::1/128",            // IPv6 loopback
+	"::ffff:0:0/96",      // IPv4-mapped
+	"::ffff:0:0:0/96",    // IPv4-translated
+	"fe80::/10",          // IPv6 link-local
+	"fc00::/7",           // IPv6 unique-local
 }
 
 // allInternalStr represents all internal host CIDR strings.

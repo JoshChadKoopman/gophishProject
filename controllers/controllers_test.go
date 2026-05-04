@@ -14,11 +14,13 @@ import (
 
 // testContext is the data required to test API related functions
 type testContext struct {
-	apiKey      string
-	config      *config.Config
-	adminServer *httptest.Server
-	phishServer *httptest.Server
-	origPath    string
+	apiKey           string
+	config           *config.Config
+	adminServer      *httptest.Server
+	phishServer      *httptest.Server
+	origPath         string
+	noMFAUsername    string // a non-MFA user for redirect/session tests
+	noMFAPassword    string
 }
 
 func setupTest(t *testing.T) *testContext {
@@ -56,6 +58,25 @@ func setupTest(t *testing.T) *testContext {
 	// Create a second user to test account locked status
 	u2 := models.User{Username: "houdini", Hash: hash, AccountLocked: true}
 	models.PutUser(&u2)
+
+	// Create a campaign_manager user (no MFA required) for redirect/session tests
+	cmRole, err := models.GetRoleBySlug(models.RoleCampaignManager)
+	if err != nil {
+		t.Fatalf("error getting campaign_manager role: %v", err)
+	}
+	cmUser := models.User{
+		Username: "testcm",
+		Hash:     hash,
+		OrgId:    1,
+		Role:     cmRole,
+		RoleID:   cmRole.ID,
+		ApiKey:   auth.GenerateSecureKey(auth.APIKeyLength),
+	}
+	if err := models.PutUser(&cmUser); err != nil {
+		t.Fatalf("error creating campaign_manager test user: %v", err)
+	}
+	ctx.noMFAUsername = "testcm"
+	ctx.noMFAPassword = "gophish"
 
 	ctx.apiKey = u.ApiKey
 	// Start the phishing server

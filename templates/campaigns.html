@@ -29,13 +29,13 @@
             <div id="loading">
                 <i class="fa fa-spinner fa-spin fa-4x"></i>
             </div>
-            <div id="emptyMessage" class="row" style="display:none;">
+            <div id="emptyMessage" class="row" class="u-hidden">
                 <div class="alert alert-info">
                     No campaigns created yet. Let's create one!
                 </div>
             </div>
             <div class="row">
-                <table id="campaignTable" class="table" style="display:none;">
+                <table id="campaignTable" class="table" class="u-hidden">
                     <thead>
                         <tr>
                             <th class="col-md-3">Name</th>
@@ -51,14 +51,14 @@
         </div>
         <div role="tabpanel" class="tab-pane" id="archivedCampaigns">
             </br>
-            <div id="emptyMessage" class="row" style="display:none;">
+            <div id="emptyMessage" class="row" class="u-hidden">
                 </br>
                 <div class="alert alert-info">
                     No archived campaigns.
                 </div>
             </div>
             <div class="row">
-                <table id="campaignTableArchive" class="table" style="display:none;">
+                <table id="campaignTableArchive" class="table" class="u-hidden">
                     <thead>
                         <tr>
                             <th class="col-md-3">Name</th>
@@ -87,14 +87,14 @@
             <div class="modal-body" id="modal_body">
                 <div class="row" id="modal.flashes"></div>
                 <div class="form-group">
-                    <label for="name">Name:</label>
+                    <label for="name">Name: <span class="text-danger" title="Required">*</span></label>
                     <input type="text" class="form-control" id="name" placeholder="Campaign name" autofocus>
                     <label class="control-label" for="campaign_type">Campaign Type:</label>
                     <select class="form-control" id="campaign_type">
                         <option value="email">Email Phishing</option>
                         <option value="sms">SMS Phishing (Smishing)</option>
                     </select>
-                    <label class="control-label" for="template">Email Template:</label>
+                    <label class="control-label" for="template">Email Template: <span class="text-danger" title="Required">*</span></label>
                     <select class="form-control" placeholder="Template Name" id="template" />
                     <option></option>
                     </select>
@@ -102,10 +102,10 @@
                     <select class="form-control" placeholder="Landing Page" id="page" />
                     <option></option>
                     </select>
-                    <label class="control-label" for="url">URL:
+                    <label class="control-label" for="url">URL: <span class="text-danger" title="Required">*</span>
                         <i class="fa fa-question-circle" data-toggle="tooltip" data-placement="right" title="Location of phishing listener (must be reachable by targets!)"></i>
                     </label>
-                    <input type="text" class="form-control" placeholder="http://192.168.1.1" id="url" />
+                    <input type="text" class="form-control" placeholder="https://your-phishing-domain.com" id="url" />
                     <div class="row">
                         <div class="col-md-6">
                             <label class="control-label" for="url">Launch Date </label>
@@ -118,7 +118,7 @@
                             <input type="text" class="form-control" id="send_by_date" autocomplete="random-data"/> <!--Chrome ignores autocomplete="off".-->
                         </div>
                     </div>
-                    <label class="control-label" for="profile">Sending Profile:</label>
+                    <label class="control-label" for="profile">Sending Profile: <span class="text-danger" title="Required">*</span></label>
                     <div class="input-group">
                         <select class="form-control" placeholder="Sending Profile" id="profile" />
                         <option></option>
@@ -129,15 +129,15 @@
                                 <i class="fa fa-envelope"></i> Send Test Email</button>
                         </span>
                     </div>
-                    <div id="sms_provider_group" style="display:none;">
+                    <div id="sms_provider_group" class="u-hidden">
                         <label class="control-label" for="sms_provider">SMS Provider:</label>
                         <select class="form-control" placeholder="SMS Provider" id="sms_provider">
                             <option></option>
                         </select>
                     </div>
-                    <label class="control-label" for="users">Groups:</label>
+                    <label class="control-label" for="users">Groups: <span class="text-danger" title="Required">*</span></label>
                     <select class="form-control" id="users" multiple="multiple"></select>
-                    <label class="control-label" for="training_course" style="margin-top:10px;">
+                    <label class="control-label" for="training_course" class="u-mt10">
                         Training Course on Click
                         <small class="text-muted">(Optional)</small>:
                         <i class="fa fa-question-circle" data-toggle="tooltip" data-placement="right"
@@ -146,14 +146,14 @@
                     <select class="form-control" id="training_course">
                         <option value="0">None</option>
                     </select>
-                    <div class="checkbox checkbox-primary" style="margin-top:10px;">
+                    <div class="checkbox checkbox-primary" class="u-mt10">
                         <input id="feedback_enabled_checkbox" type="checkbox">
                         <label for="feedback_enabled_checkbox">Show Feedback Page on Click
                             <i class="fa fa-question-circle" data-toggle="tooltip" data-placement="right"
                                title="When enabled, recipients who click the phishing link will see an educational interstitial explaining what they should watch for."></i>
                         </label>
                     </div>
-                    <div id="feedback_page_select" style="display:none;">
+                    <div id="feedback_page_select" class="u-hidden">
                         <label class="control-label" for="feedback_page">Feedback Page:</label>
                         <select class="form-control" id="feedback_page">
                             <option value="0">None</option>

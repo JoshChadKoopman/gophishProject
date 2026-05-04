@@ -3,7 +3,6 @@ package api
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	ctx "github.com/gophish/gophish/context"
 	"github.com/gophish/gophish/models"
@@ -177,7 +176,10 @@ func saveScenarioChoices(scenarioId int64, pendingChoices [][]scenarioChoiceIn, 
 func (as *Server) TrainingScenario(w http.ResponseWriter, r *http.Request) {
 	user := ctx.Get(r, "user").(models.User)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	switch r.Method {
 	case http.MethodGet:
@@ -248,7 +250,10 @@ func handleScenarioDelete(w http.ResponseWriter, user models.User, id int64) {
 func (as *Server) TrainingScenarioStart(w http.ResponseWriter, r *http.Request) {
 	user := ctx.Get(r, "user").(models.User)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	progress, err := models.GetOrCreateStoryProgress(user.Id, id)
 	if err != nil {
@@ -271,7 +276,10 @@ func (as *Server) TrainingScenarioStart(w http.ResponseWriter, r *http.Request) 
 func (as *Server) TrainingScenarioChoose(w http.ResponseWriter, r *http.Request) {
 	user := ctx.Get(r, "user").(models.User)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	var req struct {
 		ChoiceId int64 `json:"choice_id"`
@@ -309,7 +317,10 @@ func (as *Server) TrainingScenarioChoose(w http.ResponseWriter, r *http.Request)
 func (as *Server) TrainingScenarioHistory(w http.ResponseWriter, r *http.Request) {
 	user := ctx.Get(r, "user").(models.User)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	history, err := models.GetStoryProgressHistory(user.Id, id)
 	if err != nil {

@@ -39,7 +39,7 @@ func (as *Server) InboxMonitorConfig(w http.ResponseWriter, r *http.Request) {
 			config.CreatedDate = existing.CreatedDate
 		}
 		if err := models.SaveInboxMonitorConfig(&config); err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+			JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 			return
 		}
 		JSONResponse(w, config, http.StatusOK)
@@ -115,7 +115,7 @@ func (as *Server) BECProfiles(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		profiles, err := models.GetBECProfiles(scope.OrgId)
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+			JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 			return
 		}
 		JSONResponse(w, profiles, http.StatusOK)
@@ -127,7 +127,7 @@ func (as *Server) BECProfiles(w http.ResponseWriter, r *http.Request) {
 		}
 		profile.OrgId = scope.OrgId
 		if err := models.SaveBECProfile(&profile); err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+			JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 			return
 		}
 		JSONResponse(w, profile, http.StatusCreated)
@@ -162,13 +162,13 @@ func (as *Server) BECProfile(w http.ResponseWriter, r *http.Request) {
 		profile.Id = id
 		profile.OrgId = scope.OrgId
 		if err := models.SaveBECProfile(&profile); err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+			JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 			return
 		}
 		JSONResponse(w, profile, http.StatusOK)
 	case http.MethodDelete:
 		if err := models.DeleteBECProfile(id, scope.OrgId); err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+			JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 			return
 		}
 		JSONResponse(w, models.Response{Success: true, Message: "BEC profile deleted"}, http.StatusOK)
@@ -187,7 +187,7 @@ func (as *Server) BECDetections(w http.ResponseWriter, r *http.Request) {
 	includeResolved := r.URL.Query().Get("include_resolved") == "true"
 	detections, err := models.GetBECDetections(scope.OrgId, includeResolved)
 	if err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+		JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 		return
 	}
 	JSONResponse(w, detections, http.StatusOK)
@@ -214,7 +214,7 @@ func (as *Server) BECDetectionResolve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := models.ResolveBECDetection(id, scope.OrgId, scope.UserId, req.Action); err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+		JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 		return
 	}
 	JSONResponse(w, models.Response{Success: true, Message: "BEC detection resolved"}, http.StatusOK)
@@ -229,7 +229,7 @@ func (as *Server) BECDetectionSummary(w http.ResponseWriter, r *http.Request) {
 	scope := getOrgScope(r)
 	summary, err := models.GetBECDetectionSummary(scope.OrgId)
 	if err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+		JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 		return
 	}
 	JSONResponse(w, summary, http.StatusOK)
@@ -263,6 +263,9 @@ func (as *Server) BECAnalyzeEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Strip sensitive routing headers and mask IPs before forwarding to external AI.
+	safeHeaders := ai.StripSensitiveEmailHeaders(req.EmailHeaders)
+
 	// Build executive context from BEC profiles
 	profiles, _ := models.GetBECProfiles(scope.OrgId)
 	executives := make([]ai.BECExecutiveContext, 0, len(profiles))
@@ -275,16 +278,16 @@ func (as *Server) BECAnalyzeEmail(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	prompt := ai.BuildBECDetectionPrompt(req.EmailHeaders, req.EmailBody, req.SenderEmail, req.Subject, executives)
+	prompt := ai.BuildBECDetectionPrompt(safeHeaders, req.EmailBody, req.SenderEmail, req.Subject, executives)
 	resp, err := client.Generate(ai.BECDetectionSystemPrompt, prompt)
 	if err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: "BEC analysis failed: " + err.Error()}, http.StatusInternalServerError)
+		JSONResponse(w, models.Response{Success: false, Message: "BEC analysis failed"}, http.StatusInternalServerError)
 		return
 	}
 
 	result, err := ai.ParseBECDetectionResponse(resp.Content)
 	if err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: "Failed to parse BEC result: " + err.Error()}, http.StatusInternalServerError)
+		JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 		return
 	}
 
@@ -303,7 +306,9 @@ func (as *Server) BECAnalyzeEmail(w http.ResponseWriter, r *http.Request) {
 			ConfidenceScore:       result.Confidence,
 			Summary:               result.Summary,
 		}
-		models.CreateBECDetection(detection)
+		if err := models.CreateBECDetection(detection); err != nil {
+			log.Errorf("BECAnalyzeEmail: failed to persist detection: %v", err)
+		}
 	}
 
 	JSONResponse(w, result, http.StatusOK)
@@ -320,7 +325,7 @@ func (as *Server) GraymailRules(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		rules, err := models.GetGraymailRules(scope.OrgId)
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+			JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 			return
 		}
 		JSONResponse(w, rules, http.StatusOK)
@@ -332,7 +337,7 @@ func (as *Server) GraymailRules(w http.ResponseWriter, r *http.Request) {
 		}
 		rule.OrgId = scope.OrgId
 		if err := models.SaveGraymailRule(&rule); err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+			JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 			return
 		}
 		JSONResponse(w, rule, http.StatusCreated)
@@ -360,13 +365,13 @@ func (as *Server) GraymailRule(w http.ResponseWriter, r *http.Request) {
 		rule.Id = id
 		rule.OrgId = scope.OrgId
 		if err := models.SaveGraymailRule(&rule); err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+			JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 			return
 		}
 		JSONResponse(w, rule, http.StatusOK)
 	case http.MethodDelete:
 		if err := models.DeleteGraymailRule(id, scope.OrgId); err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+			JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 			return
 		}
 		JSONResponse(w, models.Response{Success: true, Message: "Rule deleted"}, http.StatusOK)
@@ -388,7 +393,7 @@ func (as *Server) GraymailClassifications(w http.ResponseWriter, r *http.Request
 	}
 	results, err := models.GetGraymailClassifications(scope.OrgId, limit)
 	if err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+		JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 		return
 	}
 	JSONResponse(w, results, http.StatusOK)
@@ -403,7 +408,7 @@ func (as *Server) GraymailSummary(w http.ResponseWriter, r *http.Request) {
 	scope := getOrgScope(r)
 	summary, err := models.GetGraymailSummary(scope.OrgId)
 	if err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+		JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 		return
 	}
 	JSONResponse(w, summary, http.StatusOK)
@@ -437,10 +442,13 @@ func (as *Server) GraymailAnalyze(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	prompt := ai.BuildGraymailClassificationPrompt(req.EmailHeaders, req.EmailBody, req.SenderEmail, req.Subject)
+	// Strip sensitive routing headers and mask IPs before forwarding to external AI.
+	safeHeaders := ai.StripSensitiveEmailHeaders(req.EmailHeaders)
+
+	prompt := ai.BuildGraymailClassificationPrompt(safeHeaders, req.EmailBody, req.SenderEmail, req.Subject)
 	resp, err := client.Generate(ai.GraymailClassificationSystemPrompt, prompt)
 	if err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: "Graymail analysis failed: " + err.Error()}, http.StatusInternalServerError)
+		JSONResponse(w, models.Response{Success: false, Message: "Graymail analysis failed"}, http.StatusInternalServerError)
 		return
 	}
 
@@ -460,7 +468,9 @@ func (as *Server) GraymailAnalyze(w http.ResponseWriter, r *http.Request) {
 			ConfidenceScore: result.Confidence,
 			ActionTaken:     result.SuggestedAction,
 		}
-		models.CreateGraymailClassification(classification)
+		if err := models.CreateGraymailClassification(classification); err != nil {
+			log.Errorf("GraymailAnalyze: failed to persist classification: %v", err)
+		}
 	}
 
 	JSONResponse(w, result, http.StatusOK)
@@ -483,7 +493,7 @@ func (as *Server) InboxRemediationActions(w http.ResponseWriter, r *http.Request
 	}
 	actions, err := models.GetRemediationActions(scope.OrgId, limit)
 	if err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+		JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 		return
 	}
 	JSONResponse(w, actions, http.StatusOK)
@@ -537,7 +547,7 @@ func (as *Server) InboxRemediationActionCreate(w http.ResponseWriter, r *http.Re
 	}
 
 	if err := models.CreateRemediationAction(action); err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+		JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 		return
 	}
 
@@ -558,9 +568,12 @@ func (as *Server) InboxRemediationActionApprove(w http.ResponseWriter, r *http.R
 	}
 	scope := getOrgScope(r)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 10, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 	if err := models.ApproveRemediation(id, scope.OrgId, scope.UserId); err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+		JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 		return
 	}
 	JSONResponse(w, models.Response{Success: true, Message: "Remediation approved"}, http.StatusOK)
@@ -574,13 +587,19 @@ func (as *Server) InboxRemediationActionReject(w http.ResponseWriter, r *http.Re
 	}
 	scope := getOrgScope(r)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 10, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 	var req struct {
 		Reason string `json:"reason"`
 	}
-	json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		JSONResponse(w, models.Response{Success: false, Message: ErrInvalidJSON}, http.StatusBadRequest)
+		return
+	}
 	if err := models.RejectRemediation(id, scope.OrgId, req.Reason); err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+		JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 		return
 	}
 	JSONResponse(w, models.Response{Success: true, Message: "Remediation rejected"}, http.StatusOK)
@@ -595,7 +614,7 @@ func (as *Server) InboxRemediationSummary(w http.ResponseWriter, r *http.Request
 	scope := getOrgScope(r)
 	summary, err := models.GetRemediationSummaryStats(scope.OrgId)
 	if err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+		JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 		return
 	}
 	JSONResponse(w, summary, http.StatusOK)
@@ -615,7 +634,7 @@ func (as *Server) PhishingTickets(w http.ResponseWriter, r *http.Request) {
 	statusFilter := r.URL.Query().Get("status")
 	tickets, err := models.GetPhishingTickets(scope.OrgId, statusFilter)
 	if err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+		JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 		return
 	}
 	JSONResponse(w, tickets, http.StatusOK)
@@ -634,14 +653,14 @@ func (as *Server) PhishingTicketDetail(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		ticket, err := models.GetPhishingTicket(id, scope.OrgId)
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusNotFound)
+			JSONResponse(w, models.Response{Success: false, Message: "Not found"}, http.StatusNotFound)
 			return
 		}
 		JSONResponse(w, ticket, http.StatusOK)
 	case http.MethodPut:
 		ticket, err := models.GetPhishingTicket(id, scope.OrgId)
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusNotFound)
+			JSONResponse(w, models.Response{Success: false, Message: "Not found"}, http.StatusNotFound)
 			return
 		}
 		var updates struct {
@@ -663,7 +682,7 @@ func (as *Server) PhishingTicketDetail(w http.ResponseWriter, r *http.Request) {
 			ticket.ResolutionNotes = updates.ResolutionNotes
 		}
 		if err := models.UpdatePhishingTicket(&ticket); err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+			JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 			return
 		}
 		JSONResponse(w, ticket, http.StatusOK)
@@ -680,13 +699,19 @@ func (as *Server) PhishingTicketResolve(w http.ResponseWriter, r *http.Request) 
 	}
 	scope := getOrgScope(r)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 10, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 	var req struct {
 		Notes string `json:"notes"`
 	}
-	json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		JSONResponse(w, models.Response{Success: false, Message: ErrInvalidJSON}, http.StatusBadRequest)
+		return
+	}
 	if err := models.ResolvePhishingTicket(id, scope.OrgId, req.Notes, false, ""); err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+		JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 		return
 	}
 	JSONResponse(w, models.Response{Success: true, Message: "Ticket resolved"}, http.StatusOK)
@@ -700,13 +725,19 @@ func (as *Server) PhishingTicketEscalate(w http.ResponseWriter, r *http.Request)
 	}
 	scope := getOrgScope(r)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 10, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 	var req struct {
 		EscalateTo int64 `json:"escalate_to"`
 	}
-	json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		JSONResponse(w, models.Response{Success: false, Message: ErrInvalidJSON}, http.StatusBadRequest)
+		return
+	}
 	if err := models.EscalatePhishingTicket(id, scope.OrgId, req.EscalateTo); err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+		JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 		return
 	}
 	JSONResponse(w, models.Response{Success: true, Message: "Ticket escalated"}, http.StatusOK)
@@ -719,7 +750,7 @@ func (as *Server) PhishingTicketAutoRules(w http.ResponseWriter, r *http.Request
 	case http.MethodGet:
 		rules, err := models.GetPhishingTicketAutoRules(scope.OrgId)
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+			JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 			return
 		}
 		JSONResponse(w, rules, http.StatusOK)
@@ -731,7 +762,7 @@ func (as *Server) PhishingTicketAutoRules(w http.ResponseWriter, r *http.Request
 		}
 		rule.OrgId = scope.OrgId
 		if err := models.SavePhishingTicketAutoRule(&rule); err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+			JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 			return
 		}
 		JSONResponse(w, rule, http.StatusCreated)
@@ -748,9 +779,12 @@ func (as *Server) PhishingTicketAutoRuleDelete(w http.ResponseWriter, r *http.Re
 	}
 	scope := getOrgScope(r)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 10, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 	if err := models.DeletePhishingTicketAutoRule(id, scope.OrgId); err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+		JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 		return
 	}
 	JSONResponse(w, models.Response{Success: true, Message: "Auto-rule deleted"}, http.StatusOK)
@@ -765,7 +799,7 @@ func (as *Server) PhishingTicketSummary(w http.ResponseWriter, r *http.Request) 
 	scope := getOrgScope(r)
 	summary, err := models.GetPhishingTicketSummary(scope.OrgId)
 	if err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+		JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 		return
 	}
 	JSONResponse(w, summary, http.StatusOK)
@@ -816,7 +850,7 @@ func (as *Server) EmailSecurityOps(w http.ResponseWriter, r *http.Request) {
 	scope := getOrgScope(r)
 	ops, err := models.GetEmailSecurityOps(scope.OrgId)
 	if err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+		JSONResponse(w, models.Response{Success: false, Message: "An internal error occurred"}, http.StatusInternalServerError)
 		return
 	}
 	JSONResponse(w, ops, http.StatusOK)

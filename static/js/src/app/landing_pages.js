@@ -237,6 +237,13 @@ $(document).ready(function () {
     $("#capture_credentials_checkbox").change(function () {
         $("#capture_passwords").toggle()
         $("#redirect_url").toggle()
+        if (!$(this).prop("checked")) {
+            $("#capture_passwords_checkbox").prop("checked", false)
+            $("#cleartext-password-warning").hide()
+        }
+    })
+    $("#capture_passwords_checkbox").change(function () {
+        $("#cleartext-password-warning").toggle($(this).prop("checked"))
     })
     CKEDITOR.on('dialogDefinition', function (ev) {
         // Take the dialog name and its definition from the event data.

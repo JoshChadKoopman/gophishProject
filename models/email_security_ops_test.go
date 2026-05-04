@@ -16,6 +16,10 @@ func TestExtractDomain(t *testing.T) {
 		{"trailing@", ""},
 		{"multiple@at@signs.com", "signs.com"},
 		{"spaced@ domain.com ", "domain.com"},
+		// RFC 5322 display-name + angle-bracket forms
+		{"John Doe <john@corp.example.com>", "corp.example.com"},
+		{"\"Attacker\" <evil@phish.net>", "phish.net"},
+		{"<bare@brackets.io>", "brackets.io"},
 	}
 	for _, tc := range tests {
 		got := extractDomain(tc.input)

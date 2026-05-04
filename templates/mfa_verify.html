@@ -14,6 +14,7 @@
 </head>
 
 <body>
+<script>if(localStorage.getItem('nivoxis-dark')==='1'){document.body.classList.add('dark-mode');}</script>
     <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
         <div class="container-fluid">
             <div class="navbar-header">
@@ -24,44 +25,107 @@
     </div>
 
     <div class="container">
-        <form class="form-signin" action="/mfa/verify" method="POST">
+        <form class="form-signin" action="/mfa/verify" method="POST" id="mfa-verify-form">
             <img id="logo" src="/images/logo_purple.png" />
             <h2 class="form-signin-heading">{{ .Title }}</h2>
-            <p class="text-muted text-center" style="margin-bottom:20px;">
-                Enter the 6-digit code from your authenticator app,
-                or enter one of your backup codes.
+            <p class="text-muted text-center u-mb20">
+                {{T .Locale "mfa.verify.subtitle"}}
             </p>
 
             {{template "flashes" .Flashes}}
 
-            <input type="hidden" name="csrf_token" value="{{.Token}}" />
-            <input type="text"
-                   name="code"
-                   class="form-control"
-                   placeholder="6-digit code or backup code"
-                   maxlength="10"
-                   inputmode="numeric"
-                   autocomplete="one-time-code"
-                   required
-                   autofocus
-                   style="text-align:center; letter-spacing:0.3em; font-size:1.4em; margin-bottom:10px;">
+            {{if and (gt .RemainingAttempts 0) (lt .RemainingAttempts 5)}}
+            <div class="alert {{if eq .RemainingAttempts 1}}alert-danger{{else}}alert-warning{{end}}"
+                 role="alert" aria-live="polite" style="text-align:center; padding:8px 12px;">
+                {{if eq .RemainingAttempts 1}}
+                <i class="fa fa-exclamation-triangle"></i>
+                <strong>This is your final attempt</strong> before a 15-minute lockout.
+                {{else}}
+                <i class="fa fa-exclamation-circle"></i>
+                <strong>{{.RemainingAttempts}} attempts remaining</strong> before a temporary lockout.
+                {{end}}
+            </div>
+            {{end}}
 
-            <div class="checkbox" style="margin-bottom:15px;">
+            <input type="hidden" name="csrf_token" value="{{.Token}}" />
+            <!-- Hidden field carries the code value on submit -->
+            <input type="hidden" name="code" id="code-field" />
+
+            <!-- Primary: TOTP code (6-digit) -->
+            <div id="totp-section">
+                <input type="text"
+                       id="totp-input"
+                       class="form-control"
+                       placeholder="{{T .Locale "mfa.verify.code_placeholder"}}"
+                       maxlength="6"
+                       inputmode="numeric"
+                       autocomplete="one-time-code"
+                       autofocus
+                       style="text-align:center; letter-spacing:0.3em; font-size:1.4em; margin-bottom:8px;">
+            </div>
+
+            <!-- Secondary: backup code (10-char hex, hidden by default) -->
+            <div id="backup-section" class="u-hidden">
+                <input type="text"
+                       id="backup-input"
+                       class="form-control"
+                       placeholder="10-character backup code"
+                       maxlength="10"
+                       inputmode="text"
+                       pattern="[A-Fa-f0-9]{10}"
+                       autocomplete="off"
+                       style="text-align:center; letter-spacing:0.2em; font-size:1.2em; margin-bottom:8px;">
+            </div>
+
+            <div style="text-align:center; margin-bottom:14px;">
+                <a href="#" id="toggle-backup-link" onclick="toggleBackupInput(event)" style="font-size:0.85em; color:#888;">
+                    Use a backup code instead
+                </a>
+            </div>
+
+            <div class="checkbox u-mb15">
                 <label>
                     <input type="checkbox" name="remember_device" value="1">
-                    Remember this device for 30 days
+                    {{T .Locale "mfa.verify.remember_device"}}
+                    <small class="text-muted" style="display:block; margin-top:2px; font-weight:normal;">
+                        Skips 2FA on this browser for 30 days.
+                    </small>
                 </label>
             </div>
 
-            <button class="btn btn-lg btn-primary btn-block" type="submit">Verify</button>
+            <button class="btn btn-lg btn-primary btn-block" type="submit">{{T .Locale "mfa.verify.submit"}}</button>
 
             <div style="margin-top:15px; text-align:center;">
-                <a href="/login">← Back to login</a>
+                <a href="/login">{{T .Locale "mfa.verify.back_to_login"}}</a>
             </div>
         </form>
     </div>
 
     <script src="/js/dist/vendor.min.js"></script>
+    <script>
+    var usingBackup = false;
+
+    function toggleBackupInput(e) {
+        e.preventDefault();
+        usingBackup = !usingBackup;
+        document.getElementById('totp-section').style.display = usingBackup ? 'none' : 'block';
+        document.getElementById('backup-section').style.display = usingBackup ? 'block' : 'none';
+        document.getElementById('toggle-backup-link').textContent = usingBackup
+            ? 'Use authenticator code instead'
+            : 'Use a backup code instead';
+        var active = usingBackup
+            ? document.getElementById('backup-input')
+            : document.getElementById('totp-input');
+        active.focus();
+    }
+
+    document.getElementById('mfa-verify-form').addEventListener('submit', function() {
+        var val = usingBackup
+            ? document.getElementById('backup-input').value
+            : document.getElementById('totp-input').value;
+        document.getElementById('code-field').value = val;
+    });
+    </script>
 </body>
 
 </html>

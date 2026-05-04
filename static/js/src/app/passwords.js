@@ -1,5 +1,29 @@
 import zxcvbn from 'zxcvbn';
 
+const PasswordPolicy = [
+    { id: 'policy-length',  test: v => v.length >= 10 },
+    { id: 'policy-upper',   test: v => /[A-Z]/.test(v) },
+    { id: 'policy-lower',   test: v => /[a-z]/.test(v) },
+    { id: 'policy-digit',   test: v => /[0-9]/.test(v) },
+    { id: 'policy-special', test: v => /[^A-Za-z0-9]/.test(v) }
+];
+
+function updatePolicyChecklist(value) {
+    const list = document.getElementById('password-policy-checklist');
+    if (!list) return;
+    list.style.display = value ? '' : 'none';
+    PasswordPolicy.forEach(function(rule) {
+        const li = document.getElementById(rule.id);
+        if (!li) return;
+        const icon = li.querySelector('i');
+        if (rule.test(value)) {
+            icon.className = 'fa fa-check text-success';
+        } else {
+            icon.className = 'fa fa-times text-danger';
+        }
+    });
+}
+
 const StrengthMapping = {
     0: {
         class: 'danger',
@@ -49,6 +73,7 @@ const updatePasswordStrength = (e) => {
     StrengthDescription.textContent = evaluation.status
     StrengthDescription.classList = `text-${evaluation.class}`
     Progress.classList.remove("hidden")
+    updatePolicyChecklist(candidate)
 }
 
 document.getElementById("password").addEventListener("input", updatePasswordStrength)

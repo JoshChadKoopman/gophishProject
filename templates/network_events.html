@@ -3,10 +3,10 @@
     <div class="page-header">
         <h1>
             <i class="fa fa-shield"></i> Network Events
-            <button class="btn btn-default pull-right" id="rulesBtn" style="margin-left:8px;">
+            <button class="btn btn-default pull-right" id="rulesBtn" class="u-ml8">
                 <i class="fa fa-cogs"></i> Automation Rules & Playbooks
             </button>
-            <button class="btn btn-info pull-right" id="correlateBtn" style="margin-left:8px;">
+            <button class="btn btn-info pull-right" id="correlateBtn" class="u-ml8">
                 <i class="fa fa-link"></i> Run Correlation
             </button>
         </h1>
@@ -14,7 +14,7 @@
     <div id="flashes" class="row"></div>
 
     <!-- Tab Navigation -->
-    <ul class="nav nav-tabs" style="margin-bottom:20px;">
+    <ul class="nav nav-tabs" class="u-mb20">
         <li class="active"><a data-toggle="tab" href="#tab-dashboard"><i class="fa fa-dashboard"></i> Dashboard</a></li>
         <li><a data-toggle="tab" href="#tab-incidents"><i class="fa fa-object-group"></i> Incidents</a></li>
         <li><a data-toggle="tab" href="#tab-events"><i class="fa fa-list"></i> All Events</a></li>
@@ -27,51 +27,51 @@
     <!-- ═══════════ TAB: Dashboard ═══════════ -->
     <div id="tab-dashboard" class="tab-pane fade in active">
         <!-- Summary Cards -->
-        <div id="eventDashboard" class="row" style="margin-bottom:20px;">
+        <div id="eventDashboard" class="row" class="u-mb20">
             <div class="col-md-2">
                 <div class="panel panel-default text-center">
                     <div class="panel-body">
-                        <h3 id="totalEvents" style="margin:5px 0;">—</h3>
-                        <p style="color:#888;margin:0;font-size:12px;">Total</p>
+                        <h3 id="totalEvents" class="u-my5">—</h3>
+                        <p class="u-muted-sm">Total</p>
                     </div>
                 </div>
             </div>
             <div class="col-md-2">
                 <div class="panel panel-warning text-center">
                     <div class="panel-body">
-                        <h3 id="openEvents" style="margin:5px 0;">—</h3>
-                        <p style="color:#888;margin:0;font-size:12px;">Open</p>
+                        <h3 id="openEvents" class="u-my5">—</h3>
+                        <p class="u-muted-sm">Open</p>
                     </div>
                 </div>
             </div>
             <div class="col-md-2">
                 <div class="panel panel-danger text-center">
                     <div class="panel-body">
-                        <h3 id="criticalOpen" style="margin:5px 0;">—</h3>
-                        <p style="color:#888;margin:0;font-size:12px;">Critical</p>
+                        <h3 id="criticalOpen" class="u-my5">—</h3>
+                        <p class="u-muted-sm">Critical</p>
                     </div>
                 </div>
             </div>
             <div class="col-md-2">
                 <div class="panel panel-danger text-center" style="border-color:#f0ad4e;">
                     <div class="panel-body">
-                        <h3 id="highOpen" style="margin:5px 0;">—</h3>
-                        <p style="color:#888;margin:0;font-size:12px;">High</p>
+                        <h3 id="highOpen" class="u-my5">—</h3>
+                        <p class="u-muted-sm">High</p>
                     </div>
                 </div>
             </div>
             <div class="col-md-2">
                 <div class="panel panel-info text-center">
                     <div class="panel-body">
-                        <h3 id="avgResolution" style="margin:5px 0;">—</h3>
-                        <p style="color:#888;margin:0;font-size:12px;">Avg Resolution (hrs)</p>
+                        <h3 id="avgResolution" class="u-my5">—</h3>
+                        <p class="u-muted-sm">Avg Resolution (hrs)</p>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Trend Chart -->
-        <div class="row" style="margin-bottom:20px;">
+        <div class="row" class="u-mb20">
             <div class="col-md-12">
                 <div class="panel panel-default">
                     <div class="panel-heading"><h4 class="panel-title">30-Day Event Trend</h4></div>
@@ -105,7 +105,7 @@
 
     <!-- ═══════════ TAB: Incidents ═══════════ -->
     <div id="tab-incidents" class="tab-pane fade">
-        <div class="row" style="margin-bottom:15px;">
+        <div class="row" class="u-mb15">
             <div class="col-md-3">
                 <select class="form-control" id="incidentStatusFilter">
                     <option value="">All Statuses</option>
@@ -125,7 +125,7 @@
     <!-- ═══════════ TAB: All Events ═══════════ -->
     <div id="tab-events" class="tab-pane fade">
         <!-- Filters -->
-        <div class="row" style="margin-bottom:15px;">
+        <div class="row" class="u-mb15">
             <div class="col-md-2">
                 <select class="form-control" id="filterSource">
                     <option value="">All Sources</option>
@@ -189,7 +189,7 @@
 
     <!-- ═══════════ TAB: MITRE ATT&CK Heatmap ═══════════ -->
     <div id="tab-mitre" class="tab-pane fade">
-        <div class="row" style="margin-bottom:15px;">
+        <div class="row" class="u-mb15">
             <div class="col-md-8">
                 <h4><i class="fa fa-th"></i> MITRE ATT&CK Technique Coverage</h4>
                 <p class="text-muted">Heatmap of observed techniques mapped to MITRE ATT&CK tactics. Darker cells = higher event count.</p>
@@ -199,7 +199,7 @@
             </div>
         </div>
         <div id="mitreHeatmap" style="overflow-x:auto;"></div>
-        <div class="row" style="margin-top:20px;">
+        <div class="row" class="u-mt20">
             <div class="col-md-6">
                 <div class="panel panel-default">
                     <div class="panel-heading"><h4 class="panel-title">Top Observed Techniques</h4></div>
@@ -211,7 +211,7 @@
 
     <!-- ═══════════ TAB: Playbook Logs ═══════════ -->
     <div id="tab-playbooks" class="tab-pane fade">
-        <div class="row" style="margin-bottom:15px;">
+        <div class="row" class="u-mb15">
             <div class="col-md-12">
                 <h4><i class="fa fa-play-circle"></i> Playbook Execution Log</h4>
                 <p class="text-muted">Shows when automated playbooks fired and what actions they took.</p>
@@ -244,7 +244,7 @@
             </div>
             <div class="modal-body" id="eventDetailBody"></div>
             <div class="modal-footer">
-                <select class="form-control" id="updateStatus" style="width:200px;display:inline-block;">
+                <select class="form-control" id="updateStatus" class="u-w200-inline">
                     <option value="">Update Status...</option>
                     <option value="acknowledged">Acknowledged</option>
                     <option value="investigating">Investigating</option>
@@ -268,7 +268,7 @@
             </div>
             <div class="modal-body" id="incidentDetailBody"></div>
             <div class="modal-footer">
-                <select class="form-control" id="updateIncidentStatus" style="width:200px;display:inline-block;">
+                <select class="form-control" id="updateIncidentStatus" class="u-w200-inline">
                     <option value="">Update Status...</option>
                     <option value="investigating">Investigating</option>
                     <option value="resolved">Resolved</option>
@@ -290,7 +290,7 @@
                 <h4 class="modal-title"><i class="fa fa-cogs"></i> Automation Rules & Playbooks</h4>
             </div>
             <div class="modal-body">
-                <ul class="nav nav-tabs" style="margin-bottom:15px;">
+                <ul class="nav nav-tabs" class="u-mb15">
                     <li class="active"><a data-toggle="tab" href="#rules-list-tab">Existing Rules</a></li>
                     <li><a data-toggle="tab" href="#rules-create-tab">Create Rule</a></li>
                     <li><a data-toggle="tab" href="#playbook-create-tab">Create Playbook</a></li>
@@ -337,7 +337,7 @@
                             </div>
                             <h5><i class="fa fa-bolt"></i> THEN Actions</h5>
                             <div id="pbActionsContainer">
-                                <div class="playbook-action-row row" style="margin-bottom:8px;">
+                                <div class="playbook-action-row row" class="u-mb8">
                                     <div class="col-md-4">
                                         <select class="form-control pb-action-type">
                                             <option value="set_severity">Set Severity</option>
@@ -352,7 +352,7 @@
                                     <div class="col-md-2"><button type="button" class="btn btn-danger btn-sm" onclick="$(this).closest('.playbook-action-row').remove()"><i class="fa fa-times"></i></button></div>
                                 </div>
                             </div>
-                            <button type="button" class="btn btn-default btn-sm" id="addPbAction" style="margin-bottom:15px;"><i class="fa fa-plus"></i> Add Action</button><br>
+                            <button type="button" class="btn btn-default btn-sm" id="addPbAction" class="u-mb15"><i class="fa fa-plus"></i> Add Action</button><br>
                             <button type="submit" class="btn btn-success">Create Playbook</button>
                         </form>
                     </div>
@@ -518,7 +518,7 @@ function loadIncidents() {
             } else {
                 $.each(data, function(i, inc) {
                     var borderColor = {"info":"#5bc0de","low":"#5cb85c","medium":"#f0ad4e","high":"#d9534f","critical":"#8b0000"}[inc.severity] || "#ddd";
-                    html += '<div class="col-md-6 col-lg-4" style="margin-bottom:15px;">' +
+                    html += '<div class="col-md-6 col-lg-4" class="u-mb15">' +
                         '<div class="panel panel-default" style="border-left:4px solid ' + borderColor + ';cursor:pointer;" onclick="viewIncident(' + inc.id + ')">' +
                         '<div class="panel-heading" style="padding:10px 15px;">' +
                             '<strong>#' + inc.id + '</strong> ' + severityBadge(inc.severity) + ' ' + statusBadge(inc.status) +
@@ -616,12 +616,12 @@ function loadMitreHeatmap() {
             );
 
             // Build heatmap table
-            var html = '<table class="table table-bordered" style="font-size:12px;"><thead><tr><th style="min-width:140px;">Tactic</th>';
+            var html = '<table class="table table-bordered" class="u-fs12"><thead><tr><th style="min-width:140px;">Tactic</th>';
             // Max columns across all rows
             var maxCols = 0;
             $.each(data.rows, function(i, r) { maxCols = Math.max(maxCols, r.techniques.length); });
             for (var c = 0; c < maxCols; c++) {
-                html += '<th style="text-align:center;">T' + (c + 1) + '</th>';
+                html += '<th class="u-text-center">T' + (c + 1) + '</th>';
             }
             html += '</tr></thead><tbody>';
 
@@ -749,7 +749,7 @@ $("#createRuleForm").submit(function(e) {
 
 // Add playbook action row
 $("#addPbAction").click(function() {
-    var row = '<div class="playbook-action-row row" style="margin-bottom:8px;">' +
+    var row = '<div class="playbook-action-row row" class="u-mb8">' +
         '<div class="col-md-4"><select class="form-control pb-action-type">' +
         '<option value="set_severity">Set Severity</option><option value="assign_to">Assign To (User ID)</option>' +
         '<option value="add_note">Add Note</option><option value="create_remediation">Create Remediation Action</option>' +
@@ -784,7 +784,7 @@ $("#createPlaybookForm").submit(function(e) {
             $("#createPlaybookForm")[0].reset();
             // Reset actions to single row
             $("#pbActionsContainer").html(
-                '<div class="playbook-action-row row" style="margin-bottom:8px;">' +
+                '<div class="playbook-action-row row" class="u-mb8">' +
                 '<div class="col-md-4"><select class="form-control pb-action-type">' +
                 '<option value="set_severity">Set Severity</option><option value="assign_to">Assign To (User ID)</option>' +
                 '<option value="add_note">Add Note</option><option value="create_remediation">Create Remediation Action</option>' +

@@ -251,7 +251,10 @@ func (as *Server) SCIMUser(w http.ResponseWriter, r *http.Request) {
 	orgId := scimOrgID(r)
 	base := scimBaseURL(r)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 10, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	u, err := models.GetUser(id)
 	if err != nil || u.OrgId != orgId {
@@ -483,7 +486,10 @@ func (as *Server) SCIMGroup(w http.ResponseWriter, r *http.Request) {
 	orgId := scimOrgID(r)
 	base := scimBaseURL(r)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 10, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	scope := models.OrgScope{OrgId: orgId}
 	g, err := models.GetGroup(id, scope)
@@ -638,7 +644,10 @@ func (as *Server) SCIMTokens(w http.ResponseWriter, r *http.Request) {
 func (as *Server) SCIMToken(w http.ResponseWriter, r *http.Request) {
 	user := ctx.Get(r, "user").(models.User)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 10, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	if r.Method == http.MethodDelete {
 		if err := models.DeleteSCIMToken(id, user.OrgId); err != nil {

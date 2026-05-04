@@ -148,6 +148,7 @@ function editGroup(id) {
         },
         done: function (e, data) {
             var skipped = []
+            var matched = 0
             $.each(data.result, function (i, record) {
                 // Match by email to a registered user
                 var matchedUser = dashboardUsers.find(function (u) {
@@ -159,13 +160,27 @@ function editGroup(id) {
                         matchedUser.email,
                         matchedUser.position || record.position
                     )
+                    matched++
                 } else {
                     skipped.push(record.email || record.first_name || 'unknown')
                 }
             });
             targets.DataTable().draw();
-            if (skipped.length > 0) {
-                groupModalError("Skipped " + skipped.length + " non-registered user(s): " + skipped.join(', '))
+            // Show a friendly results summary instead of an error flash
+            var $results = $("#csv-import-results")
+            if (matched > 0 || skipped.length > 0) {
+                var html = '<div class="alert alert-' + (skipped.length > 0 ? 'warning' : 'success') + '" style="padding:8px 12px; font-size:0.88em;">'
+                html += '<strong><i class="fa fa-check-circle"></i> Import complete:</strong> '
+                html += matched + ' user' + (matched !== 1 ? 's' : '') + ' added'
+                if (skipped.length > 0) {
+                    html += ', <strong>' + skipped.length + ' skipped</strong> (not registered)'
+                    html += '<div style="margin-top:6px; font-size:0.9em; color:#856404;">'
+                    html += 'Skipped: ' + skipped.map(function(e) { return escapeHtml(e) }).join(', ')
+                    html += '<br><a href="/users" target="_blank">Create user accounts</a> for these people first, then re-import.'
+                    html += '</div>'
+                }
+                html += '</div>'
+                $results.html(html).show()
             }
         }
     })
@@ -868,6 +883,18 @@ $(document).ready(function () {
             groupModalError("User not found. Only registered users can be added to groups.")
             return
         }
+        // Check for duplicate before adding
+        var emailLower = (u.email || '').toLowerCase()
+        var isDuplicate = false
+        targets.DataTable().column(1, { order: "index" }).data().each(function (val) {
+            if (val === emailLower) { isDuplicate = true }
+        })
+        if (isDuplicate) {
+            $("#duplicate-user-warning").show()
+            setTimeout(function() { $("#duplicate-user-warning").fadeOut() }, 3000)
+            return
+        }
+        $("#duplicate-user-warning").hide()
         addGroupTarget(
             (u.first_name || '') + ' ' + (u.last_name || ''),
             u.email || '',

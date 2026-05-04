@@ -103,7 +103,7 @@ func TestSuccessfulRedirect(t *testing.T) {
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		}}
-	resp := attemptLogin(t, ctx, client, "admin", "gophish", fmt.Sprintf("?next=%s", next))
+	resp := attemptLogin(t, ctx, client, ctx.noMFAUsername, ctx.noMFAPassword, fmt.Sprintf("?next=%s", next))
 	got := resp.StatusCode
 	expected := http.StatusFound
 	if got != expected {

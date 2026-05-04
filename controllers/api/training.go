@@ -203,7 +203,10 @@ func saveThumbnail(r *http.Request, mainFilePath string, w http.ResponseWriter) 
 // TrainingPresentation handles getting, updating, and deleting a single training presentation
 func (as *Server) TrainingPresentation(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 	tp, err := models.GetTrainingPresentation(id, getOrgScope(r))
 	if err != nil {
 		JSONResponse(w, models.Response{Success: false, Message: errTrainingNotFound}, http.StatusNotFound)
@@ -271,7 +274,10 @@ func (as *Server) handleTrainingUpdate(w http.ResponseWriter, r *http.Request, t
 // TrainingPresentationDownload handles serving the file for download/viewing
 func (as *Server) TrainingPresentationDownload(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 	tp, err := models.GetTrainingPresentation(id, getOrgScope(r))
 	if err != nil {
 		JSONResponse(w, models.Response{Success: false, Message: errTrainingNotFound}, http.StatusNotFound)
@@ -292,7 +298,10 @@ func (as *Server) TrainingPresentationDownload(w http.ResponseWriter, r *http.Re
 // TrainingPresentationThumbnail serves the thumbnail image for a training presentation
 func (as *Server) TrainingPresentationThumbnail(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 	tp, err := models.GetTrainingPresentation(id, getOrgScope(r))
 	if err != nil {
 		JSONResponse(w, models.Response{Success: false, Message: errTrainingNotFound}, http.StatusNotFound)
@@ -546,7 +555,10 @@ func (as *Server) TrainingExtractSlidesExisting(w http.ResponseWriter, r *http.R
 	}
 
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 	tp, err := models.GetTrainingPresentation(id, getOrgScope(r))
 	if err != nil {
 		JSONResponse(w, models.Response{Success: false, Message: errTrainingNotFound}, http.StatusNotFound)

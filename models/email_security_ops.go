@@ -1,6 +1,7 @@
 package models
 
 import (
+	"net/mail"
 	"sort"
 	"strings"
 	"time"
@@ -268,8 +269,14 @@ func computeTopSenders(orgId int64, since time.Time) []SenderIntelEntry {
 }
 
 // extractDomain returns the domain portion of an email address in lower
-// case. Returns "" if the input does not contain an @.
+// case. Uses net/mail.ParseAddress for RFC-compliant parsing (handles
+// display names and angle brackets). Falls back to a simple split for
+// plain bare addresses that the RFC parser rejects. Returns "" on failure.
 func extractDomain(email string) string {
+	addr, err := mail.ParseAddress(email)
+	if err == nil {
+		email = addr.Address
+	}
 	at := strings.LastIndex(email, "@")
 	if at < 0 || at == len(email)-1 {
 		return ""

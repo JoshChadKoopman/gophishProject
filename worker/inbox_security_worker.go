@@ -24,6 +24,10 @@ const errFmtResolveProvider = "resolve provider: %w"
 // inboxAIConfig holds the AI configuration for the inbox security worker.
 var inboxAIConfig config.AIConfig
 
+// inboxAIClient is the shared AI client initialized once at worker start.
+// Nil when AI is disabled or client creation fails.
+var inboxAIClient ai.Client
+
 // StartInboxSecurityWorker launches the background goroutine that performs:
 // - Real-time inbox scanning (AI inbox analysis)
 // - BEC detection on new scans
@@ -32,6 +36,14 @@ var inboxAIConfig config.AIConfig
 // - Ticket creation and auto-resolution for phishing reports
 func StartInboxSecurityWorker(aiCfg config.AIConfig) {
 	inboxAIConfig = aiCfg
+	if aiCfg.Enabled {
+		c, err := ai.NewClient(aiCfg.Provider, aiCfg.APIKey, aiCfg.Model)
+		if err != nil {
+			log.Errorf("Inbox Security Worker: failed to initialize AI client: %v", err)
+		} else {
+			inboxAIClient = c
+		}
+	}
 	defer func() {
 		if r := recover(); r != nil {
 			log.Errorf("Inbox Security Worker: recovered from panic: %v", r)
@@ -309,14 +321,13 @@ func processOrgAutoAnalysis(orgId int64, autoRemediateThreshold string) {
 		return
 	}
 
-	client, err := ai.NewClient(inboxAIConfig.Provider, inboxAIConfig.APIKey, inboxAIConfig.Model)
-	if err != nil {
-		log.Errorf("Inbox Security Worker: failed to create AI client for org %d: %v", orgId, err)
+	if inboxAIClient == nil {
+		log.Errorf("Inbox Security Worker: AI client not available for org %d", orgId)
 		return
 	}
 
 	for _, re := range unanalyzed {
-		analyzeAndRemediateEmail(orgId, &re, client, autoRemediateThreshold)
+		analyzeAndRemediateEmail(orgId, &re, inboxAIClient, autoRemediateThreshold)
 	}
 }
 
@@ -447,9 +458,8 @@ func scanOrgInbox(config *models.InboxMonitorConfig) {
 		return
 	}
 
-	client, err := ai.NewClient(inboxAIConfig.Provider, inboxAIConfig.APIKey, inboxAIConfig.Model)
-	if err != nil {
-		log.Errorf("Inbox Security Worker: failed to create AI client for org %d: %v", config.OrgId, err)
+	if inboxAIClient == nil {
+		log.Warnf("Inbox Security Worker: AI client not available, skipping inbox scan for org %d", config.OrgId)
 		return
 	}
 
@@ -459,7 +469,7 @@ func scanOrgInbox(config *models.InboxMonitorConfig) {
 	for _, mailbox := range mailboxes {
 		emails := fetchInboxEmails(config, mailbox)
 		for _, email := range emails {
-			result := analyzeInboxEmail(config, client, mailbox, &email)
+			result := analyzeInboxEmail(config, inboxAIClient, mailbox, &email)
 			if result != nil {
 				scanned++
 				if result.ThreatLevel != models.ThreatLevelSafe {

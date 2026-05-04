@@ -9,37 +9,37 @@
         <i class="fa fa-spinner fa-spin fa-4x"></i>
     </div>
 
-    <div id="leaderboardContent" style="display:none;">
+    <div id="leaderboardContent" class="u-hidden">
         <!-- My Position -->
-        <div class="row" style="margin-bottom:20px;">
+        <div class="row" class="u-mb20">
             <div class="col-md-4">
                 <div class="panel panel-primary text-center">
                     <div class="panel-body">
-                        <h2 id="myRank" style="margin:5px 0;">#--</h2>
-                        <p style="margin:0;">{{T .Locale "leaderboard.your_rank"}}</p>
+                        <h2 id="myRank" class="u-my5">#--</h2>
+                        <p class="u-m0">{{T .Locale "leaderboard.your_rank"}}</p>
                     </div>
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="panel panel-default text-center">
                     <div class="panel-body">
-                        <h2 id="myScore" style="margin:5px 0;">0</h2>
-                        <p style="margin:0;">{{T .Locale "leaderboard.your_score"}}</p>
+                        <h2 id="myScore" class="u-my5">0</h2>
+                        <p class="u-m0">{{T .Locale "leaderboard.your_score"}}</p>
                     </div>
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="panel panel-default text-center">
                     <div class="panel-body">
-                        <h2 id="myBadges" style="margin:5px 0;">0</h2>
-                        <p style="margin:0;">{{T .Locale "leaderboard.badges_earned"}}</p>
+                        <h2 id="myBadges" class="u-my5">0</h2>
+                        <p class="u-m0">{{T .Locale "leaderboard.badges_earned"}}</p>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Filters -->
-        <div class="row" style="margin-bottom:15px;">
+        <div class="row" class="u-mb15">
             <div class="col-md-6">
                 <div class="form-inline">
                     <label>{{T .Locale "common.department"}}: </label>
@@ -61,17 +61,17 @@
                         <table class="table table-striped" id="leaderboardTable">
                             <thead>
                                 <tr>
-                                    <th style="width:60px;">{{T .Locale "leaderboard.rank"}}</th>
+                                    <th class="u-w60">{{T .Locale "leaderboard.rank"}}</th>
                                     <th>{{T .Locale "common.name"}}</th>
                                     <th>{{T .Locale "common.email"}}</th>
-                                    <th style="width:120px;">{{T .Locale "leaderboard.score"}}</th>
-                                    <th style="width:100px;">{{T .Locale "leaderboard.badges"}}</th>
+                                    <th class="u-w120">{{T .Locale "leaderboard.score"}}</th>
+                                    <th class="u-w100">{{T .Locale "leaderboard.badges"}}</th>
                                 </tr>
                             </thead>
                             <tbody id="leaderboardBody">
                             </tbody>
                         </table>
-                        <p id="noLeaderboard" style="color:#888;display:none;">
+                        <p id="noLeaderboard" class="u-hidden-muted">
                             {{T .Locale "leaderboard.empty"}}
                         </p>
                     </div>

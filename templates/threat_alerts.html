@@ -13,7 +13,7 @@
     <div id="flashes" class="row"></div>
 
     <!-- Severity Filter -->
-    <div class="btn-group" style="margin-bottom:15px;" id="severityFilter">
+    <div class="btn-group" class="u-mb15" id="severityFilter">
         <button class="btn btn-default active" data-severity="all">{{T .Locale "common.all"}}</button>
         <button class="btn btn-info" data-severity="info"><i class="fa fa-info-circle"></i> Info</button>
         <button class="btn btn-warning" data-severity="warning"><i class="fa fa-exclamation-triangle"></i> Warning</button>
@@ -24,7 +24,7 @@
     <div id="alertsList"></div>
 
     <!-- Empty State -->
-    <div id="alertsEmpty" style="display:none; text-align:center; padding:40px 0; color:#999;">
+    <div id="alertsEmpty" class="u-empty-state">
         <i class="fa fa-shield fa-3x"></i>
         <h3>{{T .Locale "threat_alerts.no_alerts"}}</h3>
     </div>
@@ -104,7 +104,7 @@
                 <h4 class="modal-title" id="detailTitle"></h4>
             </div>
             <div class="modal-body">
-                <div id="detailMeta" style="margin-bottom:15px;"></div>
+                <div id="detailMeta" class="u-mb15"></div>
                 <div id="detailBody"></div>
             </div>
             <div class="modal-footer">

@@ -3,7 +3,6 @@ package api
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	ctx "github.com/gophish/gophish/context"
 	log "github.com/gophish/gophish/logger"
@@ -47,7 +46,10 @@ func (as *Server) Orgs(w http.ResponseWriter, r *http.Request) {
 // DELETE: superadmin only.
 func (as *Server) Org(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	o, err := models.GetOrganization(id)
 	if err != nil {
@@ -111,7 +113,10 @@ func (as *Server) Org(w http.ResponseWriter, r *http.Request) {
 // OrgMembers handles GET /api/orgs/{id}/members (list) and POST (add member).
 func (as *Server) OrgMembers(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	_, err := models.GetOrganization(id)
 	if err != nil {
@@ -157,8 +162,14 @@ func (as *Server) OrgMembers(w http.ResponseWriter, r *http.Request) {
 // OrgMember handles DELETE /api/orgs/{id}/members/{uid} to remove a member.
 func (as *Server) OrgMember(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	orgId, _ := strconv.ParseInt(vars["id"], 0, 64)
-	uid, _ := strconv.ParseInt(vars["uid"], 0, 64)
+	orgId, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
+	uid, ok2 := parseIDParam(w, vars, "uid")
+	if !ok2 {
+		return
+	}
 
 	if r.Method != http.MethodDelete {
 		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)

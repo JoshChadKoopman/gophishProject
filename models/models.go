@@ -17,7 +17,8 @@ import (
 
 	log "github.com/gophish/gophish/logger"
 	"github.com/jinzhu/gorm"
-	_ "github.com/mattn/go-sqlite3" // Blank import needed to import sqlite3
+	_ "github.com/lib/pq"              // Blank import needed to register postgres driver
+	_ "github.com/mattn/go-sqlite3"    // Blank import needed to import sqlite3
 )
 
 var db *gorm.DB
@@ -97,7 +98,9 @@ func chooseDBDriver(name, openStr string) goose.DBDriver {
 	case "mysql":
 		d.Import = "github.com/go-sql-driver/mysql"
 		d.Dialect = &goose.MySqlDialect{}
-
+	case "postgres":
+		d.Import = "github.com/lib/pq"
+		d.Dialect = &goose.PostgresDialect{}
 	// Default database is sqlite3
 	default:
 		d.Import = "github.com/mattn/go-sqlite3"
@@ -128,7 +131,7 @@ func createTemporaryPassword(u *User) error {
 	if err != nil {
 		return err
 	}
-	log.Infof("Please login with the username admin and the password %s", temporaryPassword)
+	log.Infof("[SETUP] Please login with the username admin and the password: %s", temporaryPassword)
 	return nil
 }
 

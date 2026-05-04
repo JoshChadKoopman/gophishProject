@@ -63,6 +63,9 @@ func GenerateTemplate(client Client, req GenerateRequest) (*GenerateResult, erro
 		req.Language = "en"
 	}
 
+	// Sanitize all user-controlled fields before building prompts.
+	SanitizeRequest(&req)
+
 	systemPrompt := GetSystemPrompt(req.DifficultyLevel)
 	userPrompt := BuildUserPrompt(req)
 
@@ -75,6 +78,9 @@ func GenerateTemplate(client Client, req GenerateRequest) (*GenerateResult, erro
 	if err != nil {
 		return nil, fmt.Errorf("ai: failed to parse LLM response: %w", err)
 	}
+
+	// Sanitize AI-generated HTML before it is stored or rendered.
+	parsed.HTML = SanitizeHTMLOutput(parsed.HTML)
 
 	return &GenerateResult{
 		Subject:      parsed.Subject,

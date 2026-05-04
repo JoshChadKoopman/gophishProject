@@ -3,7 +3,6 @@ package api
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 	"time"
 
 	ctx "github.com/gophish/gophish/context"
@@ -105,7 +104,10 @@ func (as *Server) TrainingAssignment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	switch r.Method {
 	case "DELETE":

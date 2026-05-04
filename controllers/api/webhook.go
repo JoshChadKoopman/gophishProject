@@ -3,7 +3,6 @@ package api
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	log "github.com/gophish/gophish/logger"
 	"github.com/gophish/gophish/models"
@@ -42,7 +41,10 @@ func (as *Server) Webhooks(w http.ResponseWriter, r *http.Request) {
 // Webhook returns details of a single webhook specified by "id" parameter
 func (as *Server) Webhook(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 	wh, err := models.GetWebhook(id)
 	if err != nil {
 		JSONResponse(w, models.Response{Success: false, Message: "Webhook not found"}, http.StatusNotFound)
@@ -87,7 +89,10 @@ func (as *Server) ValidateWebhook(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case r.Method == "POST":
 		vars := mux.Vars(r)
-		id, _ := strconv.ParseInt(vars["id"], 0, 64)
+		id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 		wh, err := models.GetWebhook(id)
 		if err != nil {
 			log.Error(err)

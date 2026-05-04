@@ -3,7 +3,6 @@ package api
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	log "github.com/gophish/gophish/logger"
 	"github.com/gophish/gophish/models"
@@ -62,7 +61,10 @@ func (as *Server) CampaignsSummary(w http.ResponseWriter, r *http.Request) {
 // valid, APICampaign returns null.
 func (as *Server) Campaign(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 	c, err := models.GetCampaign(id, getOrgScope(r))
 	if err != nil {
 		log.Error(err)
@@ -86,7 +88,10 @@ func (as *Server) Campaign(w http.ResponseWriter, r *http.Request) {
 // significantly reduce the information returned.
 func (as *Server) CampaignResults(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 	cr, err := models.GetCampaignResults(id, getOrgScope(r))
 	if err != nil {
 		log.Error(err)
@@ -102,7 +107,10 @@ func (as *Server) CampaignResults(w http.ResponseWriter, r *http.Request) {
 // CampaignSummary returns the summary for a given campaign.
 func (as *Server) CampaignSummary(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 	switch {
 	case r.Method == "GET":
 		cs, err := models.GetCampaignSummary(id, getOrgScope(r))
@@ -123,9 +131,12 @@ func (as *Server) CampaignSummary(w http.ResponseWriter, r *http.Request) {
 // Future phishing emails clicked will return a simple "404" page.
 func (as *Server) CampaignComplete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 	switch {
-	case r.Method == "GET":
+	case r.Method == "POST":
 		err := models.CompleteCampaign(id, getOrgScope(r))
 		if err != nil {
 			JSONResponse(w, models.Response{Success: false, Message: "Error completing campaign"}, http.StatusInternalServerError)

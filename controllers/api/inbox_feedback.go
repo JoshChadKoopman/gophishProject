@@ -51,7 +51,10 @@ func (as *Server) InboxFeedbackRead(w http.ResponseWriter, r *http.Request) {
 	}
 	user := ctx.Get(r, "user").(models.User)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 10, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 	if err := models.MarkFeedbackRead(id, user.Id); err != nil {
 		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
 		return
@@ -67,7 +70,10 @@ func (as *Server) InboxFeedbackAcknowledge(w http.ResponseWriter, r *http.Reques
 	}
 	user := ctx.Get(r, "user").(models.User)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 10, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 	if err := models.AcknowledgeFeedback(id, user.Id); err != nil {
 		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
 		return

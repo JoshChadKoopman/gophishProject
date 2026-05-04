@@ -46,7 +46,10 @@ func (as *Server) MSPPartners(w http.ResponseWriter, r *http.Request) {
 // MSPPartner handles GET/PUT/DELETE /api/msp/partners/{id}.
 func (as *Server) MSPPartner(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	p, err := models.GetMSPPartner(id)
 	if err != nil {
@@ -226,7 +229,10 @@ func (as *Server) MSPWhiteLabelPartnerConfig(w http.ResponseWriter, r *http.Requ
 // MSPWhiteLabelDelete handles DELETE /api/msp/whitelabel/{id}.
 func (as *Server) MSPWhiteLabelDelete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	if r.Method != http.MethodDelete {
 		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)

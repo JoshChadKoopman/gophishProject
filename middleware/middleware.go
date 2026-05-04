@@ -3,14 +3,18 @@ package middleware
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gophish/gophish/auth"
 	ctx "github.com/gophish/gophish/context"
+	log "github.com/gophish/gophish/logger"
 	"github.com/gophish/gophish/models"
 	"github.com/gorilla/csrf"
 	"github.com/gorilla/sessions"
+	"github.com/sirupsen/logrus"
 )
 
 const errUserNotAuthenticated = "User not authenticated"
@@ -91,12 +95,46 @@ func GetContext(handler http.Handler) http.HandlerFunc {
 	}
 }
 
-// RequireAPIKey ensures that a valid API key is set as either the api_key GET
-// parameter, or a Bearer token.
+// ClientIP extracts the real client IP from the request, preferring X-Real-IP,
+// then the first value in X-Forwarded-For, then RemoteAddr. This should be used
+// wherever a client IP is recorded (audit logs, request logger) so the value is
+// consistent across the application.
+func ClientIP(r *http.Request) string {
+	if ip := r.Header.Get("X-Real-IP"); ip != "" {
+		return strings.TrimSpace(ip)
+	}
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		if idx := strings.IndexByte(xff, ','); idx >= 0 {
+			return strings.TrimSpace(xff[:idx])
+		}
+		return strings.TrimSpace(xff)
+	}
+	ip, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return ip
+}
+
+// isSameOrigin returns true when the request's Origin header matches the host
+// that served the request. Used to prevent reflecting arbitrary CORS origins.
+func isSameOrigin(r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		return false
+	}
+	// Strip the scheme from the origin to compare against Host.
+	bare := strings.TrimPrefix(strings.TrimPrefix(origin, "https://"), "http://")
+	return bare == r.Host
+}
+
+// RequireAPIKey ensures that a valid API key is set as either a Bearer token
+// in the Authorization header (preferred) or the legacy api_key query parameter.
 func RequireAPIKey(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if origin := r.Header.Get("Origin"); origin != "" {
-			w.Header().Set("Access-Control-Allow-Origin", origin)
+		// Only reflect the CORS origin when the request is same-origin.
+		if isSameOrigin(r) {
+			w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
 			w.Header().Set("Vary", "Origin")
 		}
 		if r.Method == "OPTIONS" {
@@ -106,16 +144,11 @@ func RequireAPIKey(handler http.Handler) http.Handler {
 			w.Header().Set("Access-Control-Allow-Credentials", "false")
 			return
 		}
-		r.ParseForm()
-		ak := r.Form.Get("api_key")
-		// If we can't get the API key, we'll also check for the
-		// Authorization Bearer token
-		if ak == "" {
-			tokens, ok := r.Header["Authorization"]
-			if ok && len(tokens) >= 1 {
-				ak = tokens[0]
-				ak = strings.TrimPrefix(ak, "Bearer ")
-			}
+		// API key must be provided via Authorization: Bearer <token> header only.
+		// The legacy api_key query parameter is no longer accepted.
+		var ak string
+		if tokens, ok := r.Header["Authorization"]; ok && len(tokens) >= 1 {
+			ak = strings.TrimPrefix(tokens[0], "Bearer ")
 		}
 		if ak == "" {
 			JSONError(w, http.StatusUnauthorized, "API Key not set")
@@ -372,7 +405,7 @@ func EnforceTierLimits(resourceType string) func(http.Handler) http.HandlerFunc 
 // practices.
 func ApplySecurityHeaders(next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none';")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none';")
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
@@ -394,5 +427,37 @@ func JSONError(w http.ResponseWriter, c int, m string) {
 	// status code has already been written, so we just write a fallback.
 	if err := json.NewEncoder(w).Encode(models.Response{Success: false, Message: m}); err != nil {
 		fmt.Fprintf(w, `{"success":false,"message":"internal encoding error"}`)
+	}
+}
+
+// statusRecorder wraps http.ResponseWriter to capture the written status code.
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (sr *statusRecorder) WriteHeader(code int) {
+	sr.status = code
+	sr.ResponseWriter.WriteHeader(code)
+}
+
+// RequestLogger logs method, path, status code, latency, and request ID for
+// every request. It reads the X-Request-ID set by the RequestID middleware.
+func RequestLogger(next http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+		next.ServeHTTP(rec, r)
+		fields := logrus.Fields{
+			"method":   r.Method,
+			"path":     r.URL.Path,
+			"status":   rec.status,
+			"duration": time.Since(start).Milliseconds(),
+			"ip":       ClientIP(r),
+		}
+		if rid, ok := ctx.Get(r, "request_id").(string); ok && rid != "" {
+			fields["request_id"] = rid
+		}
+		log.WithFields(fields).Info("request")
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
+	htmltemplate "html/template"
 	"image/png"
 	"net/mail"
 	"net/url"
@@ -141,6 +142,19 @@ func GenerateQRCodePNG(targetURL string) ([]byte, error) {
 func ExecuteTemplate(text string, data interface{}) (string, error) {
 	buff := bytes.Buffer{}
 	tmpl, err := template.New("template").Parse(text)
+	if err != nil {
+		return buff.String(), err
+	}
+	err = tmpl.Execute(&buff, data)
+	return buff.String(), err
+}
+
+// SafeExecuteTemplate creates a templated string using html/template, which
+// applies context-aware HTML escaping. Use this for any template output that
+// will be rendered in a browser to prevent XSS via attacker-controlled values.
+func SafeExecuteTemplate(text string, data interface{}) (string, error) {
+	buff := bytes.Buffer{}
+	tmpl, err := htmltemplate.New("template").Parse(text)
 	if err != nil {
 		return buff.String(), err
 	}

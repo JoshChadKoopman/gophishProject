@@ -36,6 +36,12 @@ func (as *Server) AdminAssistantChat(w http.ResponseWriter, r *http.Request) {
 		JSONResponse(w, models.Response{Success: false, Message: "question is required"}, http.StatusBadRequest)
 		return
 	}
+	req.Question = ai.SanitizePromptField(req.Question)
+
+	if err := ai.CheckBudget(scope.OrgId, as.aiConfig.MonthlyTokenBudget, 1000); err != nil {
+		JSONResponse(w, models.Response{Success: false, Message: "Monthly AI token budget exceeded"}, http.StatusTooManyRequests)
+		return
+	}
 
 	client, err := ai.NewClient(as.aiConfig.Provider, as.aiConfig.APIKey, as.aiConfig.Model)
 	if err != nil {
@@ -47,9 +53,10 @@ func (as *Server) AdminAssistantChat(w http.ResponseWriter, r *http.Request) {
 	reply, err := models.AskAdminAssistant(scope.OrgId, scope.UserId, req.ConversationId, req.Question, client)
 	if err != nil {
 		log.Error(err)
-		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+		JSONResponse(w, models.Response{Success: false, Message: "AI assistant request failed"}, http.StatusInternalServerError)
 		return
 	}
+	ai.RecordTokenUsage(scope.OrgId, reply.TokensUsed)
 	JSONResponse(w, reply, http.StatusOK)
 }
 
@@ -86,7 +93,7 @@ func (as *Server) AdminAssistantConversation(w http.ResponseWriter, r *http.Requ
 	}
 	conv, err := models.GetAssistantConversation(id, scope.OrgId, scope.UserId)
 	if err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusNotFound)
+		JSONResponse(w, models.Response{Success: false, Message: "Not found"}, http.StatusNotFound)
 		return
 	}
 	JSONResponse(w, conv, http.StatusOK)

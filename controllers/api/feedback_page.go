@@ -3,7 +3,6 @@ package api
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	log "github.com/gophish/gophish/logger"
 	"github.com/gophish/gophish/models"
@@ -47,7 +46,10 @@ func (as *Server) FeedbackPages(w http.ResponseWriter, r *http.Request) {
 // FeedbackPage handles GET, PUT, DELETE for /api/feedback_pages/{id}
 func (as *Server) FeedbackPage(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 	scope := getOrgScope(r)
 	fp, err := models.GetFeedbackPage(id, scope)
 	if err != nil {

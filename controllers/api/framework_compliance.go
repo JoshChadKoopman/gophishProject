@@ -2,7 +2,6 @@ package api
 
 import (
 	"net/http"
-	"strconv"
 	"time"
 
 	ctx "github.com/gophish/gophish/context"
@@ -117,7 +116,10 @@ func safeIssuer(def *models.FrameworkComplianceCert) string {
 // POST /api/compliance/framework-certs/{id}/revoke
 func (as *Server) FrameworkCertRevoke(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	if err := models.RevokeOrgFrameworkCert(id); err != nil {
 		log.Error(err)

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"net"
 	"net/http"
 	"strings"
@@ -371,8 +372,11 @@ func renderPhishResponse(w http.ResponseWriter, r *http.Request, ptx models.Phis
 			return
 		}
 	}
-	// Otherwise, we just need to write out the templated HTML
-	html, err := models.ExecuteTemplate(p.HTML, ptx)
+	// Otherwise, we just need to write out the templated HTML.
+	// SafeExecuteTemplate uses html/template so user-controlled values in ptx
+	// (e.g. FirstName, Position) are HTML-escaped before being written to the
+	// browser, preventing stored/reflected XSS in landing pages.
+	html, err := models.SafeExecuteTemplate(p.HTML, ptx)
 	if err != nil {
 		log.Error(err)
 		http.NotFound(w, r)
@@ -384,7 +388,7 @@ func renderPhishResponse(w http.ResponseWriter, r *http.Request, ptx models.Phis
 // renderFeedbackResponse renders the educational feedback interstitial page
 // to the user after they click a simulated phishing link.
 func renderFeedbackResponse(w http.ResponseWriter, r *http.Request, ptx models.PhishingTemplateContext, fp models.FeedbackPage) {
-	html, err := models.ExecuteTemplate(fp.HTML, ptx)
+	html, err := models.SafeExecuteTemplate(fp.HTML, ptx)
 	if err != nil {
 		log.Error(err)
 		http.NotFound(w, r)
@@ -553,7 +557,7 @@ func buildReportFeedbackResponse(rs models.Result) ReportFeedbackResponse {
 	models.GetDB().Raw(`
 		SELECT t.category FROM templates t WHERE t.id = ?
 	`, campaign.TemplateId).Row().Scan(&templateCategory)
-	fb.Category = templateCategory
+	fb.Category = html.EscapeString(templateCategory)
 
 	// Build simulation feedback
 	if rs.Status == models.EventClicked || rs.Status == models.EventDataSubmit {

@@ -198,6 +198,7 @@ func (limiter *PostLimiter) LimitAll(next http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ip := clientIP(r)
 		if !limiter.allow(ip) {
+			log.Warnf("Rate limit exceeded for %s on %s", ip, r.URL.Path)
 			metrics.RateLimitRejected.Inc()
 			http.Error(w, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests)
 			return

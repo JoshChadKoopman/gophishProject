@@ -85,6 +85,7 @@ scripts = function () {
 
 styles = function () {
     return gulp.src([
+            css_directory + 'nivoxis-tokens.css',
             css_directory + 'bootstrap.min.css',
             css_directory + 'main.css',
             css_directory + 'nivoxis.css',

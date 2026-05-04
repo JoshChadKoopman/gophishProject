@@ -11,7 +11,7 @@
     <div id="flashes" class="row"></div>
 
     <!-- Tabs -->
-    <ul class="nav nav-tabs" id="hygieneTabs" style="margin-bottom:20px;">
+    <ul class="nav nav-tabs" id="hygieneTabs" class="u-mb20">
         <li class="active"><a data-toggle="tab" href="#devicesTab"><i class="fa fa-laptop"></i> My Devices</a></li>
         <li><a data-toggle="tab" href="#checklistTab"><i class="fa fa-check-square-o"></i> Personalized Checklist</a></li>
         <li><a data-toggle="tab" href="#techStackTab"><i class="fa fa-cogs"></i> Tech Stack Profile</a></li>
@@ -24,7 +24,7 @@
         <!-- MY DEVICES TAB -->
         <div id="devicesTab" class="tab-pane fade in active">
             <div id="devicesList"></div>
-            <div id="devicesEmpty" style="display:none; text-align:center; padding:40px 0; color:#999;">
+            <div id="devicesEmpty" class="u-empty-state">
                 <i class="fa fa-laptop fa-3x"></i>
                 <h3>No devices registered yet.</h3>
                 <p>Register your work devices to track their security hygiene.</p>
@@ -121,52 +121,52 @@
         {{if .ModifySystem}}
         <div id="adminTab" class="tab-pane fade">
             <!-- Summary Cards -->
-            <div class="row" id="adminSummaryCards" style="margin-bottom:20px;">
+            <div class="row" id="adminSummaryCards" class="u-mb20">
                 <div class="col-md-2">
                     <div class="panel panel-default text-center">
                         <div class="panel-body">
-                            <h3 id="adminTotalDevices" style="margin:5px 0;">—</h3>
-                            <p style="color:#888;margin:0;font-size:12px;">Total Devices</p>
+                            <h3 id="adminTotalDevices" class="u-my5">—</h3>
+                            <p class="u-muted-sm">Total Devices</p>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-2">
                     <div class="panel panel-success text-center">
                         <div class="panel-body">
-                            <h3 id="adminFullyCompliant" style="margin:5px 0;">—</h3>
-                            <p style="color:#888;margin:0;font-size:12px;">Fully Compliant</p>
+                            <h3 id="adminFullyCompliant" class="u-my5">—</h3>
+                            <p class="u-muted-sm">Fully Compliant</p>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-2">
                     <div class="panel panel-danger text-center">
                         <div class="panel-body">
-                            <h3 id="adminAtRisk" style="margin:5px 0;">—</h3>
-                            <p style="color:#888;margin:0;font-size:12px;">At Risk (&lt;50%)</p>
+                            <h3 id="adminAtRisk" class="u-my5">—</h3>
+                            <p class="u-muted-sm">At Risk (&lt;50%)</p>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-2">
                     <div class="panel panel-info text-center">
                         <div class="panel-body">
-                            <h3 id="adminAvgScore" style="margin:5px 0;">—</h3>
-                            <p style="color:#888;margin:0;font-size:12px;">Avg Score</p>
+                            <h3 id="adminAvgScore" class="u-my5">—</h3>
+                            <p class="u-muted-sm">Avg Score</p>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-2">
                     <div class="panel panel-default text-center">
                         <div class="panel-body">
-                            <h3 id="adminProfileCount" style="margin:5px 0;">—</h3>
-                            <p style="color:#888;margin:0;font-size:12px;">Tech Profiles</p>
+                            <h3 id="adminProfileCount" class="u-my5">—</h3>
+                            <p class="u-muted-sm">Tech Profiles</p>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-2">
                     <div class="panel panel-default text-center">
                         <div class="panel-body">
-                            <h3 id="adminPassRate" style="margin:5px 0;">—</h3>
-                            <p style="color:#888;margin:0;font-size:12px;">Pass Rate</p>
+                            <h3 id="adminPassRate" class="u-my5">—</h3>
+                            <p class="u-muted-sm">Pass Rate</p>
                         </div>
                     </div>
                 </div>

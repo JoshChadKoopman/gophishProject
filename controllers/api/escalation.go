@@ -45,7 +45,10 @@ func (as *Server) EscalationPolicies(w http.ResponseWriter, r *http.Request) {
 func (as *Server) EscalationPolicy(w http.ResponseWriter, r *http.Request) {
 	user := ctx.Get(r, "user").(models.User)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	switch r.Method {
 	case http.MethodGet:
@@ -149,7 +152,10 @@ func (as *Server) EscalationEvents(w http.ResponseWriter, r *http.Request) {
 func (as *Server) EscalationResolve(w http.ResponseWriter, r *http.Request) {
 	user := ctx.Get(r, "user").(models.User)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	if err := models.ResolveEscalation(id, user.OrgId, user.Id); err != nil {
 		log.Error(err)

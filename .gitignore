@@ -23,8 +23,10 @@ _cgo_export.*
 
 _testmain.go
 
-gophish_admin.crt
-gophish_admin.key
+# TLS certificates and private keys — never commit
+*.crt
+*.key
+*.pem
 
 *.exe
 gophish.db*

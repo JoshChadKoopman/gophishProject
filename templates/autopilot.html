@@ -9,7 +9,7 @@
         <i class="fa fa-spinner fa-spin fa-4x"></i>
     </div>
 
-    <div id="autopilotContent" style="display:none;">
+    <div id="autopilotContent" class="u-hidden">
         <!-- Status & Toggle -->
         <div class="row">
             <div class="col-md-12">
@@ -23,14 +23,14 @@
                                 <p id="autopilotStatus" style="font-size:16px;">
                                     Status: <span id="statusBadge" class="label label-default">Loading...</span>
                                 </p>
-                                <p id="nextRunInfo" style="color:#888;"></p>
-                                <p id="lastRunInfo" style="color:#888;"></p>
+                                <p id="nextRunInfo" class="u-color-muted"></p>
+                                <p id="lastRunInfo" class="u-color-muted"></p>
                             </div>
                             <div class="col-md-6 text-right">
-                                <button id="btnEnable" class="btn btn-success" style="display:none;">
+                                <button id="btnEnable" class="btn btn-success" class="u-hidden">
                                     <i class="fa fa-play"></i> Enable Autopilot
                                 </button>
-                                <button id="btnDisable" class="btn btn-danger" style="display:none;">
+                                <button id="btnDisable" class="btn btn-danger" class="u-hidden">
                                     <i class="fa fa-stop"></i> Disable Autopilot
                                 </button>
                             </div>
@@ -126,7 +126,7 @@
                     </div>
                     <div class="panel-body">
                         <p class="help-block">Autopilot will not send emails on these dates.</p>
-                        <form id="blackoutForm" class="form-inline" style="margin-bottom:15px;">
+                        <form id="blackoutForm" class="form-inline" class="u-mb15">
                             <div class="form-group">
                                 <input type="date" class="form-control" id="blackoutDate">
                             </div>
@@ -142,13 +142,13 @@
                                 <tr>
                                     <th>Date</th>
                                     <th>Reason</th>
-                                    <th style="width:60px;"></th>
+                                    <th class="u-w60"></th>
                                 </tr>
                             </thead>
                             <tbody id="blackoutBody">
                             </tbody>
                         </table>
-                        <p id="noBlackouts" style="color:#888; display:none;">No blackout dates configured.</p>
+                        <p id="noBlackouts" class="u-hidden-muted">No blackout dates configured.</p>
                     </div>
                 </div>
             </div>
@@ -175,7 +175,7 @@
                             <tbody id="scheduleBody">
                             </tbody>
                         </table>
-                        <p id="noSchedule" style="color:#888; display:none;">No autopilot activity yet.</p>
+                        <p id="noSchedule" class="u-hidden-muted">No autopilot activity yet.</p>
                     </div>
                 </div>
             </div>

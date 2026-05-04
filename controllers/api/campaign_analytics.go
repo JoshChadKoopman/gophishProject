@@ -2,7 +2,6 @@ package api
 
 import (
 	"net/http"
-	"strconv"
 
 	ctx "github.com/gophish/gophish/context"
 	log "github.com/gophish/gophish/logger"
@@ -14,7 +13,10 @@ import (
 // GET /api/campaigns/:id/analytics/funnel
 func (as *Server) CampaignAnalyticsFunnel(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	// Verify org access
 	_, err := models.GetCampaignResults(id, getOrgScope(r))
@@ -36,7 +38,10 @@ func (as *Server) CampaignAnalyticsFunnel(w http.ResponseWriter, r *http.Request
 // GET /api/campaigns/:id/analytics/time-to-click
 func (as *Server) CampaignAnalyticsTimeToClick(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	_, err := models.GetCampaignResults(id, getOrgScope(r))
 	if err != nil {
@@ -57,7 +62,10 @@ func (as *Server) CampaignAnalyticsTimeToClick(w http.ResponseWriter, r *http.Re
 // GET /api/campaigns/:id/analytics/repeat-offenders
 func (as *Server) CampaignAnalyticsRepeatOffenders(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 	user := ctx.Get(r, "user").(models.User)
 
 	// Verify org access
@@ -80,7 +88,10 @@ func (as *Server) CampaignAnalyticsRepeatOffenders(w http.ResponseWriter, r *htt
 // GET /api/campaigns/:id/analytics/devices
 func (as *Server) CampaignAnalyticsDeviceBreakdown(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	_, err := models.GetCampaignResults(id, getOrgScope(r))
 	if err != nil {

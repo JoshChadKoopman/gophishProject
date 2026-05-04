@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 	"time"
 
 	ctx "github.com/gophish/gophish/context"
@@ -51,7 +50,10 @@ func (as *Server) BoardReportSchedules(w http.ResponseWriter, r *http.Request) {
 func (as *Server) BoardReportScheduleItem(w http.ResponseWriter, r *http.Request) {
 	user := ctx.Get(r, "user").(models.User)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 10, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	switch r.Method {
 	case http.MethodGet:
@@ -125,7 +127,10 @@ func (as *Server) BoardReportExportBranded(w http.ResponseWriter, r *http.Reques
 	}
 	user := ctx.Get(r, "user").(models.User)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 10, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	br, err := models.GetBoardReport(id, user.OrgId)
 	if err != nil {

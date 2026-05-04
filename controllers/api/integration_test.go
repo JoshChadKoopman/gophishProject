@@ -9,6 +9,7 @@ import (
 
 	ctx "github.com/gophish/gophish/context"
 	"github.com/gophish/gophish/models"
+	"github.com/gorilla/mux"
 )
 
 // ── Helpers ──
@@ -16,6 +17,15 @@ import (
 func setupIntegrationTest(t *testing.T) *testContext {
 	t.Helper()
 	return setupTest(t)
+}
+
+// makeRequestWithVars creates a test request with Gorilla mux URL vars pre-set.
+// Use this for handlers that call mux.Vars(r) to extract path parameters.
+func makeRequestWithVars(t *testing.T, tc *testContext, method, path string, body interface{}, vars map[string]string) (*httptest.ResponseRecorder, *http.Request) {
+	t.Helper()
+	w, r := makeRequest(t, tc, method, path, body)
+	r = mux.SetURLVars(r, vars)
+	return w, r
 }
 
 func makeRequest(t *testing.T, tc *testContext, method, path string, body interface{}) (*httptest.ResponseRecorder, *http.Request) {
@@ -452,7 +462,7 @@ func TestAPIResponseIsJSON(t *testing.T) {
 
 func TestCampaignAnalyticsFunnelAPI(t *testing.T) {
 	tc := setupIntegrationTest(t)
-	w, r := makeRequest(t, tc, http.MethodGet, "/api/campaigns/1/analytics/funnel", nil)
+	w, r := makeRequestWithVars(t, tc, http.MethodGet, "/api/campaigns/1/analytics/funnel", nil, map[string]string{"id": "1"})
 	tc.apiServer.CampaignAnalyticsFunnel(w, r)
 	// Campaign 1 doesn't exist, but handler should return 200 with empty funnel or 404
 	if w.Code != http.StatusOK && w.Code != http.StatusNotFound {
@@ -462,7 +472,7 @@ func TestCampaignAnalyticsFunnelAPI(t *testing.T) {
 
 func TestCampaignAnalyticsTimeToClickAPI(t *testing.T) {
 	tc := setupIntegrationTest(t)
-	w, r := makeRequest(t, tc, http.MethodGet, "/api/campaigns/1/analytics/time-to-click", nil)
+	w, r := makeRequestWithVars(t, tc, http.MethodGet, "/api/campaigns/1/analytics/time-to-click", nil, map[string]string{"id": "1"})
 	tc.apiServer.CampaignAnalyticsTimeToClick(w, r)
 	if w.Code != http.StatusOK && w.Code != http.StatusNotFound {
 		t.Errorf("expected 200 or 404, got %d", w.Code)
@@ -471,7 +481,7 @@ func TestCampaignAnalyticsTimeToClickAPI(t *testing.T) {
 
 func TestCampaignAnalyticsRepeatOffendersAPI(t *testing.T) {
 	tc := setupIntegrationTest(t)
-	w, r := makeRequest(t, tc, http.MethodGet, "/api/campaigns/1/analytics/repeat-offenders", nil)
+	w, r := makeRequestWithVars(t, tc, http.MethodGet, "/api/campaigns/1/analytics/repeat-offenders", nil, map[string]string{"id": "1"})
 	tc.apiServer.CampaignAnalyticsRepeatOffenders(w, r)
 	if w.Code != http.StatusOK && w.Code != http.StatusNotFound {
 		t.Errorf("expected 200 or 404, got %d", w.Code)
@@ -480,7 +490,7 @@ func TestCampaignAnalyticsRepeatOffendersAPI(t *testing.T) {
 
 func TestCampaignAnalyticsDeviceBreakdownAPI(t *testing.T) {
 	tc := setupIntegrationTest(t)
-	w, r := makeRequest(t, tc, http.MethodGet, "/api/campaigns/1/analytics/devices", nil)
+	w, r := makeRequestWithVars(t, tc, http.MethodGet, "/api/campaigns/1/analytics/devices", nil, map[string]string{"id": "1"})
 	tc.apiServer.CampaignAnalyticsDeviceBreakdown(w, r)
 	if w.Code != http.StatusOK && w.Code != http.StatusNotFound {
 		t.Errorf("expected 200 or 404, got %d", w.Code)

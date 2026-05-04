@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	log "github.com/gophish/gophish/logger"
 	"github.com/gophish/gophish/models"
 )
 
@@ -33,7 +34,8 @@ func (as *Server) AuditLog(w http.ResponseWriter, r *http.Request) {
 
 		resp, err := models.GetAuditLogsFiltered(getOrgScope(r), limit, offset, action, actor, dateFrom, dateTo)
 		if err != nil {
-			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
+			log.Error(err)
+			JSONResponse(w, models.Response{Success: false, Message: "Failed to retrieve audit logs"}, http.StatusInternalServerError)
 			return
 		}
 		JSONResponse(w, resp, http.StatusOK)

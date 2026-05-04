@@ -3,7 +3,6 @@ package api
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 	"time"
 
 	log "github.com/gophish/gophish/logger"
@@ -60,7 +59,10 @@ func (as *Server) Templates(w http.ResponseWriter, r *http.Request) {
 // Template handles the functions for the /api/templates/:id endpoint
 func (as *Server) Template(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 	scope := getOrgScope(r)
 	t, err := models.GetTemplate(id, scope)
 	if err != nil {

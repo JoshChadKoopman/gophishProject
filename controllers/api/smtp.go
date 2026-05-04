@@ -3,7 +3,6 @@ package api
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 	"time"
 
 	log "github.com/gophish/gophish/logger"
@@ -54,7 +53,10 @@ func (as *Server) SendingProfiles(w http.ResponseWriter, r *http.Request) {
 // of a SMTP object
 func (as *Server) SendingProfile(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 	scope := getOrgScope(r)
 	s, err := models.GetSMTP(id, scope)
 	if err != nil {

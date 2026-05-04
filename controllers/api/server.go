@@ -1,11 +1,11 @@
 package api
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/gophish/gophish/config"
 	ctx "github.com/gophish/gophish/context"
+	log "github.com/gophish/gophish/logger"
 	mid "github.com/gophish/gophish/middleware"
 	"github.com/gophish/gophish/middleware/ratelimit"
 	"github.com/gophish/gophish/models"
@@ -73,33 +73,26 @@ func WithAIConfig(cfg config.AIConfig) ServerOption {
 	}
 }
 
-// MCPQueryRequest represents the request body for the MCP API.
-type MCPQueryRequest struct {
-	Query string `json:"query"`
-}
 
-// MCPQueryResponse represents the response body for the MCP API.
-type MCPQueryResponse struct {
-	Result string `json:"result"`
-}
-
-// MCPQueryHandler handles MCP API queries for Claude or other LLMs.
-func (as *Server) MCPQueryHandler(w http.ResponseWriter, r *http.Request) {
-	var req MCPQueryRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request", http.StatusBadRequest)
-		return
-	}
-	// TODO: Replace this with real Claude/LLM integration
-	resp := MCPQueryResponse{Result: "Echo: " + req.Query}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+// recoveryMiddleware catches any panics in downstream handlers, logs them, and
+// returns a 500 JSON response so the API server process stays alive.
+func recoveryMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if rec := recover(); rec != nil {
+				log.Errorf("panic recovered in API handler: %v", rec)
+				JSONResponse(w, models.Response{Message: "Internal server error", Success: false}, http.StatusInternalServerError)
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (as *Server) registerRoutes() {
 	root := mux.NewRouter()
 	root = root.StrictSlash(true)
 	router := root.PathPrefix("/api/").Subrouter()
+	router.Use(recoveryMiddleware)
 	router.Use(mid.RequireAPIKey)
 	router.Use(mid.EnforceViewOnly)
 	// Apply a generous rate limit to all API endpoints (30 req/min per IP).
@@ -156,8 +149,8 @@ func (as *Server) registerRoutes() {
 	router.HandleFunc("/training/content-library", as.ContentLibrary)
 	router.HandleFunc("/training/content-library/detail", as.ContentLibraryDetail)
 	router.HandleFunc("/training/content-library/categories", as.ContentLibraryCategories)
-	router.HandleFunc("/training/content-library/seed", as.ContentLibrarySeed)
-	router.HandleFunc("/training/content-library/seed-single", as.ContentLibrarySeedSingle)
+	router.HandleFunc("/training/content-library/seed", mid.Use(as.ContentLibrarySeed, mid.RequirePermission(models.PermissionModifySystem)))
+	router.HandleFunc("/training/content-library/seed-single", mid.Use(as.ContentLibrarySeedSingle, mid.RequirePermission(models.PermissionModifySystem)))
 	router.HandleFunc("/training/{id:[0-9]+}", as.TrainingPresentation)
 	router.HandleFunc("/training/{id:[0-9]+}/download", as.TrainingPresentationDownload)
 	router.HandleFunc("/training/{id:[0-9]+}/thumbnail", as.TrainingPresentationThumbnail)
@@ -199,7 +192,7 @@ func (as *Server) registerRoutes() {
 	router.HandleFunc("/training/certificates/issue", as.TrainingCertificateIssue)
 	router.HandleFunc("/training/certificates/summary", as.TrainingCertificateSummary)
 	router.HandleFunc("/training/certificates/verify/{code}", as.TrainingCertificateVerify)
-	router.HandleFunc("/training/certificates/{id:[0-9]+}/revoke", as.TrainingCertificateRevoke)
+	router.HandleFunc("/training/certificates/{id:[0-9]+}/revoke", mid.Use(as.TrainingCertificateRevoke, mid.RequirePermission(models.PermissionManageTraining)))
 	router.HandleFunc("/training/certificates/{id:[0-9]+}/renew", as.TrainingCertificateRenew)
 	// Praise / feedback message routes
 	router.HandleFunc("/training/praise-messages", as.TrainingPraiseMessages)
@@ -593,7 +586,9 @@ func (as *Server) registerRoutes() {
 	scim.HandleFunc("/Groups/{id:[0-9]+}", as.SCIMGroup).Methods("GET", "PUT", "PATCH", "DELETE")
 
 	// ── Telephony Webhook (no API key auth — uses webhook secret) ──
-	root.HandleFunc("/webhooks/telephony", as.TelephonyWebhook).Methods("POST")
+	// Apply a strict per-IP rate limit to prevent secret brute-forcing.
+	telephonyLimiter := ratelimit.NewPostLimiter(ratelimit.WithRequestsPerMinute(10))
+	root.HandleFunc("/webhooks/telephony", telephonyLimiter.Limit(http.HandlerFunc(as.TelephonyWebhook))).Methods("POST")
 
 	as.handler = root
 }

@@ -516,6 +516,11 @@ var renderTimelineChart = function (chartopts) {
 
 /* Renders a pie chart using the provided chartops */
 var renderPieChart = function (chartopts) {
+    var count = chartopts['data'][0].count || 0
+    var pct = chartopts['data'][0].y || 0
+    var total = chartopts['total'] || 0
+    // Build subtitle: "N of total (X%)" — only shown when total is known
+    var subtitle = total > 0 ? count + ' of ' + total + ' (' + pct + '%)' : ''
     return Highcharts.chart(chartopts['elemId'], {
         chart: {
             type: 'pie',
@@ -526,7 +531,7 @@ var renderPieChart = function (chartopts) {
                         pie = chart.series[0],
                         left = chart.plotLeft + pie.center[0],
                         top = chart.plotTop + pie.center[1];
-                    this.innerText = rend.text(chartopts['data'][0].count, left, top).
+                    this.innerText = rend.text(count, left, top).
                     attr({
                         'text-anchor': 'middle',
                         'font-size': '24px',
@@ -534,11 +539,21 @@ var renderPieChart = function (chartopts) {
                         'fill': chartopts['colors'][0],
                         'font-family': 'Helvetica,Arial,sans-serif'
                     }).add();
+                    if (subtitle) {
+                        this.subtitleText = rend.text(subtitle, left, top + 16).
+                        attr({
+                            'text-anchor': 'middle',
+                            'font-size': '10px',
+                            'fill': '#888',
+                            'font-family': 'Helvetica,Arial,sans-serif'
+                        }).add();
+                    }
                 },
                 render: function () {
-                    this.innerText.attr({
-                        text: chartopts['data'][0].count
-                    })
+                    this.innerText.attr({ text: count })
+                    if (this.subtitleText) {
+                        this.subtitleText.attr({ text: subtitle })
+                    }
                 }
             }
         },
@@ -874,7 +889,8 @@ function load() {
                         title: status,
                         name: status,
                         data: email_data,
-                        colors: [statuses[status].color, '#dddddd']
+                        colors: [statuses[status].color, '#dddddd'],
+                        total: campaign.results.length
                     })
                 })
 

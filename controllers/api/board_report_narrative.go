@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -29,11 +28,14 @@ func (as *Server) BoardReportFull(w http.ResponseWriter, r *http.Request) {
 	}
 	user := ctx.Get(r, "user").(models.User)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 10, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	br, err := models.GetBoardReport(id, user.OrgId)
 	if err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusNotFound)
+		JSONResponse(w, models.Response{Success: false, Message: "Not found"}, http.StatusNotFound)
 		return
 	}
 
@@ -57,11 +59,14 @@ func (as *Server) BoardReportGenerateNarrative(w http.ResponseWriter, r *http.Re
 	}
 	user := ctx.Get(r, "user").(models.User)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 10, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	br, err := models.GetBoardReport(id, user.OrgId)
 	if err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusNotFound)
+		JSONResponse(w, models.Response{Success: false, Message: "Not found"}, http.StatusNotFound)
 		return
 	}
 
@@ -176,12 +181,15 @@ func (as *Server) BoardReportEditNarrative(w http.ResponseWriter, r *http.Reques
 	}
 	user := ctx.Get(r, "user").(models.User)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 10, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	// Verify the report exists and belongs to this org
 	_, err := models.GetBoardReport(id, user.OrgId)
 	if err != nil {
-		JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusNotFound)
+		JSONResponse(w, models.Response{Success: false, Message: "Not found"}, http.StatusNotFound)
 		return
 	}
 
@@ -214,7 +222,10 @@ func (as *Server) BoardReportTransition(w http.ResponseWriter, r *http.Request) 
 	}
 	user := ctx.Get(r, "user").(models.User)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 10, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	type transitionReq struct {
 		Status  string `json:"status"`
@@ -255,7 +266,10 @@ func (as *Server) BoardReportApprovals(w http.ResponseWriter, r *http.Request) {
 	}
 	user := ctx.Get(r, "user").(models.User)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 10, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	approvals, err := models.GetBoardReportApprovals(id, user.OrgId)
 	if err != nil {
@@ -300,7 +314,10 @@ func (as *Server) BoardReportDeltas(w http.ResponseWriter, r *http.Request) {
 		PeriodEnd   string `json:"period_end"`
 	}
 	var req deltaReq
-	json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		JSONResponse(w, models.Response{Success: false, Message: ErrInvalidJSON}, http.StatusBadRequest)
+		return
+	}
 
 	start, _ := time.Parse("2006-01-02", req.PeriodStart)
 	end, _ := time.Parse("2006-01-02", req.PeriodEnd)

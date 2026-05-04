@@ -48,7 +48,11 @@ func (as *Server) ROIBenchmarks(w http.ResponseWriter, r *http.Request) {
 // ROIBenchmarkItem handles DELETE for /api/roi/benchmarks/{id}.
 func (as *Server) ROIBenchmarkItem(w http.ResponseWriter, r *http.Request) {
 	user := ctx.Get(r, "user").(models.User)
-	id, _ := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
+	vars := mux.Vars(r)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	switch r.Method {
 	case http.MethodDelete:
@@ -159,7 +163,11 @@ func (as *Server) ROIQuarterlyTrend(w http.ResponseWriter, r *http.Request) {
 // ROIHistoryItem handles GET/DELETE for /api/roi/history/{id}.
 func (as *Server) ROIHistoryItem(w http.ResponseWriter, r *http.Request) {
 	user := ctx.Get(r, "user").(models.User)
-	id, _ := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
+	vars := mux.Vars(r)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	switch r.Method {
 	case http.MethodGet:

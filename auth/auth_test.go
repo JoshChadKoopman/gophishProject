@@ -52,7 +52,7 @@ func TestPasswordPolicy(t *testing.T) {
 	expectErr(t, ErrPasswordNoDigit, got)
 
 	// Valid password: meets all requirements
-	candidate = "ValidPass1ok"
+	candidate = "ValidPass1ok!"
 	got = CheckPasswordPolicy(candidate)
 	expectErr(t, nil, got)
 }
@@ -65,8 +65,8 @@ func TestPasswordPolicyEmpty(t *testing.T) {
 }
 
 func TestPasswordPolicyExactMinLength(t *testing.T) {
-	// Exactly MinPasswordLength chars, but meets all char requirements
-	pw := "Abcdefgh1x" // 10 chars
+	// Exactly MinPasswordLength chars, meets all char requirements including special char
+	pw := "Abcdefg1x!" // 10 chars
 	if len(pw) != MinPasswordLength {
 		t.Fatalf("test setup error: password length is %d, expected %d", len(pw), MinPasswordLength)
 	}
@@ -90,9 +90,9 @@ func TestPasswordPolicyOneBelowMinLength(t *testing.T) {
 // ---------- ValidatePasswordChange tests ----------
 
 func TestValidatePasswordChange(t *testing.T) {
-	newPassword := "ValidPass1ok"
-	confirmPassword := "Mismatch1no"
-	currentPassword := "CurrentPass1"
+	newPassword := "ValidPass1ok!"
+	confirmPassword := "Mismatch1no!"
+	currentPassword := "CurrentPass1!"
 	currentHash, err := GeneratePasswordHash(currentPassword)
 	fatalIfErr(t, err)
 
@@ -106,12 +106,12 @@ func TestValidatePasswordChange(t *testing.T) {
 }
 
 func TestValidatePasswordChangeSuccess(t *testing.T) {
-	currentPassword := "OldPassword1"
+	currentPassword := "OldPassword1!"
 	currentHash, err := GeneratePasswordHash(currentPassword)
 	if err != nil {
 		t.Fatalf("error generating hash: %v", err)
 	}
-	newPassword := "NewPassword2"
+	newPassword := "NewPassword2@"
 	hash, err := ValidatePasswordChange(currentHash, newPassword, newPassword)
 	if err != nil {
 		fatalIfErr(t, err)

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"time"
 
 	"github.com/sirupsen/logrus"
 )
@@ -19,6 +20,7 @@ var ErrInvalidLevel = errors.New("invalid log level")
 type Config struct {
 	Filename string `json:"filename"`
 	Level    string `json:"level"`
+	Format   string `json:"format"` // "text" (default) or "json"
 }
 
 func init() {
@@ -38,6 +40,15 @@ func Setup(config *Config) error {
 		}
 	}
 	Logger.SetLevel(level)
+	// Set up log format — JSON is useful for log aggregation pipelines.
+	switch config.Format {
+	case "json":
+		Logger.Formatter = &logrus.JSONFormatter{
+			TimestampFormat: time.RFC3339,
+		}
+	default:
+		Logger.Formatter = &logrus.TextFormatter{DisableColors: true}
+	}
 	// Set up logging to a file if specified in the config
 	logFile := config.Filename
 	if logFile != "" {

@@ -3,7 +3,6 @@ package api
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 	"time"
 
 	log "github.com/gophish/gophish/logger"
@@ -54,7 +53,10 @@ func (as *Server) Pages(w http.ResponseWriter, r *http.Request) {
 // of a Page object
 func (as *Server) Page(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 	scope := getOrgScope(r)
 	p, err := models.GetPage(id, scope)
 	if err != nil {

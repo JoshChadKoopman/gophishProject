@@ -9,38 +9,38 @@
         <i class="fa fa-spinner fa-spin fa-4x"></i>
     </div>
 
-    <div id="academyContent" style="display:none;">
+    <div id="academyContent" class="u-hidden">
         <!-- User Stats Bar -->
-        <div class="row" style="margin-bottom:20px;">
+        <div class="row" class="u-mb20">
             <div class="col-md-3">
                 <div class="panel panel-default text-center">
                     <div class="panel-body">
-                        <h3 id="tiersCompleted" style="margin:5px 0;">0 / 4</h3>
-                        <p style="color:#888;margin:0;">Tiers Completed</p>
+                        <h3 id="tiersCompleted" class="u-my5">0 / 4</h3>
+                        <p class="u-muted-m0">Tiers Completed</p>
                     </div>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="panel panel-default text-center">
                     <div class="panel-body">
-                        <h3 id="badgeCount" style="margin:5px 0;">0</h3>
-                        <p style="color:#888;margin:0;">Badges Earned</p>
+                        <h3 id="badgeCount" class="u-my5">0</h3>
+                        <p class="u-muted-m0">Badges Earned</p>
                     </div>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="panel panel-default text-center">
                     <div class="panel-body">
-                        <h3 id="streakCount" style="margin:5px 0;">0 weeks</h3>
-                        <p style="color:#888;margin:0;">Current Streak</p>
+                        <h3 id="streakCount" class="u-my5">0 weeks</h3>
+                        <p class="u-muted-m0">Current Streak</p>
                     </div>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="panel panel-default text-center">
                     <div class="panel-body">
-                        <h3 id="complianceCount" style="margin:5px 0;">0</h3>
-                        <p style="color:#888;margin:0;">Compliance Certs</p>
+                        <h3 id="complianceCount" class="u-my5">0</h3>
+                        <p class="u-muted-m0">Compliance Certs</p>
                     </div>
                 </div>
             </div>
@@ -66,7 +66,7 @@
         </div>
 
         <!-- Tier Sessions (shown when a tier is expanded) -->
-        <div class="row" id="sessionsPanel" style="display:none;">
+        <div class="row" id="sessionsPanel" class="u-hidden">
             <div class="col-md-12">
                 <div class="panel panel-default">
                     <div class="panel-heading">
@@ -83,17 +83,17 @@
                                 <tr>
                                     <th style="width:40px;">#</th>
                                     <th>Course</th>
-                                    <th style="width:100px;">Duration</th>
-                                    <th style="width:80px;">Required</th>
-                                    <th style="width:100px;">Status</th>
-                                    <th style="width:120px;">Action</th>
+                                    <th class="u-w100">Duration</th>
+                                    <th class="u-w80">Required</th>
+                                    <th class="u-w100">Status</th>
+                                    <th class="u-w120">Action</th>
                                 </tr>
                             </thead>
                             <tbody id="sessionsBody">
                             </tbody>
                         </table>
-                        <div class="text-center" style="margin-top:15px;">
-                            <button id="btnCompleteTier" class="btn btn-success btn-lg" style="display:none;">
+                        <div class="text-center" class="u-mt15">
+                            <button id="btnCompleteTier" class="btn btn-success btn-lg" class="u-hidden">
                                 <i class="fa fa-check-circle"></i> Complete Tier
                             </button>
                         </div>
@@ -113,7 +113,7 @@
                     <div class="panel-body">
                         <div id="badgesContainer" style="display:flex;flex-wrap:wrap;gap:15px;">
                         </div>
-                        <p id="noBadges" style="color:#888;display:none;">Complete courses and quizzes to earn badges!</p>
+                        <p id="noBadges" class="u-hidden-muted">Complete courses and quizzes to earn badges!</p>
                     </div>
                 </div>
             </div>
@@ -131,7 +131,7 @@
                     <div class="panel-body">
                         <div id="complianceContainer" class="row">
                         </div>
-                        <p id="noCompliance" style="color:#888;display:none;">No compliance certifications available.</p>
+                        <p id="noCompliance" class="u-hidden-muted">No compliance certifications available.</p>
                     </div>
                 </div>
             </div>

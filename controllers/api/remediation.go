@@ -77,7 +77,10 @@ func (as *Server) RemediationPaths(w http.ResponseWriter, r *http.Request) {
 func (as *Server) RemediationPath(w http.ResponseWriter, r *http.Request) {
 	user := ctx.Get(r, "user").(models.User)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 10, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	switch r.Method {
 	case http.MethodGet:

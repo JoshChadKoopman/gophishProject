@@ -3,7 +3,6 @@ package api
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	ctx "github.com/gophish/gophish/context"
 	log "github.com/gophish/gophish/logger"
@@ -54,7 +53,10 @@ func (as *Server) HygieneDevices(w http.ResponseWriter, r *http.Request) {
 func (as *Server) HygieneDevice(w http.ResponseWriter, r *http.Request) {
 	user := ctx.Get(r, "user").(models.User)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 10, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	device, err := models.GetDevice(id, user.OrgId)
 	if err != nil {
@@ -110,7 +112,10 @@ func (as *Server) HygieneDevice(w http.ResponseWriter, r *http.Request) {
 func (as *Server) HygieneDeviceChecks(w http.ResponseWriter, r *http.Request) {
 	user := ctx.Get(r, "user").(models.User)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 10, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	if r.Method != http.MethodPost {
 		JSONResponse(w, models.Response{Success: false, Message: ErrMethodNotAllowed}, http.StatusMethodNotAllowed)

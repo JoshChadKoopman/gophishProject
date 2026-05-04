@@ -7,7 +7,7 @@
             <button class="btn btn-primary pull-right" id="createPathBtn">
                 <i class="fa fa-plus"></i> New Remediation Path
             </button>
-            <button class="btn btn-default pull-right" id="evaluateBtn" style="margin-right:8px;">
+            <button class="btn btn-default pull-right" id="evaluateBtn" class="u-mr8">
                 <i class="fa fa-refresh"></i> Auto-Evaluate
             </button>
             {{end}}
@@ -17,52 +17,52 @@
 
     <!-- Summary Cards (Admin) -->
     {{if .ModifyObjects}}
-    <div id="remediationSummary" class="row" style="margin-bottom:20px;">
+    <div id="remediationSummary" class="row" class="u-mb20">
         <div class="col-md-2">
             <div class="panel panel-default text-center">
                 <div class="panel-body">
-                    <h3 id="totalPaths" style="margin:5px 0;">—</h3>
-                    <p style="color:#888;margin:0;font-size:12px;">Total</p>
+                    <h3 id="totalPaths" class="u-my5">—</h3>
+                    <p class="u-muted-sm">Total</p>
                 </div>
             </div>
         </div>
         <div class="col-md-2">
             <div class="panel panel-info text-center">
                 <div class="panel-body">
-                    <h3 id="activePaths" style="margin:5px 0;">—</h3>
-                    <p style="color:#888;margin:0;font-size:12px;">Active</p>
+                    <h3 id="activePaths" class="u-my5">—</h3>
+                    <p class="u-muted-sm">Active</p>
                 </div>
             </div>
         </div>
         <div class="col-md-2">
             <div class="panel panel-success text-center">
                 <div class="panel-body">
-                    <h3 id="completedPaths" style="margin:5px 0;">—</h3>
-                    <p style="color:#888;margin:0;font-size:12px;">Completed</p>
+                    <h3 id="completedPaths" class="u-my5">—</h3>
+                    <p class="u-muted-sm">Completed</p>
                 </div>
             </div>
         </div>
         <div class="col-md-2">
             <div class="panel panel-danger text-center">
                 <div class="panel-body">
-                    <h3 id="criticalCount" style="margin:5px 0;">—</h3>
-                    <p style="color:#888;margin:0;font-size:12px;">Critical Risk</p>
+                    <h3 id="criticalCount" class="u-my5">—</h3>
+                    <p class="u-muted-sm">Critical Risk</p>
                 </div>
             </div>
         </div>
         <div class="col-md-2">
             <div class="panel panel-warning text-center">
                 <div class="panel-body">
-                    <h3 id="highCount" style="margin:5px 0;">—</h3>
-                    <p style="color:#888;margin:0;font-size:12px;">High Risk</p>
+                    <h3 id="highCount" class="u-my5">—</h3>
+                    <p class="u-muted-sm">High Risk</p>
                 </div>
             </div>
         </div>
         <div class="col-md-2">
             <div class="panel panel-default text-center">
                 <div class="panel-body">
-                    <h3 id="avgCompletion" style="margin:5px 0;">—</h3>
-                    <p style="color:#888;margin:0;font-size:12px;">Avg Completion</p>
+                    <h3 id="avgCompletion" class="u-my5">—</h3>
+                    <p class="u-muted-sm">Avg Completion</p>
                 </div>
             </div>
         </div>
@@ -70,7 +70,7 @@
     {{end}}
 
     <!-- Status Filter -->
-    <div class="btn-group" style="margin-bottom:15px;" id="statusFilter">
+    <div class="btn-group" class="u-mb15" id="statusFilter">
         <button class="btn btn-default active" data-status="all">All</button>
         <button class="btn btn-info" data-status="active"><i class="fa fa-clock-o"></i> Active</button>
         <button class="btn btn-success" data-status="completed"><i class="fa fa-check"></i> Completed</button>
@@ -97,13 +97,13 @@
     </div>
 
     <!-- My Paths (non-admin, user view) -->
-    <div id="myPathsSection" style="display:none;">
+    <div id="myPathsSection" class="u-hidden">
         <h3><i class="fa fa-user"></i> My Remediation Paths</h3>
         <div id="myPathsList"></div>
     </div>
 
     <!-- Empty State -->
-    <div id="pathsEmpty" style="display:none; text-align:center; padding:40px 0; color:#999;">
+    <div id="pathsEmpty" class="u-empty-state">
         <i class="fa fa-medkit fa-3x"></i>
         <h3>No remediation paths found.</h3>
         <p>Remediation paths are created automatically when repeat phishing offenders are escalated, or manually by admins.</p>
@@ -179,12 +179,12 @@
                 <h4 class="modal-title" id="detailPathName">Path Detail</h4>
             </div>
             <div class="modal-body">
-                <div class="row" style="margin-bottom:15px;">
+                <div class="row" class="u-mb15">
                     <div class="col-md-4"><strong>User:</strong> <span id="detailUser"></span></div>
                     <div class="col-md-4"><strong>Risk Level:</strong> <span id="detailRisk"></span></div>
                     <div class="col-md-4"><strong>Status:</strong> <span id="detailStatus"></span></div>
                 </div>
-                <div class="row" style="margin-bottom:15px;">
+                <div class="row" class="u-mb15">
                     <div class="col-md-4"><strong>Fail Count:</strong> <span id="detailFailCount"></span></div>
                     <div class="col-md-4"><strong>Due Date:</strong> <span id="detailDueDate"></span></div>
                     <div class="col-md-4"><strong>Completion:</strong> <span id="detailCompletion"></span></div>
@@ -192,7 +192,7 @@
                 <div class="progress" style="height:20px;">
                     <div id="detailProgressBar" class="progress-bar progress-bar-striped" role="progressbar" style="min-width:2em;"></div>
                 </div>
-                <h4 style="margin-top:20px;">Steps</h4>
+                <h4 class="u-mt20">Steps</h4>
                 <table class="table table-condensed">
                     <thead>
                         <tr>
@@ -209,7 +209,7 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
                 {{if .ModifyObjects}}
-                <button type="button" class="btn btn-danger" id="cancelPathBtn" style="display:none;"><i class="fa fa-ban"></i> Cancel Path</button>
+                <button type="button" class="btn btn-danger" id="cancelPathBtn" class="u-hidden"><i class="fa fa-ban"></i> Cancel Path</button>
                 {{end}}
             </div>
         </div>

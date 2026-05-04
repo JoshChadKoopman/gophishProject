@@ -51,6 +51,22 @@
   "mfa.invalid_code": "Invalid code — please try again",
   "mfa.lockout": "Account temporarily locked due to too many failed attempts. Please try again in 15 minutes.",
 
+  "mfa.verify.subtitle": "Enter the 6-digit code from your authenticator app, or enter one of your backup codes.",
+  "mfa.verify.code_placeholder": "6-digit code or backup code",
+  "mfa.verify.remember_device": "Remember this device for 30 days",
+  "mfa.verify.submit": "Verify",
+  "mfa.verify.back_to_login": "← Back to login",
+
+  "mfa.enroll.subtitle": "Scan this QR code with Google Authenticator, Authy, or any TOTP app. Then enter the 6-digit code to confirm enrollment.",
+  "mfa.enroll.code_placeholder": "6-digit code from your app",
+  "mfa.enroll.submit": "Confirm & Enable 2FA",
+
+  "mfa.backup_codes.warning_title": "Save these codes now.",
+  "mfa.backup_codes.warning_body": "They will not be shown again. Each code can only be used once.",
+  "mfa.backup_codes.download": "Download as text file",
+  "mfa.backup_codes.already_shown": "Your backup codes were already displayed and cannot be shown again. If you need new codes, please contact your administrator.",
+  "mfa.backup_codes.continue": "Continue to Dashboard",
+
   "page.dashboard": "Dashboard",
   "page.campaigns": "Campaigns",
   "page.campaign_results": "Campaign Results",

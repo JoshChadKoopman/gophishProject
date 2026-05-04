@@ -11,16 +11,87 @@ var labels = {
 var campaigns = []
 var campaign = {}
 
+// validateLaunchForm checks required fields before showing the confirmation.
+// Returns an array of error messages (empty = valid).
+function validateLaunchForm() {
+    var errors = []
+    var name = $("#name").val().trim()
+    if (!name) {
+        errors.push("Campaign name is required.")
+        $("#name").closest(".form-group").addClass("has-error")
+    } else {
+        $("#name").closest(".form-group").removeClass("has-error")
+    }
+    var templateData = $("#template").select2("data")
+    if (!templateData || templateData.length === 0 || !templateData[0].text) {
+        errors.push("An email template must be selected.")
+    }
+    var groupData = $("#users").select2("data")
+    if (!groupData || groupData.length === 0) {
+        errors.push("At least one target group must be selected.")
+    }
+    var campaignType = $("#campaign_type").val()
+    if (campaignType !== "sms") {
+        var url = $("#url").val().trim()
+        if (!url || !/^https?:\/\/.+/.test(url)) {
+            errors.push("URL must start with http:// or https://")
+            $("#url").closest(".form-group").addClass("has-error")
+        } else {
+            $("#url").closest(".form-group").removeClass("has-error")
+        }
+        var profileData = $("#profile").select2("data")
+        if (!profileData || profileData.length === 0 || !profileData[0].text) {
+            errors.push("A sending profile must be selected.")
+        }
+    }
+    return errors
+}
+
+// buildLaunchSummaryHtml builds the HTML summary shown in the confirmation dialog.
+function buildLaunchSummaryHtml() {
+    var campaignType = $("#campaign_type").val()
+    var templateData = $("#template").select2("data")
+    var templateName = templateData && templateData.length > 0 ? templateData[0].text : "—"
+    var groupData = $("#users").select2("data")
+    var groupNames = groupData ? groupData.map(function(g){ return escapeHtml(g.text) }).join(", ") : "—"
+    var launchDate = $("#launch_date").val() || "Immediately"
+    var rows = [
+        ["Type", escapeHtml(campaignType || "email")],
+        ["Template", escapeHtml(templateName)],
+        ["Groups", groupNames],
+        ["Launch", escapeHtml(launchDate)]
+    ]
+    if (campaignType !== "sms") {
+        rows.splice(3, 0, ["URL", escapeHtml($("#url").val())])
+    }
+    return '<table style="width:100%;text-align:left;font-size:0.93em;">' +
+        rows.map(function(r){
+            return '<tr><td style="padding:3px 10px 3px 0;font-weight:600;white-space:nowrap;color:#888;">' + r[0] +
+                   '</td><td style="padding:3px 0;word-break:break-all;">' + r[1] + '</td></tr>'
+        }).join('') + '</table>'
+}
+
 // Launch attempts to POST to /campaigns/
 function launch() {
+    var errors = validateLaunchForm()
+    if (errors.length > 0) {
+        $("#modal\\.flashes").empty().append(
+            '<div class="alert alert-danger"><i class="fa fa-exclamation-circle"></i> ' +
+            errors.map(function(e){ return escapeHtml(e) }).join("<br>") + "</div>"
+        )
+        return
+    }
+
+    var campaignName = escapeHtml($("#name").val().trim())
     Swal.fire({
-        title: "Are you sure?",
-        text: "This will schedule the campaign to be launched.",
+        title: "Launch: " + campaignName,
+        html: buildLaunchSummaryHtml(),
         type: "question",
         animation: false,
         showCancelButton: true,
-        confirmButtonText: "Launch",
+        confirmButtonText: "Launch Campaign",
         confirmButtonColor: "#E94560",
+        cancelButtonText: "Go Back",
         reverseButtons: true,
         allowOutsideClick: false,
         showLoaderOnConfirm: true,
@@ -32,17 +103,17 @@ function launch() {
                         name: group.text
                     });
                 })
-                // Validate our fields
                 var send_by_date = $("#send_by_date").val()
                 if (send_by_date != "") {
                     send_by_date = moment(send_by_date, "MMMM Do YYYY, h:mm a").utc().format()
                 }
                 var campaignType = $("#campaign_type").val()
+                var templateData = $("#template").select2("data")
                 campaign = {
                     name: $("#name").val(),
                     campaign_type: campaignType,
                     template: {
-                        name: $("#template").select2("data")[0].text
+                        name: templateData && templateData.length > 0 ? templateData[0].text : ""
                     },
                     url: $("#url").val(),
                     launch_date: moment($("#launch_date").val(), "MMMM Do YYYY, h:mm a").utc().format(),
@@ -57,7 +128,6 @@ function launch() {
                     campaign.sms_provider = {
                         name: smsData && smsData.length > 0 ? smsData[0].text : ""
                     }
-                    // Page is optional for SMS
                     var pageData = $("#page").select2("data")
                     if (pageData && pageData.length > 0 && pageData[0].text) {
                         campaign.page = { name: pageData[0].text }
@@ -66,14 +136,15 @@ function launch() {
                     }
                     campaign.smtp = { name: "" }
                 } else {
+                    var pageData2 = $("#page").select2("data")
                     campaign.page = {
-                        name: $("#page").select2("data")[0].text
+                        name: pageData2 && pageData2.length > 0 ? pageData2[0].text : ""
                     }
+                    var profileData = $("#profile").select2("data")
                     campaign.smtp = {
-                        name: $("#profile").select2("data")[0].text
+                        name: profileData && profileData.length > 0 ? profileData[0].text : ""
                     }
                 }
-                // Submit the campaign
                 api.campaigns.post(campaign)
                     .success(function (data) {
                         resolve()

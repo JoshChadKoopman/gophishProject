@@ -114,7 +114,10 @@ func (as *Server) handleTrainingAssetUpload(w http.ResponseWriter, r *http.Reque
 func (as *Server) TrainingAsset(w http.ResponseWriter, r *http.Request) {
 	user := ctx.Get(r, "user").(models.User)
 	vars := mux.Vars(r)
-	id, _ := strconv.ParseInt(vars["id"], 0, 64)
+	id, ok := parseIDParam(w, vars, "id")
+	if !ok {
+		return
+	}
 
 	asset, err := models.GetTrainingAsset(id, getOrgScope(r))
 	if err != nil {

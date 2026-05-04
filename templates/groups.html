@@ -22,7 +22,7 @@
         <!-- ===== ALL TAB ===== -->
         <div class="tab-pane active" id="allTab">
             {{if .ModifyObjects}}
-            <div class="row" style="margin-bottom:10px;">
+            <div class="row" class="u-mb10">
                 <button type="button" class="btn btn-primary" onclick="editGroup(-1)" data-toggle="modal" data-backdrop="static"
                     data-target="#groupModal">
                     <i class="fa fa-plus"></i> New Group</button>
@@ -36,14 +36,14 @@
             <div id="allLoading">
                 <i class="fa fa-spinner fa-spin fa-4x"></i>
             </div>
-            <div id="allEmptyMessage" class="row" style="display:none;">
+            <div id="allEmptyMessage" class="row" class="u-hidden">
                 <div class="alert alert-info">
                     No groups or users yet. Create one!
                 </div>
             </div>
             <h4>Groups</h4>
             <div class="row">
-                <table id="allGroupTable" class="table" style="display:none;">
+                <table id="allGroupTable" class="table" class="u-hidden">
                     <thead>
                         <tr>
                             <th>Name</th>
@@ -58,7 +58,7 @@
             {{if .ModifySystem}}
             <h4>Users</h4>
             <div class="row">
-                <table id="allUserTable" class="table" style="display:none;">
+                <table id="allUserTable" class="table" class="u-hidden">
                     <thead>
                         <tr>
                             <th>Name</th>
@@ -87,13 +87,13 @@
             <div id="groupLoading">
                 <i class="fa fa-spinner fa-spin fa-4x"></i>
             </div>
-            <div id="groupEmptyMessage" class="row" style="display:none;">
+            <div id="groupEmptyMessage" class="row" class="u-hidden">
                 <div class="alert alert-info">
                     No groups created yet. Let's create one!
                 </div>
             </div>
             <div class="row">
-                <table id="groupTable" class="table" style="display:none;">
+                <table id="groupTable" class="table" class="u-hidden">
                     <thead>
                         <tr>
                             <th>Name</th>
@@ -110,7 +110,7 @@
         <!-- ===== USERS TAB ===== -->
         {{if .ModifySystem}}
         <div class="tab-pane" id="dashboardUsersTab">
-            <div class="row" style="margin-bottom:10px;">
+            <div class="row" class="u-mb10">
                 <button type="button" class="btn btn-primary" id="new_user_button" data-toggle="modal" data-backdrop="static"
                     data-target="#userModal">
                     <i class="fa fa-plus"></i> New User</button>
@@ -126,7 +126,7 @@
                 <i class="fa fa-spinner fa-spin fa-4x"></i>
             </div>
             <div class="row">
-                <table id="dashboardUserTable" class="table" style="display:none;">
+                <table id="dashboardUserTable" class="table" class="u-hidden">
                     <thead>
                         <tr>
                             <th>Name</th>
@@ -162,7 +162,13 @@
                     <input type="text" class="form-control" placeholder="Group name" id="groupName" autofocus />
                 </div>
                 <hr/>
-                <h5><strong>Add Members</strong> <small class="text-muted">(only registered users can be added)</small></h5>
+                <h5><strong>Add Members</strong></h5>
+                <div class="alert alert-info" style="padding:8px 12px; font-size:0.88em; margin-bottom:12px;">
+                    <i class="fa fa-info-circle"></i>
+                    Only <strong>registered users</strong> can be added to groups.
+                    To add someone new, first create their user account in
+                    <a href="/users">Users &amp; Groups</a>, then return here to add them.
+                </div>
                 <div class="form-group">
                     <label class="control-label" for="userSelect">Select User:</label>
                     <div class="input-group">
@@ -175,16 +181,19 @@
                             </button>
                         </span>
                     </div>
+                    <div id="duplicate-user-warning" class="text-warning" style="display:none; font-size:0.88em; margin-top:4px;">
+                        <i class="fa fa-exclamation-triangle"></i> This user is already in the group.
+                    </div>
                 </div>
                 <div class="form-group" style="margin-top:8px;">
-                    <span class="btn btn-info btn-file btn-sm" data-toggle="tooltip" data-placement="right"
-                        title="CSV with columns: First Name, Last Name, Email, Position. Only registered users (matched by email) will be added.">
+                    <span class="btn btn-info btn-file btn-sm">
                         <i class="fa fa-upload"></i> Bulk Add via CSV
                         <input type="file" id="csvupload">
                     </span>
                     <span id="csv-template" class="text-muted small" style="cursor:pointer; margin-left:8px;">
                         <i class="fa fa-file-excel-o"></i> Download Group CSV Template</span>
                 </div>
+                <div id="csv-import-results" style="display:none; margin-top:8px;"></div>
                 <br/>
                 <table id="targetsTable" class="table table-hover table-striped table-condensed">
                     <thead>
@@ -268,7 +277,7 @@
                     <select class="form-control" id="role"></select>
                 </div>
                 <div class="form-group" id="role-description">
-                    <div class="well well-sm" id="role-desc-text" style="margin-bottom:0;">
+                    <div class="well well-sm" id="role-desc-text" class="u-mb0">
                         <small class="text-muted">Select a role to see its permissions.</small>
                     </div>
                 </div>

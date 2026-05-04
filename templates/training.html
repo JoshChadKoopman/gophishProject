@@ -25,9 +25,9 @@
         <i class="fa fa-spinner fa-spin fa-4x"></i>
     </div>
 
-    <div id="emptyMessage" style="display:none;">
+    <div id="emptyMessage" class="u-hidden">
         <div class="row">
-            <div class="col-md-12" style="text-align:center;">
+            <div class="col-md-12" class="u-text-center">
                 <i class="fa fa-graduation-cap fa-4x" style="color:#ccc;margin-bottom:15px;"></i>
                 <h3>No Training Presentations Yet</h3>
                 {{if .ModifySystem}}
@@ -39,7 +39,7 @@
         </div>
     </div>
 
-    <div id="trainingList" style="display:none;">
+    <div id="trainingList" class="u-hidden">
         <div id="trainingGrid" class="row">
             <!-- Cards will be injected here by JS -->
         </div>
@@ -294,14 +294,14 @@
 
                 <!-- Quiz Builder -->
                 <hr style="margin:20px 0 16px;">
-                <label class="control-label" style="cursor:pointer;">
+                <label class="control-label" class="u-cursor-ptr">
                     <input type="checkbox" id="editQuizEnabled" style="margin-right:6px;" />
                     Enable Quiz Assessment
                 </label>
                 <div id="editQuizSection" style="display:none; margin-top:12px;">
                     <div class="form-group">
                         <label class="control-label" for="editQuizPassPct">Pass Percentage:</label>
-                        <input type="number" class="form-control" id="editQuizPassPct" value="70" min="1" max="100" style="width:120px;" />
+                        <input type="number" class="form-control" id="editQuizPassPct" value="70" min="1" max="100" class="u-w120" />
                     </div>
                     <div id="editQuizQuestions"></div>
                     <button type="button" class="btn btn-default btn-sm" id="addQuizQuestion">
@@ -365,7 +365,7 @@
                 </button>
                 <h4 class="modal-title" id="courseViewerLabel">Course Viewer</h4>
             </div>
-            <div class="modal-body" style="padding:0;">
+            <div class="modal-body" class="u-p0">
                 <!-- Progress Bar -->
                 <div id="courseProgressSection" style="padding:12px 40px 0; background:#f9f9f9; border-bottom:1px solid #eee;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
@@ -433,7 +433,7 @@
                 <input type="hidden" id="assignPresentationId" />
                 <p><strong>Course:</strong> <span id="assignCourseName"></span></p>
 
-                <ul class="nav nav-tabs" role="tablist" style="margin-bottom:15px;">
+                <ul class="nav nav-tabs" role="tablist" class="u-mb15">
                     <li class="active" role="presentation"><a href="#assignUserTab" data-toggle="tab">Individual User</a></li>
                     <li role="presentation"><a href="#assignGroupTab" data-toggle="tab">Group</a></li>
                 </ul>
@@ -457,7 +457,7 @@
                     </div>
                 </div>
 
-                <div class="form-group" style="margin-top:10px;">
+                <div class="form-group" class="u-mt10">
                     <label class="control-label" for="assignDueDate">Due Date (optional):</label>
                     <input type="text" class="form-control" id="assignDueDate" placeholder="Select due date..." />
                 </div>
@@ -474,7 +474,7 @@
 
 <!-- Content Library Modal -->
 <div class="modal fade" id="contentLibraryModal" tabindex="-1">
-    <div class="modal-dialog modal-lg" style="width:90%; max-width:1100px;">
+    <div class="modal-dialog modal-lg" class="u-w90p-max1100">
         <div class="modal-content">
             <div class="modal-header" style="background:linear-gradient(135deg, #2c3e50, #3498db); color:#fff; border-bottom:none;">
                 <button type="button" class="close" data-dismiss="modal" style="color:#fff; opacity:0.8;">
@@ -483,18 +483,18 @@
                 <h4 class="modal-title"><i class="fa fa-book"></i> Built-in Content Library</h4>
                 <p style="margin:4px 0 0; font-size:13px; opacity:0.8;">Professional cybersecurity microlearning sessions, ready to deploy</p>
             </div>
-            <div class="modal-body" style="padding:20px;">
+            <div class="modal-body" class="u-p20">
                 <!-- Filters -->
                 <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid #eee;">
                     <div>
-                        <label style="font-size:11px; color:#888; display:block; margin-bottom:2px;">Category</label>
-                        <select id="libFilterCategory" class="form-control" style="width:180px;">
+                        <label class="u-hint-block">Category</label>
+                        <select id="libFilterCategory" class="form-control" class="u-w180">
                             <option value="">All Categories</option>
                         </select>
                     </div>
                     <div>
-                        <label style="font-size:11px; color:#888; display:block; margin-bottom:2px;">Difficulty</label>
-                        <select id="libFilterDifficulty" class="form-control" style="width:160px;">
+                        <label class="u-hint-block">Difficulty</label>
+                        <select id="libFilterDifficulty" class="form-control" class="u-w160">
                             <option value="">All Levels</option>
                             <option value="1">Bronze — Fundamentals</option>
                             <option value="2">Silver — Intermediate</option>
@@ -503,7 +503,7 @@
                         </select>
                     </div>
                     <div>
-                        <label style="font-size:11px; color:#888; display:block; margin-bottom:2px;">Search</label>
+                        <label class="u-hint-block">Search</label>
                         <input type="text" id="libSearchInput" class="form-control" placeholder="Search titles..." style="width:200px;" />
                     </div>
                     <div style="margin-left:auto; padding-top:16px;">
@@ -511,12 +511,12 @@
                     </div>
                 </div>
                 <!-- Content grid -->
-                <div id="libLoading" style="text-align:center; padding:40px;">
+                <div id="libLoading" class="u-center-pad">
                     <i class="fa fa-spinner fa-spin fa-3x"></i>
                 </div>
-                <div id="libGrid" class="row" style="display:none;"></div>
+                <div id="libGrid" class="row" class="u-hidden"></div>
                 <div id="libEmpty" style="display:none; text-align:center; padding:40px; color:#888;">
-                    <i class="fa fa-search fa-3x" style="margin-bottom:10px;"></i>
+                    <i class="fa fa-search fa-3x" class="u-mb10"></i>
                     <h4>No content matches your filters</h4>
                 </div>
             </div>
@@ -548,8 +548,8 @@
                             <p><strong>Duration:</strong> <span id="libDetailDuration"></span></p>
                             <p><strong>Pages:</strong> <span id="libDetailPageCount"></span></p>
                             <p><strong>Quiz:</strong> <span id="libDetailQuiz"></span></p>
-                            <div id="libDetailTags" style="margin-top:10px;"></div>
-                            <div id="libDetailCompliance" style="margin-top:10px;"></div>
+                            <div id="libDetailTags" class="u-mt10"></div>
+                            <div id="libDetailCompliance" class="u-mt10"></div>
                             <div id="libDetailNanoTip" style="margin-top:12px; background:#fff3cd; border-radius:6px; padding:10px; display:none;">
                                 <strong style="font-size:11px; color:#856404;"><i class="fa fa-lightbulb-o"></i> Nanolearning Tip</strong>
                                 <p id="libDetailNanoText" style="margin:4px 0 0; font-size:13px; color:#856404;"></p>
@@ -574,11 +574,11 @@
                 <h3 style="margin:0 0 6px; font-weight:700; color:#2c3e50;">How was this course?</h3>
                 <p style="color:#888; font-size:14px; margin-bottom:20px;">Your feedback helps us improve our training.</p>
                 <div id="satisfactionStars" style="font-size:36px; margin-bottom:16px; cursor:pointer;">
-                    <span class="sat-star" data-value="1" style="color:#ddd; transition:color 0.15s;">★</span>
-                    <span class="sat-star" data-value="2" style="color:#ddd; transition:color 0.15s;">★</span>
-                    <span class="sat-star" data-value="3" style="color:#ddd; transition:color 0.15s;">★</span>
-                    <span class="sat-star" data-value="4" style="color:#ddd; transition:color 0.15s;">★</span>
-                    <span class="sat-star" data-value="5" style="color:#ddd; transition:color 0.15s;">★</span>
+                    <span class="sat-star" data-value="1" class="u-transition-icon">★</span>
+                    <span class="sat-star" data-value="2" class="u-transition-icon">★</span>
+                    <span class="sat-star" data-value="3" class="u-transition-icon">★</span>
+                    <span class="sat-star" data-value="4" class="u-transition-icon">★</span>
+                    <span class="sat-star" data-value="5" class="u-transition-icon">★</span>
                 </div>
                 <p id="satRatingLabel" style="font-size:13px; color:#aaa; min-height:20px; margin-bottom:12px;"></p>
                 <textarea id="satFeedback" class="form-control" rows="2" placeholder="Optional: Share any feedback..." style="margin-bottom:16px; resize:none;"></textarea>

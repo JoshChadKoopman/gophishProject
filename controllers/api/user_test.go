@@ -76,7 +76,7 @@ func TestCreateUser(t *testing.T) {
 	testCtx := setupTest(t)
 	payload := &userRequest{
 		Username:  userTestEmail,
-		Password:  "ValidPass1ok",
+		Password:  "ValidPass1ok!",
 		FirstName: "Foo",
 		LastName:  "Bar",
 		Email:     userTestEmail,
@@ -117,7 +117,7 @@ func TestCreateUser(t *testing.T) {
 func TestModifyUser(t *testing.T) {
 	testCtx := setupTest(t)
 	unpriviledgedUser := createUnpriviledgedUser(t, models.RoleUser)
-	newPassword := "NewPass1word"
+	newPassword := "NewPass1word!"
 	newEmail := "new-user@example.com"
 	payload := userRequest{
 		Username:  newEmail,
